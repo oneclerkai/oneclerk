@@ -59,93 +59,512 @@ function renderIcons(root) { if (window.lucide) window.lucide.createIcons({ attr
 
 // --- Auth view ---
 route("auth", async () => {
+  // Pre-build the brand pixel logo "O" (7x7 grid)
+  const logoMatrix = [
+    [0,1,1,1,1,1,0],
+    [1,2,0,0,0,2,1],
+    [1,0,0,2,0,0,1],
+    [1,0,2,2,2,0,1],
+    [1,0,0,2,0,0,1],
+    [1,2,0,0,0,2,1],
+    [0,1,1,1,1,1,0],
+  ];
+  const pixelLogoCells = logoMatrix.flat().map(v =>
+    `<i class="${v===1?'on':v===2?'dim':''}"></i>`).join("");
+
   const root = h(`
-    <div class="auth-split">
-      <div class="auth-side">
-        <div class="brand" style="z-index:1">
-          <div class="brand-mark">O</div>
-          <div>
-            <div style="font-weight:700;font-size:18px">OneClerk</div>
-            <div style="font-size:12px;color:var(--muted)">Voice AI Receptionist</div>
-          </div>
+    <div class="landing">
+      <canvas class="pixel-canvas" id="px-canvas"></canvas>
+      <div class="pixel-veil"></div>
+      <div class="perspective" id="perspective"></div>
+
+      <nav class="landing-nav">
+        <div class="nav-brand">
+          <div class="pixel-logo">${pixelLogoCells}</div>
+          <div class="brand-name">ONECLERK</div>
         </div>
-        <div style="z-index:1">
-          <h1 style="font-size:38px;line-height:1.1;margin:0 0 14px;font-weight:700">Never miss a call.<br>Never lose a patient.</h1>
-          <p style="color:var(--muted);max-width:440px;font-size:14.5px;line-height:1.6">OneClerk answers your missed calls in your business's voice — books appointments, flags emergencies, and texts you a summary on WhatsApp.</p>
+        <div class="nav-links">
+          <a data-scroll="how">How it works</a>
+          <a data-scroll="agents">Agents</a>
+          <a data-scroll="pricing">Pricing</a>
+          <a data-scroll="docs">Docs</a>
         </div>
-        <div id="quotes" style="z-index:1"></div>
+        <div class="nav-cta">
+          <button class="ghost" data-open-auth="login">Sign in</button>
+          <button class="glass-pill" data-open-auth="signup">
+            <span>Get Started</span>
+            <span class="arrow">→</span>
+          </button>
+        </div>
+      </nav>
+
+      <div class="vertical-text-left">SYS // ONECLERK · v1.0 · UPLINK STABLE</div>
+      <div class="vertical-text">
+        WHEN <span class="accent">AI</span> MEETS <span class="accent">INTELLIGENCE</span>
       </div>
-      <div class="auth-form-wrap">
-        <div class="auth-card">
-          <div class="tabs mb-6" id="auth-tabs">
-            <button class="tab active" data-mode="login">Log in</button>
-            <button class="tab" data-mode="signup">Create account</button>
-          </div>
-          <form id="auth-form" class="grid" style="gap:12px">
-            <div id="name-row" class="hidden">
-              <label class="label">Your name</label>
-              <input id="name" class="field" placeholder="Jane Cooper" autocomplete="name"/>
-            </div>
-            <div>
-              <label class="label">Work email</label>
-              <input id="email" type="email" class="field" placeholder="you@business.com" autocomplete="email" required/>
-            </div>
-            <div>
-              <label class="label">Password</label>
-              <input id="password" type="password" class="field" placeholder="At least 6 characters" minlength="6" autocomplete="current-password" required/>
-            </div>
-            <button class="btn btn-primary btn-lg mt-2" id="auth-submit">
-              <i data-lucide="arrow-right" class="icon"></i><span>Continue</span>
-            </button>
-            <div id="auth-err" class="text-xs text-danger hidden"></div>
-          </form>
-          <p class="text-xs text-muted mt-6 text-center">By continuing you agree to OneClerk's terms of service.</p>
+
+      <main class="landing-hero">
+        <div class="crystal-stage">
+          <div class="crystal-glow"></div>
+          <canvas id="crystal-canvas" width="560" height="560"></canvas>
         </div>
+        <div class="eyebrow">
+          <span class="dot"></span>
+          <span>AGENTIC RECEPTION · LIVE NOW</span>
+          <span class="dot"></span>
+        </div>
+        <h1>
+          AN AGENT THAT <span class="accent">ANSWERS</span><br/>
+          WHEN THE <span class="light">PHONE WON'T WAIT.</span>
+        </h1>
+        <div class="sub" id="sub-rotate">
+          <span id="sub-text"></span><span class="caret"></span>
+        </div>
+        <div class="cta-row">
+          <button class="cta-primary" data-open-auth="signup">
+            <span>Spin up an agent</span><span>→</span>
+          </button>
+          <button class="cta-secondary" data-open-auth="login">
+            <span>I already have one</span>
+          </button>
+        </div>
+        <div class="crystal-caption">PIXEL · GLASS · CRYSTAL // CORE 0x4A</div>
+      </main>
+
+      <div class="ground-line">
+        <span>EST · 2026 · BUILT FOR THE CALLS THAT MATTER</span>
+        <span>RECEPTION → ROUTING → REPLY → RECORDED</span>
       </div>
     </div>`);
 
-  const quotes = [
-    { q: "We were missing 30% of our calls. Now I get a WhatsApp summary for every single one.", a: "— Dr. Sarah, City Dental" },
-    { q: "Setup took 12 minutes. Booked 3 appointments in the first day.", a: "— Priya, Lotus Spa" },
-    { q: "Sounds exactly like a real receptionist. Patients have no idea.", a: "— Raj, Skyline Clinic" },
-  ];
-  let qi = 0;
-  const qroot = $("#quotes", root);
-  const renderQ = () => {
-    const q = quotes[qi];
-    qroot.innerHTML = `<div class="card p-5" style="background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.08);max-width:440px"><div style="font-size:14px;line-height:1.5">"${q.q}"</div><div class="text-xs text-muted mt-3">${q.a}</div></div>`;
+  // === Mount + animate ===
+  setTimeout(() => {
+    initPixelField(root.querySelector("#px-canvas"));
+    drawPixelCrystal(root.querySelector("#crystal-canvas"));
+    initPerspectiveLines(root.querySelector("#perspective"));
+    initSubtitleRotator(root.querySelector("#sub-text"));
+  }, 0);
+
+  // CTAs → modal
+  root.querySelectorAll("[data-open-auth]").forEach(b =>
+    b.addEventListener("click", () => openAuthModal(b.dataset.openAuth))
+  );
+
+  return root;
+});
+
+// --- Landing helpers ---
+
+const SUBTITLES = [
+  "Your AI receptionist — answering missed calls in your business's voice.",
+  "Books appointments. Flags emergencies. Texts the WhatsApp summary.",
+  "Twelve minutes to set up. A lifetime of never missing a call again.",
+  "It speaks like you, listens like you, works while you sleep.",
+  "Built for clinics, salons, hotels — every place that picks up the phone.",
+  "From the first ring to the last word, a receptionist that never blinks.",
+  "Trained for reception. Tuned for voice. Engineered for restraint.",
+  "Every call is captured. Every caller is heard. Nothing falls through.",
+  "An agent that listens before it speaks — and acts before you ask.",
+  "Designed in pixels. Trained in patience. Deployed in seconds.",
+];
+
+function initSubtitleRotator(el) {
+  if (!el) return;
+  let idx = 0, charIdx = 0, deleting = false, current = SUBTITLES[0];
+  function tick() {
+    if (!deleting) {
+      charIdx++;
+      el.textContent = current.slice(0, charIdx);
+      if (charIdx >= current.length) {
+        deleting = true;
+        setTimeout(tick, 2600);
+        return;
+      }
+      setTimeout(tick, 22 + Math.random() * 30);
+    } else {
+      charIdx -= 2;
+      el.textContent = current.slice(0, Math.max(0, charIdx));
+      if (charIdx <= 0) {
+        deleting = false;
+        idx = (idx + 1) % SUBTITLES.length;
+        current = SUBTITLES[idx];
+        setTimeout(tick, 280);
+        return;
+      }
+      setTimeout(tick, 12);
+    }
+  }
+  tick();
+}
+
+function initPerspectiveLines(host) {
+  if (!host) return;
+  const draw = () => {
+    const W = window.innerWidth, H = window.innerHeight;
+    const cx = W / 2, cy = H / 2;
+    const sq = 28; // half-side of center square
+    const x1 = cx - sq, y1 = cy - sq, x2 = cx + sq, y2 = cy + sq;
+    host.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="pl-grad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="rgba(125,163,255,0.0)"/>
+            <stop offset="60%" stop-color="rgba(125,163,255,0.25)"/>
+            <stop offset="100%" stop-color="rgba(199,216,255,0.5)"/>
+          </linearGradient>
+        </defs>
+        <!-- Glow underlay -->
+        <line class="pl-glow" x1="0" y1="0" x2="${x1}" y2="${y1}"/>
+        <line class="pl-glow" x1="${W}" y1="0" x2="${x2}" y2="${y1}"/>
+        <line class="pl-glow" x1="0" y1="${H}" x2="${x1}" y2="${y2}"/>
+        <line class="pl-glow" x1="${W}" y1="${H}" x2="${x2}" y2="${y2}"/>
+        <!-- Crisp lines -->
+        <line class="pl" x1="0" y1="0" x2="${x1}" y2="${y1}" stroke="url(#pl-grad)"/>
+        <line class="pl" x1="${W}" y1="0" x2="${x2}" y2="${y1}" stroke="url(#pl-grad)"/>
+        <line class="pl" x1="0" y1="${H}" x2="${x1}" y2="${y2}" stroke="url(#pl-grad)"/>
+        <line class="pl" x1="${W}" y1="${H}" x2="${x2}" y2="${y2}" stroke="url(#pl-grad)"/>
+        <!-- Center square (outer dashed + crisp inner) -->
+        <rect class="center-square outer" x="${x1-12}" y="${y1-12}" width="${(sq+12)*2}" height="${(sq+12)*2}"/>
+        <rect class="center-square" x="${x1}" y="${y1}" width="${sq*2}" height="${sq*2}"/>
+        <!-- Tick marks at midpoints -->
+        <line class="pl" x1="${cx}" y1="${y1-18}" x2="${cx}" y2="${y1-6}"/>
+        <line class="pl" x1="${cx}" y1="${y2+6}" x2="${cx}" y2="${y2+18}"/>
+        <line class="pl" x1="${x1-18}" y1="${cy}" x2="${x1-6}" y2="${cy}"/>
+        <line class="pl" x1="${x2+6}" y1="${cy}" x2="${x2+18}" y2="${cy}"/>
+      </svg>`;
   };
-  renderQ();
-  setInterval(() => { qi = (qi + 1) % quotes.length; renderQ(); }, 4500);
+  draw();
+  let raf;
+  window.addEventListener("resize", () => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(draw);
+  });
+}
 
-  let mode = "login";
-  $$("#auth-tabs .tab", root).forEach(b => b.addEventListener("click", () => {
-    mode = b.dataset.mode;
-    $$("#auth-tabs .tab", root).forEach(x => x.classList.toggle("active", x === b));
-    $("#name-row", root).classList.toggle("hidden", mode !== "signup");
-    $("#name", root).required = mode === "signup";
-    $("#auth-submit span", root).textContent = mode === "signup" ? "Create account" : "Continue";
-  }));
+// Reactive pixel field — black/blue/white tiny squares
+function initPixelField(canvas) {
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const PX = 4;        // pixel size in screen px
+  const DENSITY = 0.42; // fraction of cells that are filled
+  const HOVER_R = 170;  // mouse influence radius
+  let cells = [];
+  let baseImg = null;
+  let mx = -9999, my = -9999, prev = null;
 
-  $("#auth-form", root).addEventListener("submit", async (e) => {
+  function regen() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const cw = Math.ceil(canvas.width / PX);
+    const ch = Math.ceil(canvas.height / PX);
+    cells = [];
+    // Black/blue/white palette, biased dark
+    const palettes = [
+      { base: "#0a1024", hover: "#7da3ff" },   // dark navy → bright blue
+      { base: "#142046", hover: "#a3c0ff" },   // mid navy → pale blue
+      { base: "#1a2f6a", hover: "#c7d8ff" },   // brighter blue → near-white
+      { base: "#0a0f1e", hover: "#ffffff" },   // black → white
+      { base: "#070a17", hover: "#9bb6ff" },   // off-black → soft blue
+    ];
+    for (let y = 0; y < ch; y++) {
+      for (let x = 0; x < cw; x++) {
+        if (Math.random() > DENSITY) continue;
+        // bias more sparkles in middle band
+        const cyy = ch / 2;
+        const bias = 1 - Math.abs(y - cyy) / cyy;
+        if (Math.random() > 0.6 + bias * 0.3) continue;
+        const p = palettes[Math.floor(Math.random() * palettes.length)];
+        const alpha = 0.28 + Math.random() * 0.5;
+        cells.push({ x: x * PX, y: y * PX, base: p.base, hover: p.hover, alpha });
+      }
+    }
+    drawBase();
+  }
+
+  function drawBase() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const c of cells) {
+      ctx.globalAlpha = c.alpha;
+      ctx.fillStyle = c.base;
+      ctx.fillRect(c.x, c.y, PX, PX);
+    }
+    ctx.globalAlpha = 1;
+    baseImg = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  }
+
+  function repaintRegion(rx, ry) {
+    const pad = HOVER_R + PX * 2;
+    const x = Math.max(0, Math.floor(rx - pad));
+    const y = Math.max(0, Math.floor(ry - pad));
+    const w = Math.min(canvas.width - x, pad * 2);
+    const hh = Math.min(canvas.height - y, pad * 2);
+    if (w <= 0 || hh <= 0) return;
+    ctx.putImageData(baseImg, 0, 0, x, y, w, hh);
+  }
+
+  function drawHover() {
+    if (mx < -1000) return;
+    const r2 = HOVER_R * HOVER_R;
+    const minX = mx - HOVER_R, maxX = mx + HOVER_R;
+    const minY = my - HOVER_R, maxY = my + HOVER_R;
+    for (const c of cells) {
+      if (c.x < minX || c.x > maxX || c.y < minY || c.y > maxY) continue;
+      const dx = c.x - mx, dy = c.y - my;
+      const d2 = dx * dx + dy * dy;
+      if (d2 > r2) continue;
+      const t = 1 - Math.sqrt(d2) / HOVER_R;
+      ctx.globalAlpha = Math.min(1, t * 1.05);
+      ctx.fillStyle = c.hover;
+      ctx.fillRect(c.x, c.y, PX, PX);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  let dirty = true;
+  function frame() {
+    if (dirty || prev) {
+      // erase last region
+      if (prev) repaintRegion(prev.x, prev.y);
+      drawHover();
+      prev = mx > -1000 ? { x: mx, y: my } : null;
+      dirty = false;
+    }
+    requestAnimationFrame(frame);
+  }
+
+  regen();
+  frame();
+  let resizeT;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeT);
+    resizeT = setTimeout(() => { regen(); dirty = true; }, 120);
+  });
+  window.addEventListener("mousemove", (e) => {
+    mx = e.clientX; my = e.clientY; dirty = true;
+  }, { passive: true });
+  window.addEventListener("touchmove", (e) => {
+    if (e.touches[0]) { mx = e.touches[0].clientX; my = e.touches[0].clientY; dirty = true; }
+  }, { passive: true });
+  window.addEventListener("mouseleave", () => { mx = -9999; my = -9999; dirty = true; });
+}
+
+// Faceted pixel-art crystal — diamond with shaded facets + dithering + sparkles
+function drawPixelCrystal(canvas) {
+  if (!canvas) return;
+  const W = canvas.width, H = canvas.height;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, W, H);
+  const PX = 4;
+  const cw = Math.floor(W / PX), ch = Math.floor(H / PX);
+  const cx = cw / 2, cy = ch / 2;
+  const rx = cw * 0.36, ry = ch * 0.44;
+
+  // Diamond vertices
+  const T = [cx, cy - ry];
+  const R = [cx + rx, cy + ry * 0.05];
+  const B = [cx, cy + ry];
+  const L = [cx - rx, cy + ry * 0.05];
+  const C = [cx, cy - ry * 0.15]; // upper-shifted center for facet break
+
+  // Facets with base brightness (lit from upper-left)
+  const facets = [
+    { tri: [T, L, C], base: 0.86, name: "TL" }, // upper-left bright
+    { tri: [T, R, C], base: 0.62, name: "TR" }, // upper-right
+    { tri: [B, L, C], base: 0.40, name: "BL" }, // lower-left
+    { tri: [B, R, C], base: 0.22, name: "BR" }, // lower-right (deepest)
+  ];
+
+  // 4x4 Bayer dither matrix
+  const bayer = [
+    [ 0, 8, 2,10],
+    [12, 4,14, 6],
+    [ 3,11, 1, 9],
+    [15, 7,13, 5],
+  ];
+
+  const palette = [
+    { t: 0.92, c: "#ffffff" },
+    { t: 0.78, c: "#dde6ff" },
+    { t: 0.62, c: "#9ebcff" },
+    { t: 0.46, c: "#5e7fd8" },
+    { t: 0.30, c: "#324a98" },
+    { t: 0.16, c: "#172149" },
+    { t: 0.00, c: "#0a0f1e" },
+  ];
+  function pickColor(b) {
+    for (const p of palette) if (b >= p.t) return p.c;
+    return "#04060d";
+  }
+
+  function pointInTri(px, py, tri) {
+    const [a,bv,c] = tri;
+    const d1 = (px-c[0])*(a[1]-c[1]) - (a[0]-c[0])*(py-c[1]);
+    const d2 = (px-a[0])*(bv[1]-a[1]) - (bv[0]-a[0])*(py-a[1]);
+    const d3 = (px-bv[0])*(c[1]-bv[1]) - (c[0]-bv[0])*(py-bv[1]);
+    const hasNeg = d1<0 || d2<0 || d3<0;
+    const hasPos = d1>0 || d2>0 || d3>0;
+    return !(hasNeg && hasPos);
+  }
+
+  for (let y = 0; y < ch; y++) {
+    for (let x = 0; x < cw; x++) {
+      let b = -1;
+      let inside = false;
+      for (const f of facets) {
+        if (pointInTri(x + 0.5, y + 0.5, f.tri)) {
+          inside = true;
+          // gradient inside facet for refraction look
+          const dx = (x - cx) / rx, dy = (y - cy) / ry;
+          const radial = Math.sqrt(dx*dx + dy*dy);
+          // nudge brightness slightly by radial pos so edges glow
+          let local = f.base + (radial - 0.5) * 0.18;
+          // small ordered dither
+          local += (bayer[y % 4][x % 4] / 16 - 0.45) * 0.16;
+          // soft scanline ripple
+          local += Math.sin(y * 0.4 + x * 0.05) * 0.015;
+          b = Math.max(0, Math.min(1, local));
+          break;
+        }
+      }
+      if (!inside) continue;
+      ctx.fillStyle = pickColor(b);
+      ctx.fillRect(x * PX, y * PX, PX, PX);
+    }
+  }
+
+  // Crystal outline (thin pixel border)
+  function drawLine(p1, p2, color) {
+    const steps = Math.ceil(Math.max(Math.abs(p2[0]-p1[0]), Math.abs(p2[1]-p1[1]))) * 2;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const x = Math.round(p1[0] + (p2[0]-p1[0]) * t);
+      const y = Math.round(p1[1] + (p2[1]-p1[1]) * t);
+      ctx.fillStyle = color;
+      ctx.fillRect(x * PX, y * PX, PX, PX);
+    }
+  }
+  drawLine(T, R, "#dde6ff");
+  drawLine(T, L, "#dde6ff");
+  drawLine(B, R, "#324a98");
+  drawLine(B, L, "#5e7fd8");
+  // inner facet edges
+  drawLine(T, C, "#9ebcff");
+  drawLine(L, C, "#5e7fd8");
+  drawLine(R, C, "#324a98");
+  drawLine(B, C, "#172149");
+
+  // Specular sparkles
+  const sparkles = [
+    [cx - rx * 0.45, cy - ry * 0.55],
+    [cx - rx * 0.18, cy - ry * 0.25],
+    [cx + rx * 0.25, cy - ry * 0.45],
+  ];
+  ctx.fillStyle = "#ffffff";
+  sparkles.forEach(([sx, sy]) => {
+    const x = Math.round(sx), y = Math.round(sy);
+    [[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy]) =>
+      ctx.fillRect((x+dx) * PX, (y+dy) * PX, PX, PX));
+  });
+
+  // Floating dust pixels around crystal
+  for (let i = 0; i < 60; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = ry * (1.05 + Math.random() * 0.55);
+    const x = Math.round(cx + Math.cos(angle) * dist);
+    const y = Math.round(cy + Math.sin(angle) * dist);
+    if (x < 0 || x >= cw || y < 0 || y >= ch) continue;
+    const shade = ["#7da3ff","#c7d8ff","#324a98","#ffffff"][Math.floor(Math.random()*4)];
+    ctx.globalAlpha = 0.3 + Math.random() * 0.5;
+    ctx.fillStyle = shade;
+    ctx.fillRect(x * PX, y * PX, PX, PX);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function openAuthModal(initialMode = "login") {
+  // remove any existing modal
+  document.querySelectorAll(".auth-modal-backdrop").forEach(n => n.remove());
+  let mode = initialMode === "signup" ? "signup" : "login";
+  const modal = h(`
+    <div class="auth-modal-backdrop">
+      <div class="auth-modal" role="dialog" aria-modal="true">
+        <button class="x-close" aria-label="Close">×</button>
+        <h2 id="m-title">Welcome back</h2>
+        <div class="modal-sub" id="m-sub">Sign in to manage your agents and calls.</div>
+        <div class="auth-tabs" id="m-tabs">
+          <button class="${mode==='login'?'active':''}" data-mode="login">Sign in</button>
+          <button class="${mode==='signup'?'active':''}" data-mode="signup">Create account</button>
+        </div>
+        <form id="m-form" class="grid" style="gap:12px">
+          <div id="m-name-row" class="${mode==='signup'?'':'hidden'}">
+            <label class="label">Your name</label>
+            <input id="m-name" class="field" placeholder="Jane Cooper" autocomplete="name"/>
+          </div>
+          <div>
+            <label class="label">Work email</label>
+            <input id="m-email" type="email" class="field" placeholder="you@business.com" autocomplete="email" required/>
+          </div>
+          <div>
+            <label class="label">Password</label>
+            <input id="m-password" type="password" class="field" placeholder="At least 6 characters" minlength="6" autocomplete="current-password" required/>
+          </div>
+          <button class="btn btn-primary btn-lg mt-2" id="m-submit" type="submit">
+            <i data-lucide="arrow-right" class="icon"></i><span>${mode==='signup'?'Create account':'Continue'}</span>
+          </button>
+          <div id="m-err" class="text-xs text-danger hidden"></div>
+        </form>
+        <p class="text-xs text-muted mt-6 text-center" style="color:rgba(231,234,243,0.45)">
+          By continuing you agree to OneClerk's terms of service.
+        </p>
+      </div>
+    </div>`);
+  document.body.appendChild(modal);
+  renderIcons(modal);
+
+  const close = () => modal.remove();
+  modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+  $(".x-close", modal).addEventListener("click", close);
+  document.addEventListener("keydown", function escClose(ev) {
+    if (ev.key === "Escape" && document.body.contains(modal)) {
+      close();
+      document.removeEventListener("keydown", escClose);
+    }
+  });
+
+  const setMode = (m) => {
+    mode = m;
+    $$("#m-tabs button", modal).forEach(b => b.classList.toggle("active", b.dataset.mode === m));
+    $("#m-name-row", modal).classList.toggle("hidden", m !== "signup");
+    $("#m-name", modal).required = m === "signup";
+    $("#m-submit span", modal).textContent = m === "signup" ? "Create account" : "Continue";
+    $("#m-title", modal).textContent = m === "signup" ? "Create your account" : "Welcome back";
+    $("#m-sub", modal).textContent = m === "signup"
+      ? "Set up your AI receptionist in under twelve minutes."
+      : "Sign in to manage your agents and calls.";
+  };
+  $$("#m-tabs button", modal).forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
+
+  $("#m-form", modal).addEventListener("submit", async (e) => {
     e.preventDefault();
-    const err = $("#auth-err", root); err.classList.add("hidden");
+    const err = $("#m-err", modal); err.classList.add("hidden");
     const body = mode === "signup"
-      ? { name: $("#name", root).value, email: $("#email", root).value, password: $("#password", root).value }
-      : { email: $("#email", root).value, password: $("#password", root).value };
+      ? { name: $("#m-name", modal).value, email: $("#m-email", modal).value, password: $("#m-password", modal).value }
+      : { email: $("#m-email", modal).value, password: $("#m-password", modal).value };
     try {
       const r = await api(`/auth/${mode}`, { method: "POST", body, auth: false });
       Store.token = r.access_token;
       const me = await api("/auth/me");
       Store.user = me;
       toast(`Welcome${me.name ? ", " + me.name.split(" ")[0] : ""}!`, "success");
+      close();
       navigate("#/");
     } catch (ex) {
       err.textContent = ex.message; err.classList.remove("hidden");
     }
   });
-  return root;
-});
+
+  setTimeout(() => $("#m-email", modal).focus(), 50);
+}
 
 // --- Layout shell ---
 function shell(activeKey, title, subtitle, action) {
