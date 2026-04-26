@@ -72,7 +72,8 @@ See `.env.example`. The app starts cleanly with none configured; features degrad
 
 ## Frontend
 - `app/static/index.html` — shell that loads `styles.css` + `app.js` + Lucide + Inter.
-- `app/static/app.js` — vanilla-JS hash router with pages: split login/signup, dashboard (stat cards + recent calls + agents panel), calls (search/filter + slide-in detail panel), agents grid, agent create/edit form, carrier setup-instructions page, settings, billing (Stripe checkout + customer portal).
+- `app/static/app.js` — vanilla-JS hash router with pages: split login/signup, dashboard (stat cards + recent calls + agents panel), calls (search/filter + slide-in detail panel), agents grid, agent create/edit form, **drag-and-drop flow builder** (`/agents/:id/flow`), multi-step **Connect** wizard with built-in **test-chat** widget (`/agents/:id/setup`), settings, billing (Stripe checkout + customer portal). Each agent screen shares a Profile / Flow / Connect sub-tab navigation.
+- **Flow builder**: nodes are typed (greeting, ask, info, branch, book, whatsapp, escalate, end), saved to `agent.config.flow = {nodes, edges}`. The AI brain (`app/services/ai_brain.py::_flow_to_script`) converts the graph into a numbered script appended to the system prompt, so flow edits affect live calls without code changes.
 - Theme: deep navy `#0A0F1E` with indigo `#6366F1` accent; dark UI throughout.
 
 ## Deployment

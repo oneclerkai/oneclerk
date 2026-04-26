@@ -414,10 +414,11 @@ route("agents", async () => {
         <div class="text-xs text-muted mb-2">${escapeHtml(a.config?.business_name || "—")} · ${escapeHtml(a.config?.business_type || "")}</div>
         <div class="text-xs text-muted mb-4">📞 ${escapeHtml(a.twilio_number || "no Twilio number")}</div>
         <div class="text-xs text-muted mb-4">Language: ${escapeHtml(a.config?.language || "English")} · ${a.calls_this_month || 0} calls this month</div>
-        <div class="flex gap-2">
+        <div class="flex gap-2" style="flex-wrap:wrap">
           <button class="btn btn-sm" data-edit="${a.id}"><i data-lucide="pencil" class="icon"></i>Edit</button>
+          <button class="btn btn-sm" data-flow="${a.id}"><i data-lucide="git-branch" class="icon"></i>Flow</button>
+          <button class="btn btn-sm" data-setup="${a.id}"><i data-lucide="phone" class="icon"></i>Connect</button>
           <button class="btn btn-sm" data-toggle="${a.id}" data-active="${a.is_active}">${a.is_active ? "Pause" : "Activate"}</button>
-          <button class="btn btn-sm" data-setup="${a.id}"><i data-lucide="phone" class="icon"></i>Setup</button>
           <button class="btn btn-sm btn-danger" data-del="${a.id}"><i data-lucide="trash-2" class="icon"></i></button>
         </div>
       </div>`).join("") + `
@@ -429,6 +430,7 @@ route("agents", async () => {
     $("#add-card", grid).addEventListener("click", () => navigate("#/agents/new"));
     $$("[data-edit]", grid).forEach(b => b.addEventListener("click", () => navigate(`#/agents/${b.dataset.edit}/edit`)));
     $$("[data-setup]", grid).forEach(b => b.addEventListener("click", () => navigate(`#/agents/${b.dataset.setup}/setup`)));
+    $$("[data-flow]", grid).forEach(b => b.addEventListener("click", () => navigate(`#/agents/${b.dataset.flow}/flow`)));
     $$("[data-toggle]", grid).forEach(b => b.addEventListener("click", async () => {
       const active = b.dataset.active === "true";
       try {
@@ -544,23 +546,25 @@ route("agentNew", async () => {
 });
 
 route("agentEdit", async (id) => {
-  const wrap = shell("agents", "Edit agent", "");
+  const wrap = shell("agents", "Edit agent", "Profile, business knowledge, and the agent's voice & language.");
   const page = $("#page", wrap);
   page.innerHTML = skeleton(4);
   try {
-    const list = (await api("/agents/list")).agents || [];
-    const a = list.find(x => x.id === id);
+    const a = (await api(`/agents/${id}`)).agent;
     if (!a) throw new Error("Agent not found");
     page.innerHTML = "";
+    page.appendChild(agentSubtabs(id, "edit"));
     const form = agentForm(a);
     page.appendChild(form);
     $("#cancel", form).addEventListener("click", () => navigate("#/agents"));
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       try {
-        await api(`/agents/${id}`, { method: "PUT", body: readAgentForm(form) });
+        // Preserve existing flow when saving profile changes.
+        const body = readAgentForm(form);
+        if (a.config && a.config.flow) body.config.flow = a.config.flow;
+        await api(`/agents/${id}`, { method: "PUT", body });
         toast("Saved", "success");
-        navigate("#/agents");
       } catch (ex) { $("#err", form).textContent = ex.message; $("#err", form).classList.remove("hidden"); }
     });
   } catch (e) { page.innerHTML = `<div class="text-danger">${escapeHtml(e.message)}</div>`; }
@@ -568,73 +572,196 @@ route("agentEdit", async (id) => {
 });
 
 route("agentSetup", async (id) => {
-  const wrap = shell("agents", "Connect your phone", "OneClerk only answers calls you miss. Your phone always rings first.");
+  const wrap = shell("agents", "Connect this agent", "Wire up the phone, WhatsApp, and bookings — one step at a time.");
   const page = $("#page", wrap);
-  page.innerHTML = skeleton(2);
+  page.innerHTML = skeleton(3);
   try {
-    const list = (await api("/agents/list")).agents || [];
-    const a = list.find(x => x.id === id);
+    const a = (await api(`/agents/${id}`)).agent;
     if (!a) throw new Error("Agent not found");
-    if (!a.twilio_number) {
-      page.innerHTML = `<div class="card p-6 text-center"><div class="text-lg font-semibold mb-2">No Twilio number set</div><div class="text-sm text-muted mb-4">Edit your agent and add a Twilio number first.</div><button class="btn btn-primary" id="ed">Edit agent</button></div>`;
-      $("#ed", page).addEventListener("click", () => navigate(`#/agents/${id}/edit`));
-      renderIcons(page);
-      return;
-    }
-    const carriers = [
-      { v: "iphone", l: "iPhone" },
-      { v: "android", l: "Android" },
-      { v: "airtel", l: "Airtel (India)" },
-      { v: "jio", l: "Jio (India)" },
-      { v: "bsnl", l: "BSNL (India)" },
-      { v: "vi", l: "Vi (India)" },
-      { v: "generic", l: "Other carrier" },
-    ];
-    const fetchInst = async (carrier) => api(`/agents/${id}/setup-instructions?carrier=${carrier}`);
-    const inst = await fetchInst("iphone");
-    page.innerHTML = `
-      <div class="card p-5 mb-4">
-        <div class="font-semibold mb-2">${escapeHtml(inst.headline)}</div>
-        <div class="text-sm text-muted">${escapeHtml(inst.test_instruction)}</div>
-      </div>
-      <div class="grid" style="grid-template-columns: 1fr 1fr; gap:16px">
-        <div class="card p-5">
-          <div class="stat-label mb-2">Activate code</div>
-          <div class="flex items-center gap-2">
-            <div class="text-xl font-semibold" id="code">${escapeHtml(inst.activate_code)}</div>
-            <button class="btn btn-sm" id="copy"><i data-lucide="copy" class="icon"></i>Copy</button>
-          </div>
-          <div class="stat-label mt-4 mb-2">Deactivate</div>
-          <div class="text-md font-medium">${escapeHtml(inst.deactivate_code)}</div>
+    page.appendChild(agentSubtabs(id, "connect"));
+
+    const status = a.connection_status || {};
+    const cfg = a.config || {};
+    const stepRow = (n, title, body, done, action) => `
+      <div class="connect-step ${done ? 'done' : ''}">
+        <div class="step-num">${done ? '✓' : n}</div>
+        <div>
+          <h4>${escapeHtml(title)}</h4>
+          <p>${body}</p>
         </div>
-        <div class="card p-5">
-          <div class="flex items-center justify-between mb-2">
-            <div class="stat-label">Your carrier</div>
-            <select id="carrier" class="field" style="max-width:200px">
-              ${carriers.map(c => `<option value="${c.v}">${c.l}</option>`).join("")}
-            </select>
+        <div>${action || ''}</div>
+      </div>`;
+
+    const phoneAction = a.twilio_number
+      ? `<button class="btn btn-sm" data-act="copy-num">Copy ${escapeHtml(a.twilio_number)}</button>`
+      : `<button class="btn btn-sm btn-primary" data-act="edit-phone">Add number</button>`;
+    const waAction = cfg.owner_whatsapp
+      ? `<button class="btn btn-sm" data-act="edit-wa">Edit</button>`
+      : `<button class="btn btn-sm btn-primary" data-act="edit-wa">Add WhatsApp</button>`;
+    const bookAction = cfg.calendly_url
+      ? `<button class="btn btn-sm" data-act="edit-book">Edit</button>`
+      : `<button class="btn btn-sm" data-act="edit-book">Add link</button>`;
+    const flowAction = status.flow_configured
+      ? `<button class="btn btn-sm" data-act="flow">Open</button>`
+      : `<button class="btn btn-sm btn-primary" data-act="flow">Build</button>`;
+    const activateAction = a.is_active
+      ? `<button class="btn btn-sm" data-act="pause">Pause agent</button>`
+      : `<button class="btn btn-sm btn-primary" data-act="activate">Go live</button>`;
+
+    const carrierBlock = a.twilio_number ? `
+      <div class="card p-5 mt-4">
+        <div class="font-semibold mb-1">Forward your business number</div>
+        <div class="text-xs text-muted mb-3">OneClerk only answers calls you miss — your phone always rings first.</div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <div class="stat-label mb-2">Activate code</div>
+            <div class="flex items-center gap-2">
+              <div class="code-chip" id="code">…</div>
+              <button class="btn btn-sm" id="copy-code"><i data-lucide="copy" class="icon"></i></button>
+            </div>
+            <div class="text-xs text-muted mt-2">Deactivate any time with <strong id="dcode">#71</strong></div>
           </div>
-          <div id="note" class="text-sm mt-3">${escapeHtml(inst.carrier_notes.iphone)}</div>
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <div class="stat-label">Your phone / carrier</div>
+              <select id="carrier" class="field" style="max-width:180px">
+                ${[
+                  { v: "iphone", l: "iPhone" }, { v: "android", l: "Android" },
+                  { v: "airtel", l: "Airtel" }, { v: "jio", l: "Jio" },
+                  { v: "bsnl", l: "BSNL" }, { v: "vi", l: "Vi" },
+                  { v: "generic", l: "Other" },
+                ].map(c => `<option value="${c.v}">${c.l}</option>`).join("")}
+              </select>
+            </div>
+            <div id="note" class="text-sm" style="line-height:1.5">…</div>
+          </div>
         </div>
       </div>
       <div class="card p-5 mt-4">
-        <div class="font-semibold mb-2">Your OneClerk number</div>
-        <div class="text-xl font-bold">${escapeHtml(inst.twilio_number)}</div>
-        <div class="text-xs text-muted mt-2">In the Twilio console, set Voice → A Call Comes In → Webhook → POST <code>${escapeHtml(window.location.origin + "/calls/incoming")}</code></div>
+        <div class="font-semibold mb-2">Twilio webhook (one-time)</div>
+        <div class="text-xs text-muted mb-2">In Twilio console, set Voice → A Call Comes In → POST →</div>
+        <div class="code-chip">${escapeHtml(window.location.origin + "/calls/incoming")}</div>
       </div>
-    `;
+    ` : "";
+
+    page.appendChild(h(`
+      <div class="grid" style="grid-template-columns: 1.4fr 1fr; gap:18px">
+        <div>
+          <div class="card p-5">
+            <div class="font-semibold mb-1">Setup checklist</div>
+            <div class="text-xs text-muted mb-4">Finish each step to get your AI receptionist live.</div>
+            ${stepRow(1, "Add a Twilio phone number", "This is the number callers dial (or that your business phone forwards to).", !!status.phone, phoneAction)}
+            ${stepRow(2, "WhatsApp summaries", "Where you receive call summaries and urgent alerts after each call.", !!status.whatsapp, waAction)}
+            ${stepRow(3, "Booking link (optional)", "Calendly URL the AI shares when a caller wants to book.", !!status.booking, bookAction)}
+            ${stepRow(4, "Design the conversation flow", "Drag-and-drop the steps your AI should follow on every call.", !!status.flow_configured, flowAction)}
+            ${stepRow(5, "Go live", a.is_active ? "Your agent is currently answering calls." : "Activate to start handling missed calls.", a.is_active, activateAction)}
+          </div>
+          ${carrierBlock}
+        </div>
+        <div class="card p-5" style="display:flex;flex-direction:column;height:fit-content;max-height:80vh">
+          <div class="font-semibold mb-1">Try it in chat</div>
+          <div class="text-xs text-muted mb-3">Test the AI with text — same brain that answers your calls.</div>
+          ${testChatWidget(id)}
+        </div>
+      </div>
+    `));
     renderIcons(page);
-    $("#copy", page).addEventListener("click", async () => {
-      try { await navigator.clipboard.writeText(inst.activate_code); toast("Copied", "success"); } catch { toast("Copy failed", "error"); }
-    });
-    $("#carrier", page).addEventListener("change", async (e) => {
-      const r = await fetchInst(e.target.value);
-      $("#code", page).textContent = r.activate_code;
-      $("#note", page).textContent = r.carrier_notes[e.target.value] || r.carrier_notes.generic;
-    });
+
+    // Wire up checklist actions
+    page.querySelectorAll("[data-act]").forEach(b => b.addEventListener("click", async () => {
+      const act = b.dataset.act;
+      if (act === "edit-phone" || act === "edit-wa" || act === "edit-book") {
+        navigate(`#/agents/${id}/edit`);
+      } else if (act === "flow") {
+        navigate(`#/agents/${id}/flow`);
+      } else if (act === "copy-num") {
+        try { await navigator.clipboard.writeText(a.twilio_number); toast("Number copied", "success"); } catch { toast("Copy failed", "error"); }
+      } else if (act === "activate" || act === "pause") {
+        try {
+          await api(`/agents/${id}/${act === "activate" ? "activate" : "deactivate"}`, { method: "POST" });
+          toast(act === "activate" ? "Agent is live" : "Agent paused", "success");
+          render();
+        } catch (e) { toast(e.message, "error"); }
+      }
+    }));
+
+    if (a.twilio_number) {
+      mountTestChat(page.querySelector(".test-chat"), id, cfg);
+      const fetchInst = async (carrier) => api(`/agents/${id}/setup-instructions?carrier=${carrier}`);
+      const updateCarrier = async (c) => {
+        const r = await fetchInst(c);
+        $("#code", page).textContent = r.activate_code;
+        $("#dcode", page).textContent = r.deactivate_code;
+        $("#note", page).textContent = r.carrier_notes[c] || r.carrier_notes.generic;
+      };
+      await updateCarrier("iphone");
+      $("#carrier", page).addEventListener("change", e => updateCarrier(e.target.value));
+      $("#copy-code", page).addEventListener("click", async () => {
+        try { await navigator.clipboard.writeText($("#code", page).textContent); toast("Copied", "success"); } catch { toast("Copy failed", "error"); }
+      });
+    } else {
+      mountTestChat(page.querySelector(".test-chat"), id, cfg);
+    }
   } catch (e) { page.innerHTML = `<div class="text-danger">${escapeHtml(e.message)}</div>`; }
   return wrap;
 });
+
+function agentSubtabs(id, active) {
+  const items = [
+    { k: "edit", label: "Profile", icon: "user", hash: `#/agents/${id}/edit` },
+    { k: "flow", label: "Flow", icon: "git-branch", hash: `#/agents/${id}/flow` },
+    { k: "connect", label: "Connect", icon: "phone", hash: `#/agents/${id}/setup` },
+  ];
+  const wrap = h(`<div class="subtabs">${items.map(i =>
+    `<button class="subtab ${active===i.k?'active':''}" data-h="${i.hash}"><i data-lucide="${i.icon}" class="icon"></i>${i.label}</button>`).join("")}</div>`);
+  $$("[data-h]", wrap).forEach(b => b.addEventListener("click", () => navigate(b.dataset.h)));
+  return wrap;
+}
+
+function testChatWidget(id) {
+  return `
+    <div class="test-chat">
+      <div class="messages"></div>
+      <form class="test-chat-input">
+        <input class="field" placeholder="Type as if you're the caller…" required/>
+        <button class="btn btn-primary" type="submit"><i data-lucide="send" class="icon"></i></button>
+      </form>
+    </div>`;
+}
+
+function mountTestChat(root, agentId, cfg) {
+  if (!root) return;
+  const messages = root.querySelector(".messages");
+  const form = root.querySelector(".test-chat-input");
+  const input = form.querySelector("input");
+  const greet = `Hello! Thanks for calling ${cfg.business_name || "us"}. ${cfg.greeting_message || "How can I help you today?"}`;
+  const history = [];
+  const push = (role, content) => {
+    history.push({ role, content });
+    const el = h(`<div class="msg ${role}">${escapeHtml(content)}</div>`);
+    messages.appendChild(el);
+    messages.scrollTop = messages.scrollHeight;
+  };
+  push("assistant", greet);
+  renderIcons(root);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = "";
+    push("user", text);
+    const typing = h(`<div class="msg assistant" style="opacity:0.7">…</div>`);
+    messages.appendChild(typing);
+    try {
+      const r = await api(`/agents/${agentId}/test-chat`, { method: "POST", body: { message: text, history: history.slice(0, -1) } });
+      typing.remove();
+      push("assistant", r.reply || "(no reply)");
+    } catch (ex) {
+      typing.remove();
+      push("assistant", "⚠️ " + ex.message);
+    }
+  });
+}
 
 route("settings", async () => {
   const wrap = shell("settings", "Settings", "Account preferences and integration keys.");
@@ -728,6 +855,460 @@ route("billingSuccess", async () => {
   return wrap;
 });
 
+// --- Flow builder ---
+const FLOW_NODE_TYPES = [
+  { type: "greeting", label: "Greeting", icon: "smile", text: "Hello! Thanks for calling. How can I help you?" },
+  { type: "ask", label: "Ask a question", icon: "help-circle", text: "Could I get your name and what you're calling about?" },
+  { type: "info", label: "Share info", icon: "info", text: "Our hours are Mon–Sat, 9am–6pm." },
+  { type: "branch", label: "Branch / decision", icon: "git-fork", text: "What does the caller want to do?" },
+  { type: "book", label: "Book appointment", icon: "calendar-check", text: "Let's schedule that — what day works best?" },
+  { type: "whatsapp", label: "Send WhatsApp", icon: "message-circle", text: "I'll text you the details on WhatsApp." },
+  { type: "escalate", label: "Escalate to human", icon: "alert-triangle", text: "This sounds urgent — flagging the owner now." },
+  { type: "end", label: "End call", icon: "phone-off", text: "Thanks for calling. Have a great day!" },
+];
+
+function nodeTypeMeta(type) {
+  return FLOW_NODE_TYPES.find(t => t.type === type) || FLOW_NODE_TYPES[0];
+}
+
+function defaultFlow() {
+  return {
+    nodes: [
+      { id: "n1", type: "greeting", label: "Greeting", text: "Hello! Thanks for calling. How can I help you today?", x: 200, y: 200 },
+      { id: "n2", type: "ask", label: "What do they want", text: "Are you calling to book, with a question, or something urgent?", x: 500, y: 200 },
+      { id: "n3", type: "branch", label: "Route", text: "Pick the right path", x: 800, y: 200 },
+      { id: "n4", type: "book", label: "Book", text: "Let's get you on the schedule.", x: 1100, y: 80 },
+      { id: "n5", type: "info", label: "Answer Q", text: "Share the relevant info from the FAQs.", x: 1100, y: 220 },
+      { id: "n6", type: "escalate", label: "Urgent", text: "Flag the owner immediately.", x: 1100, y: 360 },
+      { id: "n7", type: "end", label: "Wrap up", text: "Anything else I can help with?", x: 1400, y: 220 },
+    ],
+    edges: [
+      { from: "n1", to: "n2" },
+      { from: "n2", to: "n3" },
+      { from: "n3", to: "n4", label: "wants to book" },
+      { from: "n3", to: "n5", label: "has a question" },
+      { from: "n3", to: "n6", label: "is urgent" },
+      { from: "n4", to: "n7" },
+      { from: "n5", to: "n7" },
+    ],
+  };
+}
+
+route("agentFlow", async (id) => {
+  const wrap = shell("agents", "Flow builder", "Drag steps onto the canvas. Connect them by dragging from the right dot to the next step.");
+  const page = $("#page", wrap);
+  page.innerHTML = skeleton(2);
+  try {
+    const a = (await api(`/agents/${id}`)).agent;
+    if (!a) throw new Error("Agent not found");
+    const cfg = a.config || {};
+    let flow = (cfg.flow && (cfg.flow.nodes || []).length) ? cfg.flow : defaultFlow();
+    page.innerHTML = "";
+    page.appendChild(agentSubtabs(id, "flow"));
+
+    const shellEl = h(`
+      <div class="flow-shell">
+        <aside class="flow-palette">
+          <h3>Step types</h3>
+          <div id="palette"></div>
+          <h3 style="margin-top:18px">Tips</h3>
+          <div class="text-xs text-muted" style="line-height:1.6">
+            • Drag a step from here onto the canvas.<br>
+            • Drag from a step's right dot to another's left dot to connect.<br>
+            • Click a step to edit its words.<br>
+            • Drag empty canvas to pan. Scroll to zoom.
+          </div>
+        </aside>
+        <div class="flow-canvas-wrap" id="canvas-wrap">
+          <div class="flow-toolbar">
+            <button class="btn btn-sm" id="t-fit"><i data-lucide="maximize-2" class="icon"></i>Fit</button>
+            <button class="btn btn-sm" id="t-reset"><i data-lucide="rotate-ccw" class="icon"></i>Reset</button>
+            <button class="btn btn-primary btn-sm" id="t-save"><i data-lucide="save" class="icon"></i>Save flow</button>
+          </div>
+          <div class="flow-canvas" id="canvas">
+            <div class="flow-canvas-inner" id="inner">
+              <svg class="flow-svg" id="svg" width="4000" height="3000"></svg>
+            </div>
+          </div>
+          <div class="flow-help">Click empty canvas to deselect · Delete key removes selected step</div>
+          <div class="flow-zoom-display" id="zoom">100%</div>
+        </div>
+        <aside class="flow-inspector" id="inspector">
+          <div class="ip-empty">Select a step to edit its label and what the AI says.</div>
+        </aside>
+      </div>
+    `);
+    page.appendChild(shellEl);
+
+    // Build palette
+    const palette = $("#palette", shellEl);
+    palette.innerHTML = FLOW_NODE_TYPES.map(t => `
+      <div class="palette-item" draggable="true" data-type="${t.type}">
+        <div class="pi-icon"><i data-lucide="${t.icon}" class="icon"></i></div>
+        <div>${t.label}</div>
+      </div>`).join("");
+    renderIcons(shellEl);
+
+    // === Builder state ===
+    const state = {
+      pan: { x: 0, y: 0 },
+      zoom: 1,
+      selectedId: null,
+      dragNode: null,
+      dragNodeStart: null,
+      dragEdge: null, // { fromId, ghostX, ghostY }
+      panning: false,
+      panStart: null,
+    };
+
+    const canvas = $("#canvas", shellEl);
+    const inner = $("#inner", shellEl);
+    const svg = $("#svg", shellEl);
+    const inspector = $("#inspector", shellEl);
+    const wrapEl = $("#canvas-wrap", shellEl);
+
+    const applyTransform = () => {
+      inner.style.transform = `translate(${state.pan.x}px, ${state.pan.y}px) scale(${state.zoom})`;
+      $("#zoom", shellEl).textContent = Math.round(state.zoom * 100) + "%";
+    };
+
+    const screenToCanvas = (clientX, clientY) => {
+      const r = wrapEl.getBoundingClientRect();
+      return {
+        x: (clientX - r.left - state.pan.x) / state.zoom,
+        y: (clientY - r.top - state.pan.y) / state.zoom,
+      };
+    };
+
+    function genId() { return "n" + Math.random().toString(36).slice(2, 9); }
+
+    function addNode(type, x, y) {
+      const meta = nodeTypeMeta(type);
+      const node = { id: genId(), type, label: meta.label, text: meta.text, x, y };
+      flow.nodes.push(node);
+      state.selectedId = node.id;
+      redraw();
+    }
+
+    function deleteSelected() {
+      if (!state.selectedId) return;
+      flow.nodes = flow.nodes.filter(n => n.id !== state.selectedId);
+      flow.edges = flow.edges.filter(e => e.from !== state.selectedId && e.to !== state.selectedId);
+      state.selectedId = null;
+      redraw();
+    }
+
+    function nodeById(id) { return flow.nodes.find(n => n.id === id); }
+
+    function nodeRect(node) {
+      // approximate; nodes auto-size to ~200x70
+      return { x: node.x, y: node.y, w: 200, h: 70 };
+    }
+
+    function edgePath(from, to) {
+      const a = nodeRect(from), b = nodeRect(to);
+      const sx = a.x + a.w, sy = a.y + a.h / 2;
+      const tx = b.x, ty = b.y + b.h / 2;
+      const dx = Math.max(40, Math.abs(tx - sx) * 0.5);
+      return `M ${sx} ${sy} C ${sx + dx} ${sy}, ${tx - dx} ${ty}, ${tx} ${ty}`;
+    }
+
+    function ghostPath(from, gx, gy) {
+      const a = nodeRect(from);
+      const sx = a.x + a.w, sy = a.y + a.h / 2;
+      const dx = Math.max(40, Math.abs(gx - sx) * 0.5);
+      return `M ${sx} ${sy} C ${sx + dx} ${sy}, ${gx - dx} ${gy}, ${gx} ${gy}`;
+    }
+
+    function renderInspector() {
+      const id = state.selectedId;
+      const node = id && nodeById(id);
+      if (!node) {
+        inspector.innerHTML = `<div class="ip-empty">Select a step to edit it.</div>`;
+        return;
+      }
+      const meta = nodeTypeMeta(node.type);
+      // Outgoing edges (for branch labels)
+      const outs = flow.edges.filter(e => e.from === node.id);
+      inspector.innerHTML = `
+        <div class="font-semibold mb-3" style="display:flex;align-items:center;gap:8px">
+          <i data-lucide="${meta.icon}" class="icon"></i>${meta.label}
+        </div>
+        <div class="mb-3">
+          <label class="label">Step name</label>
+          <input class="field" id="ip-label" value="${escapeHtml(node.label || '')}" placeholder="e.g. Ask name"/>
+        </div>
+        <div class="mb-3">
+          <label class="label">${node.type === 'branch' ? 'How to decide' : node.type === 'ask' ? 'Question to ask' : 'What the AI should say or do'}</label>
+          <textarea class="field" id="ip-text" rows="4" placeholder="The AI uses this as guidance — it will adapt to the caller.">${escapeHtml(node.text || '')}</textarea>
+        </div>
+        ${outs.length ? `
+          <div class="mb-3">
+            <label class="label">Branch labels (optional)</label>
+            <div class="text-xs text-muted mb-2">Label each connection to tell the AI when to take that path.</div>
+            ${outs.map((e, i) => {
+              const target = nodeById(e.to);
+              return `<div class="flex gap-2 mb-2 items-center">
+                <input class="field" data-edge-idx="${i}" placeholder="condition (e.g. wants to book)" value="${escapeHtml(e.label || '')}" style="flex:1"/>
+                <span class="text-xs text-muted">→ ${escapeHtml(target?.label || '?')}</span>
+              </div>`;
+            }).join("")}
+          </div>` : ""}
+        <button class="btn btn-danger btn-sm" id="ip-del" style="width:100%"><i data-lucide="trash-2" class="icon"></i>Delete this step</button>
+      `;
+      renderIcons(inspector);
+      $("#ip-label", inspector).addEventListener("input", e => { node.label = e.target.value; redrawNode(node.id); });
+      $("#ip-text", inspector).addEventListener("input", e => { node.text = e.target.value; });
+      $$("[data-edge-idx]", inspector).forEach(inp => inp.addEventListener("input", e => {
+        const idx = +inp.dataset.edgeIdx;
+        outs[idx].label = e.target.value;
+        // Update label on canvas
+        redraw();
+      }));
+      $("#ip-del", inspector).addEventListener("click", deleteSelected);
+    }
+
+    function redrawNode(id) {
+      // re-render only the changed node label without rebuilding everything
+      const el = inner.querySelector(`[data-node-id="${id}"]`);
+      const node = nodeById(id);
+      if (!el || !node) return;
+      const meta = nodeTypeMeta(node.type);
+      el.querySelector(".fn-label").textContent = node.label || meta.label;
+    }
+
+    function redraw() {
+      // Render nodes
+      // Remove old nodes (not the svg)
+      Array.from(inner.querySelectorAll(".flow-node")).forEach(n => n.remove());
+      flow.nodes.forEach(node => {
+        const meta = nodeTypeMeta(node.type);
+        const el = h(`
+          <div class="flow-node t-${node.type} ${state.selectedId === node.id ? 'selected' : ''}" data-node-id="${node.id}" style="left:${node.x}px;top:${node.y}px">
+            <div class="fn-handle in" data-handle="in"></div>
+            <div class="fn-head"><i data-lucide="${meta.icon}" class="icon"></i><span class="fn-label">${escapeHtml(node.label || meta.label)}</span></div>
+            <div class="fn-text">${escapeHtml((node.text || '').slice(0, 90))}</div>
+            <div class="fn-handle out" data-handle="out"></div>
+          </div>
+        `);
+        inner.appendChild(el);
+      });
+      renderIcons(inner);
+      // Render edges
+      svg.innerHTML = "";
+      flow.edges.forEach((e, idx) => {
+        const a = nodeById(e.from), b = nodeById(e.to);
+        if (!a || !b) return;
+        const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        p.setAttribute("class", "edge");
+        p.setAttribute("d", edgePath(a, b));
+        p.setAttribute("data-edge-idx", idx);
+        svg.appendChild(p);
+        if (e.label) {
+          const ar = nodeRect(a), br = nodeRect(b);
+          const mx = (ar.x + ar.w + br.x) / 2;
+          const my = (ar.y + ar.h / 2 + br.y + br.h / 2) / 2 - 6;
+          const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          t.setAttribute("class", "edge-label");
+          t.setAttribute("x", mx);
+          t.setAttribute("y", my);
+          t.setAttribute("text-anchor", "middle");
+          t.textContent = e.label.length > 28 ? e.label.slice(0, 26) + "…" : e.label;
+          svg.appendChild(t);
+        }
+      });
+      // ghost edge while dragging
+      if (state.dragEdge) {
+        const a = nodeById(state.dragEdge.fromId);
+        if (a) {
+          const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          p.setAttribute("class", "edge dragging");
+          p.setAttribute("d", ghostPath(a, state.dragEdge.gx, state.dragEdge.gy));
+          svg.appendChild(p);
+        }
+      }
+      // Wire up node drag, click, handle drag
+      Array.from(inner.querySelectorAll(".flow-node")).forEach(el => {
+        const id = el.dataset.nodeId;
+        el.addEventListener("mousedown", (ev) => {
+          if (ev.target.classList.contains("fn-handle")) return;
+          ev.stopPropagation();
+          state.dragNode = id;
+          state.dragNodeStart = { mx: ev.clientX, my: ev.clientY, nx: nodeById(id).x, ny: nodeById(id).y };
+        });
+        el.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          state.selectedId = id;
+          redraw();
+          renderInspector();
+        });
+        // Out handle: start edge drag
+        el.querySelector('[data-handle="out"]').addEventListener("mousedown", (ev) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+          const c = screenToCanvas(ev.clientX, ev.clientY);
+          state.dragEdge = { fromId: id, gx: c.x, gy: c.y };
+          redraw();
+        });
+        // In handle: receive drop (handled in mouseup on canvas with target detection)
+      });
+      // Edge click to delete
+      Array.from(svg.querySelectorAll("path.edge:not(.dragging)")).forEach(p => {
+        p.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          const idx = +p.dataset.edgeIdx;
+          if (confirm("Delete this connection?")) {
+            flow.edges.splice(idx, 1);
+            redraw();
+            renderInspector();
+          }
+        });
+      });
+    }
+
+    // Canvas pan + global mouse handlers
+    canvas.addEventListener("mousedown", (ev) => {
+      // clear selection on empty canvas click
+      state.selectedId = null;
+      renderInspector();
+      state.panning = true;
+      state.panStart = { mx: ev.clientX, my: ev.clientY, px: state.pan.x, py: state.pan.y };
+      canvas.classList.add("panning");
+      redraw();
+    });
+    window.addEventListener("mousemove", (ev) => {
+      if (state.dragNode) {
+        const node = nodeById(state.dragNode);
+        if (node) {
+          const dx = (ev.clientX - state.dragNodeStart.mx) / state.zoom;
+          const dy = (ev.clientY - state.dragNodeStart.my) / state.zoom;
+          node.x = Math.max(0, state.dragNodeStart.nx + dx);
+          node.y = Math.max(0, state.dragNodeStart.ny + dy);
+          redraw();
+        }
+      } else if (state.dragEdge) {
+        const c = screenToCanvas(ev.clientX, ev.clientY);
+        state.dragEdge.gx = c.x;
+        state.dragEdge.gy = c.y;
+        redraw();
+      } else if (state.panning) {
+        state.pan.x = state.panStart.px + (ev.clientX - state.panStart.mx);
+        state.pan.y = state.panStart.py + (ev.clientY - state.panStart.my);
+        applyTransform();
+      }
+    });
+    window.addEventListener("mouseup", (ev) => {
+      if (state.dragEdge) {
+        // Find target node under cursor
+        const el = document.elementFromPoint(ev.clientX, ev.clientY);
+        const targetNode = el && el.closest && el.closest(".flow-node");
+        if (targetNode && targetNode.dataset.nodeId !== state.dragEdge.fromId) {
+          const toId = targetNode.dataset.nodeId;
+          // avoid duplicate
+          if (!flow.edges.find(e => e.from === state.dragEdge.fromId && e.to === toId)) {
+            flow.edges.push({ from: state.dragEdge.fromId, to: toId });
+          }
+        }
+        state.dragEdge = null;
+        redraw();
+      }
+      state.dragNode = null;
+      state.panning = false;
+      canvas.classList.remove("panning");
+    });
+    wrapEl.addEventListener("wheel", (ev) => {
+      if (!ev.ctrlKey && !ev.metaKey && Math.abs(ev.deltaY) < 4) return;
+      ev.preventDefault();
+      const r = wrapEl.getBoundingClientRect();
+      const mx = ev.clientX - r.left, my = ev.clientY - r.top;
+      const oldZoom = state.zoom;
+      const factor = ev.deltaY > 0 ? 0.9 : 1.1;
+      state.zoom = Math.max(0.4, Math.min(2, state.zoom * factor));
+      // zoom around cursor
+      state.pan.x = mx - (mx - state.pan.x) * (state.zoom / oldZoom);
+      state.pan.y = my - (my - state.pan.y) * (state.zoom / oldZoom);
+      applyTransform();
+    }, { passive: false });
+
+    // Drag from palette to canvas
+    palette.querySelectorAll(".palette-item").forEach(item => {
+      item.addEventListener("dragstart", (ev) => ev.dataTransfer.setData("text/plain", item.dataset.type));
+    });
+    wrapEl.addEventListener("dragover", (ev) => ev.preventDefault());
+    wrapEl.addEventListener("drop", (ev) => {
+      ev.preventDefault();
+      const type = ev.dataTransfer.getData("text/plain");
+      if (!type) return;
+      const c = screenToCanvas(ev.clientX, ev.clientY);
+      addNode(type, c.x - 100, c.y - 30);
+      renderInspector();
+    });
+
+    // Click on palette item adds at center
+    palette.querySelectorAll(".palette-item").forEach(item => {
+      item.addEventListener("click", () => {
+        const r = wrapEl.getBoundingClientRect();
+        const c = screenToCanvas(r.left + r.width / 2, r.top + r.height / 2);
+        addNode(item.dataset.type, c.x - 100, c.y - 30);
+        renderInspector();
+      });
+    });
+
+    // Toolbar
+    $("#t-fit", shellEl).addEventListener("click", () => {
+      if (!flow.nodes.length) return;
+      const xs = flow.nodes.map(n => n.x), ys = flow.nodes.map(n => n.y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs) + 220;
+      const minY = Math.min(...ys), maxY = Math.max(...ys) + 90;
+      const r = wrapEl.getBoundingClientRect();
+      const z = Math.min(1, Math.min(r.width / (maxX - minX + 80), r.height / (maxY - minY + 80)));
+      state.zoom = z;
+      state.pan.x = -minX * z + 40;
+      state.pan.y = -minY * z + 40;
+      applyTransform();
+    });
+    $("#t-reset", shellEl).addEventListener("click", () => {
+      if (!confirm("Reset to the example flow? Your current flow will be replaced.")) return;
+      flow = defaultFlow();
+      state.selectedId = null;
+      redraw();
+      renderInspector();
+    });
+    $("#t-save", shellEl).addEventListener("click", async () => {
+      try {
+        const newCfg = { ...cfg, flow };
+        // Reuse update endpoint — we need to send the full create-shape payload.
+        await api(`/agents/${id}`, { method: "PUT", body: {
+          name: a.name,
+          twilio_number: a.twilio_number,
+          forwarding_number: a.forwarding_number,
+          voice_id: a.voice_id,
+          language: a.language,
+          config: newCfg,
+        }});
+        toast("Flow saved", "success");
+      } catch (e) { toast(e.message, "error"); }
+    });
+
+    // Keyboard
+    document.addEventListener("keydown", function flowKeys(ev) {
+      if (!document.body.contains(canvas)) { document.removeEventListener("keydown", flowKeys); return; }
+      if (ev.key === "Delete" || ev.key === "Backspace") {
+        if (document.activeElement && /input|textarea/i.test(document.activeElement.tagName)) return;
+        deleteSelected();
+      }
+    });
+
+    // First paint
+    setTimeout(() => {
+      $("#t-fit", shellEl).click();
+      redraw();
+      renderInspector();
+    }, 30);
+  } catch (e) { page.innerHTML = `<div class="text-danger">${escapeHtml(e.message)}</div>`; }
+  return wrap;
+});
+
 // --- Render dispatcher ---
 async function render() {
   const root = $("#root");
@@ -744,6 +1325,7 @@ async function render() {
   else if (r.path === "/agents/new") { view = await routes.agentNew(); }
   else if (r.parts[0] === "agents" && r.parts[2] === "edit") { view = await routes.agentEdit(r.parts[1]); }
   else if (r.parts[0] === "agents" && r.parts[2] === "setup") { view = await routes.agentSetup(r.parts[1]); }
+  else if (r.parts[0] === "agents" && r.parts[2] === "flow") { view = await routes.agentFlow(r.parts[1]); }
   else if (r.path === "/settings") { view = await routes.settings(); }
   else if (r.path === "/billing") { view = await routes.billing(); }
   else if (r.path === "/billing-success") { view = await routes.billingSuccess(); }

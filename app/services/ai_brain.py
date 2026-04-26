@@ -75,6 +75,83 @@ def _client() -> "AsyncOpenAI | None":
     return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 
+def _flow_to_script(flow: dict) -> str:
+    """Convert visual flow-builder JSON into a numbered script the LLM can follow.
+
+    Expects ``flow`` shape: {nodes: [{id, type, label, text, ...}], edges: [{from, to, label?}]}
+    """
+    nodes = flow.get("nodes") or []
+    edges = flow.get("edges") or []
+    if not nodes:
+        return ""
+
+    by_id = {n.get("id"): n for n in nodes if n.get("id")}
+    out_edges: dict[str, list[dict]] = {}
+    in_edges: dict[str, list[dict]] = {}
+    for e in edges:
+        out_edges.setdefault(e.get("from"), []).append(e)
+        in_edges.setdefault(e.get("to"), []).append(e)
+
+    # Start nodes: type == 'greeting' OR no incoming edges.
+    starts = [n for n in nodes if n.get("type") == "greeting"]
+    if not starts:
+        starts = [n for n in nodes if not in_edges.get(n.get("id"))]
+    if not starts:
+        starts = nodes[:1]
+
+    visited: set[str] = set()
+    lines: list[str] = []
+
+    def describe(node: dict) -> str:
+        t = node.get("type", "step")
+        label = node.get("label") or node.get("text") or t
+        text = (node.get("text") or "").strip()
+        body = f' — say: "{text}"' if text else ""
+        verbs = {
+            "greeting": "Greet the caller",
+            "ask": "Ask",
+            "branch": "Decide based on the caller's reply",
+            "book": "Help them book an appointment",
+            "escalate": "Escalate to the owner immediately",
+            "whatsapp": "Send a WhatsApp message",
+            "info": "Share info",
+            "end": "End the call politely",
+        }
+        verb = verbs.get(t, "Step")
+        return f"{verb} ({label}){body}"
+
+    def walk(node_id: str, depth: int = 1) -> None:
+        if node_id in visited or depth > 12:
+            return
+        visited.add(node_id)
+        node = by_id.get(node_id)
+        if not node:
+            return
+        lines.append(f"{depth}. {describe(node)}")
+        # Branch outputs: list each labeled edge as a sub-step.
+        outs = out_edges.get(node_id, [])
+        if node.get("type") == "branch" and outs:
+            for e in outs:
+                lab = e.get("label") or "otherwise"
+                lines.append(f"   - If {lab}: go to step '{by_id.get(e.get('to'), {}).get('label', e.get('to'))}'")
+            for e in outs:
+                walk(e.get("to"), depth + 1)
+        else:
+            for e in outs:
+                walk(e.get("to"), depth + 1)
+
+    for s in starts:
+        walk(s.get("id"))
+
+    if not lines:
+        return ""
+    return (
+        "\n\nFOLLOW THIS CONVERSATION FLOW (the business owner designed this — "
+        "stick to the order, but speak naturally and adapt wording):\n"
+        + "\n".join(lines)
+    )
+
+
 def _format_system_prompt(agent_config: dict, channel: str = "voice") -> str:
     defaults = {
         "agent_name": "OneClerk",
@@ -94,6 +171,11 @@ def _format_system_prompt(agent_config: dict, channel: str = "voice") -> str:
     language = (merged.get("language") or "english").lower()
     template = HINDI_SYSTEM_TEMPLATE if "hindi" in language else SYSTEM_TEMPLATE
     prompt = template.format(**merged)
+
+    flow = agent_config.get("flow") if isinstance(agent_config, dict) else None
+    if isinstance(flow, dict):
+        prompt += _flow_to_script(flow)
+
     if channel == "whatsapp":
         prompt += (
             "\n\nThis is a WhatsApp conversation. Responses can be slightly longer "

@@ -1,11 +1,15 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.models import Agent, Call, User
 from app.routes.auth import get_current_user
+from app.services.ai_brain import get_ai_response
 from app.services.forwarding import get_forwarding_instructions
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -27,6 +31,8 @@ class AgentConfig(BaseModel):
     owner_whatsapp: str = ""
     language: str = "English"
     calendly_url: str = ""
+    # Visual flow builder data: { nodes: [...], edges: [...] }
+    flow: dict[str, Any] | None = None
 
 
 class CreateAgentRequest(BaseModel):
@@ -36,6 +42,24 @@ class CreateAgentRequest(BaseModel):
     twilio_number: str | None = None
     voice_id: str | None = None
     language: str | None = None
+
+
+class TestChatRequest(BaseModel):
+    message: str
+    history: list[dict] = []
+
+
+def _connection_status(agent: Agent) -> dict:
+    cfg = agent.config or {}
+    return {
+        "phone": bool(agent.twilio_number),
+        "whatsapp": bool(cfg.get("owner_whatsapp")),
+        "ai_brain": bool(settings.OPENAI_API_KEY),
+        "voice": bool(settings.ELEVENLABS_API_KEY),
+        "twilio": bool(settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN),
+        "booking": bool(cfg.get("calendly_url")),
+        "flow_configured": bool((cfg.get("flow") or {}).get("nodes")),
+    }
 
 
 def _agent_dict(agent: Agent) -> dict:
@@ -51,6 +75,7 @@ def _agent_dict(agent: Agent) -> dict:
         "language": agent.language,
         "calls_this_month": agent.calls_this_month,
         "created_at": agent.created_at.isoformat() if agent.created_at else None,
+        "connection_status": _connection_status(agent),
     }
 
 
@@ -173,6 +198,36 @@ async def setup_instructions(
     if not agent.twilio_number:
         raise HTTPException(400, "Set a Twilio number on this agent first.")
     return get_forwarding_instructions(agent.twilio_number, carrier=carrier)
+
+
+@router.get("/{agent_id}")
+async def get_agent(
+    agent_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    agent = await _get_owned_agent(db, current_user, agent_id)
+    return {"agent": _agent_dict(agent)}
+
+
+@router.post("/{agent_id}/test-chat")
+async def test_chat(
+    agent_id: str,
+    data: TestChatRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Send a text message to the agent and get a reply — for testing the flow
+    without needing a real phone call. Uses the same AI brain the voice loop uses.
+    """
+    agent = await _get_owned_agent(db, current_user, agent_id)
+    reply = await get_ai_response(
+        conversation_history=data.history,
+        agent_config=agent.config or {},
+        caller_message=data.message,
+        channel="voice",
+    )
+    return {"reply": reply}
 
 
 @router.get("/{agent_id}/calls")
