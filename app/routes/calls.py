@@ -1,8 +1,10 @@
 """Twilio webhook endpoints for the OneClerk call flow."""
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from twilio.twiml.voice_response import Gather, VoiceResponse
@@ -11,9 +13,20 @@ from app.database import get_db
 from app.models import Agent, Call, User
 from app.routes.auth import get_current_user
 from app.services.ai_brain import detect_booking_intent, detect_urgency, get_ai_response
-from app.services.whatsapp import send_call_summary
+from app.services.booking import get_calendly_link
+from app.services.voice_engine import AUDIO_DIR, synthesize_to_url
+from app.services.whatsapp import send_booking_link, send_call_summary
 
 router = APIRouter(prefix="/calls", tags=["calls"])
+
+
+async def _say(gather_or_response, text: str, voice: str) -> None:
+    """Speak `text` using ElevenLabs if available, else Polly."""
+    url = await synthesize_to_url(text)
+    if url:
+        gather_or_response.play(url)
+    else:
+        gather_or_response.say(text, voice=voice)
 
 CALL_ENDING_PHRASES = ("goodbye", "bye", "thank you", "that's all", "no that's it", "nothing else")
 
@@ -74,7 +87,7 @@ async def handle_incoming_call(
         language=agent.language or "en-IN",
         method="POST",
     )
-    gather.say(greeting, voice=agent.voice_id or "Polly.Aditi")
+    await _say(gather, greeting, agent.voice_id or "Polly.Aditi")
     response.append(gather)
     # If no input, repeat once then hang up.
     response.redirect(f"/calls/respond/{call.id}", method="POST")
@@ -109,7 +122,7 @@ async def handle_caller_speech(
             language=language,
             method="POST",
         )
-        gather.say("I didn't catch that. Could you please repeat?", voice=voice)
+        await _say(gather, "I didn't catch that. Could you please repeat?", voice)
         response.append(gather)
         response.hangup()
         return _twiml(response)
@@ -136,9 +149,21 @@ async def handle_caller_speech(
     if is_urgent and owner_whatsapp:
         await send_call_summary(owner_whatsapp, call.caller_number or "", conversation, urgent=True)
 
+    # If a booking intent was detected and we have a Calendly URL, send the
+    # booking link to the caller via WhatsApp.
+    calendly = get_calendly_link(cfg)
+    if is_booking and call.caller_number:
+        await send_booking_link(
+            to_number=call.caller_number,
+            business_name=cfg.get("business_name") or agent.name,
+            agent_name=cfg.get("agent_name") or "OneClerk",
+            calendly_url=calendly,
+            service=cfg.get("services") or None,
+        )
+
     response = VoiceResponse()
     if any(p in speech_result.lower() for p in CALL_ENDING_PHRASES):
-        response.say(ai_response, voice=voice)
+        await _say(response, ai_response, voice)
         response.hangup()
         call.status = "completed"
         await db.commit()
@@ -154,10 +179,20 @@ async def handle_caller_speech(
             language=language,
             method="POST",
         )
-        gather.say(ai_response, voice=voice)
+        await _say(gather, ai_response, voice)
         response.append(gather)
         response.redirect(f"/calls/respond/{call_id}", method="POST")
     return _twiml(response)
+
+
+@router.get("/audio/{filename}", include_in_schema=False)
+async def serve_audio(filename: str) -> FileResponse:
+    """Serve a one-time-use ElevenLabs MP3 to Twilio's <Play>."""
+    safe = Path(filename).name
+    path = AUDIO_DIR / safe
+    if not path.exists() or not safe.endswith(".mp3"):
+        raise HTTPException(404, "audio not found")
+    return FileResponse(path, media_type="audio/mpeg", headers={"Cache-Control": "no-cache"})
 
 
 @router.post("/status")

@@ -13,7 +13,10 @@ class Conversation(Base):
     __tablename__ = "conversation_turns"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid4()))
-    call_id: Mapped[str] = mapped_column(String, ForeignKey("calls.id", ondelete="CASCADE"), index=True)
+    call_id: Mapped[str | None] = mapped_column(String, ForeignKey("calls.id", ondelete="CASCADE"), index=True, nullable=True)
     role: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    source: Mapped[str] = mapped_column(String, default="voice")
+    caller_number: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    agent_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import init_models
-from app.routes import agents, auth, calls, dashboard, webhooks
+from app.routes import agents, auth, billing, calls, dashboard, webhooks
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("oneclerk")
@@ -48,6 +48,7 @@ app.include_router(auth.router)
 app.include_router(agents.router)
 app.include_router(calls.router)
 app.include_router(dashboard.router)
+app.include_router(billing.router)
 app.include_router(webhooks.router)
 
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -81,4 +82,6 @@ async def health() -> dict:
         "twilio_configured": bool(
             settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN
         ),
+        "elevenlabs_configured": bool(settings.ELEVENLABS_API_KEY),
+        "stripe_configured": bool(settings.STRIPE_SECRET_KEY),
     }

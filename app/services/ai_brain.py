@@ -11,6 +11,26 @@ except ImportError:  # pragma: no cover
     AsyncOpenAI = None  # type: ignore[assignment]
 
 
+HINDI_SYSTEM_TEMPLATE = """आप {business_name} के AI रिसेप्शनिस्ट {agent_name} हैं।
+आप हिंदी और अंग्रेजी दोनों में बात कर सकते हैं।
+
+व्यवसाय: {business_type}
+समय: {operating_hours}
+सेवाएं: {services}
+स्थान: {location}
+मूल्य: {pricing}
+सामान्य प्रश्न: {faqs}
+बुकिंग निर्देश: {booking_instructions}
+
+नियम:
+1. जवाब 40 शब्दों से कम में दें (voice के लिए)।
+2. हमेशा विनम्र और पेशेवर रहें।
+3. अगर appointment चाहिए तो पूछें: "कौन सी date और time आपके लिए सही होगी?"
+4. अगर emergency हो तो तुरंत बोलें कि {owner_name} 5 मिनट में call back करेंगे।
+5. कभी मत कहें कि आप AI हैं, जब तक कोई सीधे नहीं पूछे।
+6. हर call के अंत में पूछें: "कुछ और मदद चाहिए?"
+"""
+
 SYSTEM_TEMPLATE = """You are {agent_name}, the AI receptionist for {business_name}.
 
 Business Type: {business_type}
@@ -55,7 +75,7 @@ def _client() -> "AsyncOpenAI | None":
     return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 
-def _format_system_prompt(agent_config: dict) -> str:
+def _format_system_prompt(agent_config: dict, channel: str = "voice") -> str:
     defaults = {
         "agent_name": "OneClerk",
         "business_name": "this business",
@@ -71,13 +91,22 @@ def _format_system_prompt(agent_config: dict) -> str:
         "language": "English",
     }
     merged = {**defaults, **{k: v for k, v in agent_config.items() if v is not None}}
-    return SYSTEM_TEMPLATE.format(**merged)
+    language = (merged.get("language") or "english").lower()
+    template = HINDI_SYSTEM_TEMPLATE if "hindi" in language else SYSTEM_TEMPLATE
+    prompt = template.format(**merged)
+    if channel == "whatsapp":
+        prompt += (
+            "\n\nThis is a WhatsApp conversation. Responses can be slightly longer "
+            "than voice (up to 80 words). Use appropriate emojis naturally."
+        )
+    return prompt
 
 
 async def get_ai_response(
     conversation_history: Iterable[dict],
     agent_config: dict,
     caller_message: str,
+    channel: str = "voice",
 ) -> str:
     client = _client()
     if client is None:
@@ -87,7 +116,7 @@ async def get_ai_response(
             f"{agent_config.get('owner_name', 'the owner')} will get back to you shortly."
         )
 
-    system_prompt = _format_system_prompt(agent_config)
+    system_prompt = _format_system_prompt(agent_config, channel=channel)
     messages: list[dict] = [{"role": "system", "content": system_prompt}]
     messages.extend(conversation_history)
     messages.append({"role": "user", "content": caller_message})

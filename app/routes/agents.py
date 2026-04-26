@@ -6,14 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import Agent, Call, User
 from app.routes.auth import get_current_user
+from app.services.forwarding import get_forwarding_instructions
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
 class AgentConfig(BaseModel):
     business_name: str
-    business_type: str
-    agent_name: str
+    business_type: str = ""
+    agent_name: str = "OneClerk"
     greeting_message: str = "How can I help you today?"
     operating_hours: str = ""
     services: str = ""
@@ -25,6 +26,7 @@ class AgentConfig(BaseModel):
     owner_name: str = ""
     owner_whatsapp: str = ""
     language: str = "English"
+    calendly_url: str = ""
 
 
 class CreateAgentRequest(BaseModel):
@@ -158,6 +160,19 @@ async def delete_agent(
     await db.delete(agent)
     await db.commit()
     return None
+
+
+@router.get("/{agent_id}/setup-instructions")
+async def setup_instructions(
+    agent_id: str,
+    carrier: str = "generic",
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    agent = await _get_owned_agent(db, current_user, agent_id)
+    if not agent.twilio_number:
+        raise HTTPException(400, "Set a Twilio number on this agent first.")
+    return get_forwarding_instructions(agent.twilio_number, carrier=carrier)
 
 
 @router.get("/{agent_id}/calls")

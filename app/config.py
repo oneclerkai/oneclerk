@@ -28,6 +28,8 @@ class Settings(BaseSettings):
 
     DEEPGRAM_API_KEY: Optional[str] = None
     ELEVENLABS_API_KEY: Optional[str] = None
+    ELEVENLABS_VOICE_ID: str = "21m00Tcm4TlvDq8ikWAM"  # Rachel — warm female English
+    ELEVENLABS_MODEL: str = "eleven_turbo_v2_5"
 
     TWILIO_ACCOUNT_SID: Optional[str] = None
     TWILIO_AUTH_TOKEN: Optional[str] = None
@@ -36,6 +38,9 @@ class Settings(BaseSettings):
 
     STRIPE_SECRET_KEY: Optional[str] = None
     STRIPE_WEBHOOK_SECRET: Optional[str] = None
+    STRIPE_STARTER_PRICE_ID: Optional[str] = None
+    STRIPE_GROWTH_PRICE_ID: Optional[str] = None
+    STRIPE_SCALE_PRICE_ID: Optional[str] = None
 
     WHATSAPP_TOKEN: Optional[str] = None
 

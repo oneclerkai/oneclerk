@@ -22,3 +22,6 @@ class User(Base):
     plan: Mapped[str] = mapped_column(String, default="trial")
     trial_ends_at: Mapped[datetime] = mapped_column(DateTime, default=_trial_end)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    stripe_customer_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    stripe_subscription_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    subscription_status: Mapped[str | None] = mapped_column(String, nullable=True)

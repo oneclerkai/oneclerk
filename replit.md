@@ -63,11 +63,17 @@ See `.env.example`. The app starts cleanly with none configured; features degrad
 - `GET /` / `GET /health` — service info + which integrations are configured
 - `GET /docs` — Swagger UI
 - `POST /auth/signup`, `POST /auth/login`, `GET /auth/me`
-- `POST /agents/create`, `GET /agents/list`, `PUT /agents/{id}`, `POST /agents/{id}/activate`, `POST /agents/{id}/deactivate`, `DELETE /agents/{id}`, `GET /agents/{id}/calls`
-- `POST /calls/incoming` (Twilio TwiML), `POST /calls/respond/{call_id}` (Twilio TwiML), `POST /calls/status`, `GET /calls/recent`, `GET /calls/{id}`
+- `POST /agents/create`, `GET /agents/list`, `PUT /agents/{id}`, `POST /agents/{id}/activate`, `POST /agents/{id}/deactivate`, `DELETE /agents/{id}`, `GET /agents/{id}/calls`, `GET /agents/{id}/setup-instructions?carrier=…`
+- `POST /calls/incoming` (Twilio TwiML), `POST /calls/respond/{call_id}` (Twilio TwiML), `POST /calls/status`, `GET /calls/recent`, `GET /calls/{id}`, `GET /calls/audio/{filename}` (ElevenLabs MP3 cache)
 - `GET /dashboard/stats`
-- `POST /webhooks/stripe`, `POST /webhooks/whatsapp`
-- `GET /app` — bundled web dashboard (login, stats, agents, recent calls, transcript view)
+- `GET /billing/plans`, `GET /billing/status`, `POST /billing/create-checkout`, `POST /billing/create-portal`
+- `POST /webhooks/stripe` (signature-verified), `POST /webhooks/whatsapp` (real inbound replies)
+- `GET /app` — bundled multi-page dashboard SPA (auth, dashboard, calls, agents wizard, settings, billing)
+
+## Frontend
+- `app/static/index.html` — shell that loads `styles.css` + `app.js` + Lucide + Inter.
+- `app/static/app.js` — vanilla-JS hash router with pages: split login/signup, dashboard (stat cards + recent calls + agents panel), calls (search/filter + slide-in detail panel), agents grid, agent create/edit form, carrier setup-instructions page, settings, billing (Stripe checkout + customer portal).
+- Theme: deep navy `#0A0F1E` with indigo `#6366F1` accent; dark UI throughout.
 
 ## Deployment
 Configured for Replit autoscale running the same uvicorn command. Push the Publish button when ready.

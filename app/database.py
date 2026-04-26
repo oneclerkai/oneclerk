@@ -66,15 +66,34 @@ def _init_engine() -> None:
 _init_engine()
 
 
+# Idempotent column additions for tables that already exist from earlier runs.
+# SQLAlchemy's create_all only creates missing tables, never alters existing ones.
+_LIGHTWEIGHT_MIGRATIONS: tuple[str, ...] = (
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status VARCHAR",
+    "ALTER TABLE conversation_turns ADD COLUMN IF NOT EXISTS source VARCHAR DEFAULT 'voice'",
+    "ALTER TABLE conversation_turns ADD COLUMN IF NOT EXISTS caller_number VARCHAR",
+    "ALTER TABLE conversation_turns ADD COLUMN IF NOT EXISTS agent_id VARCHAR",
+    "ALTER TABLE conversation_turns ALTER COLUMN call_id DROP NOT NULL",
+)
+
+
 async def init_models() -> None:
-    """Create tables on startup if a database is configured."""
+    """Create tables on startup and run lightweight ALTER TABLE migrations."""
     if engine is None:
         return
     # Import models so they are registered with Base.metadata
     from app import models  # noqa: F401
+    from sqlalchemy import text
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        for stmt in _LIGHTWEIGHT_MIGRATIONS:
+            try:
+                await conn.execute(text(stmt))
+            except Exception:  # pragma: no cover - best-effort, never block startup
+                pass
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
