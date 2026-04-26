@@ -1,8 +1,8 @@
-# Rinq — Voice AI Receptionist
+# OneClerk — Voice AI Receptionist
 
-> Your phone rings. Rinq handles it.
+> Your phone rings. OneClerk handles it.
 
-Rinq is a voice AI receptionist for clinics, hotels, restaurants, salons, and offices. The user sets call forwarding on their existing business phone to a Rinq number; the AI answers, handles the conversation, and sends the owner a WhatsApp summary afterwards.
+OneClerk is a voice AI receptionist for clinics, hotels, restaurants, salons, and offices. The user sets call forwarding on their existing business phone to a OneClerk number; the AI answers, handles the conversation, and sends the owner a WhatsApp summary afterwards.
 
 ## Stack
 - **Python 3.12** + **FastAPI** + **Uvicorn**
@@ -54,7 +54,7 @@ See `.env.example`. The app starts cleanly with none configured; features degrad
 1. Buy a Twilio number.
 2. Set its **Voice → A Call Comes In** webhook to `https://<your-app>.replit.app/calls/incoming` (POST).
 3. Optionally set the **Status Callback** to `/calls/status` (POST).
-4. In Rinq, create an agent and set its `twilio_number` to the Twilio number you bought.
+4. In OneClerk, create an agent and set its `twilio_number` to the Twilio number you bought.
 5. Tell your customer's phone to call-forward unanswered calls to that Twilio number.
 
 ## Endpoints (cheat sheet)

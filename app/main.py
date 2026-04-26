@@ -9,7 +9,7 @@ from app.database import init_models
 from app.routes import agents, auth, calls, dashboard, webhooks
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("rinq")
+logger = logging.getLogger("oneclerk")
 
 
 @asynccontextmanager
@@ -26,7 +26,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(
-    title="Rinq API",
+    title="OneClerk API",
     description="The voice AI receptionist that answers your business calls.",
     version="1.0.0",
     lifespan=lifespan,
@@ -51,8 +51,8 @@ app.include_router(webhooks.router)
 @app.get("/")
 async def root() -> dict:
     return {
-        "product": "Rinq",
-        "tagline": "Your phone rings. Rinq handles it.",
+        "product": "OneClerk",
+        "tagline": "Your phone rings. OneClerk handles it.",
         "version": "1.0.0",
         "environment": settings.ENVIRONMENT or "development",
         "docs": "/docs",
@@ -64,7 +64,7 @@ async def root() -> dict:
 async def health() -> dict:
     return {
         "status": "ok",
-        "product": "Rinq",
+        "product": "OneClerk",
         "database_configured": bool(settings.DATABASE_URL),
         "openai_configured": bool(settings.OPENAI_API_KEY),
         "twilio_configured": bool(

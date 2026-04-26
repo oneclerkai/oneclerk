@@ -1,4 +1,4 @@
-"""Twilio webhook endpoints for the Rinq call flow."""
+"""Twilio webhook endpoints for the OneClerk call flow."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -29,7 +29,7 @@ async def handle_incoming_call(
     To: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
-    """Twilio hits this when a forwarded call arrives at the Rinq number."""
+    """Twilio hits this when a forwarded call arrives at the OneClerk number."""
     # Try to find an agent that owns this Twilio number; otherwise use the
     # most-recently-active agent (useful when a single number serves all agents).
     result = await db.execute(
@@ -204,3 +204,30 @@ async def recent_calls(
         for c in result.scalars().all()
     ]
     return {"calls": calls}
+
+
+@router.get("/{call_id}")
+async def get_call(
+    call_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    result = await db.execute(
+        select(Call).where(Call.id == call_id, Call.user_id == current_user.id)
+    )
+    call = result.scalar_one_or_none()
+    if call is None:
+        raise HTTPException(status_code=404, detail="Call not found")
+    return {
+        "id": call.id,
+        "call_sid": call.call_sid,
+        "agent_id": call.agent_id,
+        "caller_number": call.caller_number,
+        "duration_seconds": call.duration_seconds,
+        "status": call.status,
+        "is_urgent": call.is_urgent,
+        "booking_made": call.booking_made,
+        "booking_details": call.booking_details,
+        "conversation": call.conversation or [],
+        "created_at": call.created_at.isoformat() if call.created_at else None,
+    }

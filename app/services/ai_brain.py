@@ -1,4 +1,4 @@
-"""The intelligence layer for Rinq. Every call passes through here."""
+"""The intelligence layer for OneClerk. Every call passes through here."""
 from __future__ import annotations
 
 from typing import Iterable
@@ -57,7 +57,7 @@ def _client() -> "AsyncOpenAI | None":
 
 def _format_system_prompt(agent_config: dict) -> str:
     defaults = {
-        "agent_name": "Rinq",
+        "agent_name": "OneClerk",
         "business_name": "this business",
         "business_type": "general",
         "operating_hours": "9 AM to 6 PM",

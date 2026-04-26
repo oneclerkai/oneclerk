@@ -148,6 +148,18 @@ async def deactivate_agent(
     return {"status": "paused"}
 
 
+@router.delete("/{agent_id}", status_code=204)
+async def delete_agent(
+    agent_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    agent = await _get_owned_agent(db, current_user, agent_id)
+    await db.delete(agent)
+    await db.commit()
+    return None
+
+
 @router.get("/{agent_id}/calls")
 async def get_agent_calls(
     agent_id: str,

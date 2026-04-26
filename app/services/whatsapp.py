@@ -41,7 +41,7 @@ async def send_call_summary(
         if role == "user":
             summary_lines.append(f"Caller: {content}")
         elif role == "assistant":
-            summary_lines.append(f"Rinq: {content}")
+            summary_lines.append(f"OneClerk: {content}")
     summary = "\n".join(summary_lines[-6:])
 
     if urgent:
@@ -55,7 +55,7 @@ async def send_call_summary(
         body = (
             f"📞 Call Summary from {caller_number}\n\n"
             f"Conversation:\n{summary}\n\n"
-            f"Logged in your Rinq dashboard."
+            f"Logged in your OneClerk dashboard."
         )
 
     if client is None or not owner_whatsapp:
