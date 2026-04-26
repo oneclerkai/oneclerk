@@ -98,7 +98,6 @@ route("auth", async () => {
         </div>
       </nav>
 
-      <div class="vertical-text-left">SYS // ONECLERK · v1.0 · UPLINK STABLE</div>
       <div class="vertical-text">
         WHEN <span class="accent">AI</span> MEETS <span class="accent">INTELLIGENCE</span>
       </div>
@@ -106,34 +105,28 @@ route("auth", async () => {
       <main class="landing-hero">
         <div class="crystal-stage">
           <div class="crystal-glow"></div>
-          <canvas id="crystal-canvas" width="560" height="560"></canvas>
+          <canvas id="crystal-canvas" width="520" height="520"></canvas>
         </div>
         <div class="eyebrow">
           <span class="dot"></span>
-          <span>AGENTIC RECEPTION · LIVE NOW</span>
-          <span class="dot"></span>
+          <span>VOICE AI RECEPTIONIST</span>
         </div>
-        <h1>
-          AN AGENT THAT <span class="accent">ANSWERS</span><br/>
-          WHEN THE <span class="light">PHONE WON'T WAIT.</span>
-        </h1>
+        <h1>Never miss a <span class="accent">call</span>.</h1>
         <div class="sub" id="sub-rotate">
           <span id="sub-text"></span><span class="caret"></span>
         </div>
         <div class="cta-row">
           <button class="cta-primary" data-open-auth="signup">
-            <span>Spin up an agent</span><span>→</span>
+            <span>Get started</span><span class="arr">→</span>
           </button>
           <button class="cta-secondary" data-open-auth="login">
-            <span>I already have one</span>
+            <span>Sign in</span>
           </button>
         </div>
-        <div class="crystal-caption">PIXEL · GLASS · CRYSTAL // CORE 0x4A</div>
       </main>
 
       <div class="ground-line">
-        <span>EST · 2026 · BUILT FOR THE CALLS THAT MATTER</span>
-        <span>RECEPTION → ROUTING → REPLY → RECORDED</span>
+        <span>RECEPTION · ROUTING · REPLY</span>
       </div>
     </div>`);
 
@@ -156,16 +149,10 @@ route("auth", async () => {
 // --- Landing helpers ---
 
 const SUBTITLES = [
-  "Your AI receptionist — answering missed calls in your business's voice.",
-  "Books appointments. Flags emergencies. Texts the WhatsApp summary.",
-  "Twelve minutes to set up. A lifetime of never missing a call again.",
-  "It speaks like you, listens like you, works while you sleep.",
-  "Built for clinics, salons, hotels — every place that picks up the phone.",
-  "From the first ring to the last word, a receptionist that never blinks.",
-  "Trained for reception. Tuned for voice. Engineered for restraint.",
-  "Every call is captured. Every caller is heard. Nothing falls through.",
-  "An agent that listens before it speaks — and acts before you ask.",
-  "Designed in pixels. Trained in patience. Deployed in seconds.",
+  "An AI receptionist that answers in your voice.",
+  "Books appointments. Flags emergencies. Texts the summary.",
+  "Set up in twelve minutes. Live forever.",
+  "Built for clinics, salons, and the calls that matter.",
 ];
 
 function initSubtitleRotator(el) {
@@ -202,35 +189,21 @@ function initPerspectiveLines(host) {
   const draw = () => {
     const W = window.innerWidth, H = window.innerHeight;
     const cx = W / 2, cy = H / 2;
-    const sq = 28; // half-side of center square
+    const sq = 18;
     const x1 = cx - sq, y1 = cy - sq, x2 = cx + sq, y2 = cy + sq;
     host.innerHTML = `
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
         <defs>
           <linearGradient id="pl-grad" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stop-color="rgba(125,163,255,0.0)"/>
-            <stop offset="60%" stop-color="rgba(125,163,255,0.25)"/>
-            <stop offset="100%" stop-color="rgba(199,216,255,0.5)"/>
+            <stop offset="100%" stop-color="rgba(199,216,255,0.32)"/>
           </linearGradient>
         </defs>
-        <!-- Glow underlay -->
-        <line class="pl-glow" x1="0" y1="0" x2="${x1}" y2="${y1}"/>
-        <line class="pl-glow" x1="${W}" y1="0" x2="${x2}" y2="${y1}"/>
-        <line class="pl-glow" x1="0" y1="${H}" x2="${x1}" y2="${y2}"/>
-        <line class="pl-glow" x1="${W}" y1="${H}" x2="${x2}" y2="${y2}"/>
-        <!-- Crisp lines -->
         <line class="pl" x1="0" y1="0" x2="${x1}" y2="${y1}" stroke="url(#pl-grad)"/>
         <line class="pl" x1="${W}" y1="0" x2="${x2}" y2="${y1}" stroke="url(#pl-grad)"/>
         <line class="pl" x1="0" y1="${H}" x2="${x1}" y2="${y2}" stroke="url(#pl-grad)"/>
         <line class="pl" x1="${W}" y1="${H}" x2="${x2}" y2="${y2}" stroke="url(#pl-grad)"/>
-        <!-- Center square (outer dashed + crisp inner) -->
-        <rect class="center-square outer" x="${x1-12}" y="${y1-12}" width="${(sq+12)*2}" height="${(sq+12)*2}"/>
         <rect class="center-square" x="${x1}" y="${y1}" width="${sq*2}" height="${sq*2}"/>
-        <!-- Tick marks at midpoints -->
-        <line class="pl" x1="${cx}" y1="${y1-18}" x2="${cx}" y2="${y1-6}"/>
-        <line class="pl" x1="${cx}" y1="${y2+6}" x2="${cx}" y2="${y2+18}"/>
-        <line class="pl" x1="${x1-18}" y1="${cy}" x2="${x1-6}" y2="${cy}"/>
-        <line class="pl" x1="${x2+6}" y1="${cy}" x2="${x2+18}" y2="${cy}"/>
       </svg>`;
   };
   draw();
@@ -246,8 +219,8 @@ function initPixelField(canvas) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   const PX = 4;        // pixel size in screen px
-  const DENSITY = 0.42; // fraction of cells that are filled
-  const HOVER_R = 170;  // mouse influence radius
+  const DENSITY = 0.18; // fraction of cells that are filled
+  const HOVER_R = 130;  // mouse influence radius
   let cells = [];
   let baseImg = null;
   let mx = -9999, my = -9999, prev = null;
@@ -258,23 +231,16 @@ function initPixelField(canvas) {
     const cw = Math.ceil(canvas.width / PX);
     const ch = Math.ceil(canvas.height / PX);
     cells = [];
-    // Black/blue/white palette, biased dark
+    // Quiet two-tone palette
     const palettes = [
-      { base: "#0a1024", hover: "#7da3ff" },   // dark navy → bright blue
-      { base: "#142046", hover: "#a3c0ff" },   // mid navy → pale blue
-      { base: "#1a2f6a", hover: "#c7d8ff" },   // brighter blue → near-white
-      { base: "#0a0f1e", hover: "#ffffff" },   // black → white
-      { base: "#070a17", hover: "#9bb6ff" },   // off-black → soft blue
+      { base: "#0e1530", hover: "#9ebcff" },
+      { base: "#0a0f24", hover: "#c7d8ff" },
     ];
     for (let y = 0; y < ch; y++) {
       for (let x = 0; x < cw; x++) {
         if (Math.random() > DENSITY) continue;
-        // bias more sparkles in middle band
-        const cyy = ch / 2;
-        const bias = 1 - Math.abs(y - cyy) / cyy;
-        if (Math.random() > 0.6 + bias * 0.3) continue;
         const p = palettes[Math.floor(Math.random() * palettes.length)];
-        const alpha = 0.28 + Math.random() * 0.5;
+        const alpha = 0.22 + Math.random() * 0.32;
         cells.push({ x: x * PX, y: y * PX, base: p.base, hover: p.hover, alpha });
       }
     }
@@ -466,15 +432,15 @@ function drawPixelCrystal(canvas) {
       ctx.fillRect((x+dx) * PX, (y+dy) * PX, PX, PX));
   });
 
-  // Floating dust pixels around crystal
-  for (let i = 0; i < 60; i++) {
+  // A few quiet dust pixels around the crystal
+  for (let i = 0; i < 18; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const dist = ry * (1.05 + Math.random() * 0.55);
+    const dist = ry * (1.1 + Math.random() * 0.4);
     const x = Math.round(cx + Math.cos(angle) * dist);
     const y = Math.round(cy + Math.sin(angle) * dist);
     if (x < 0 || x >= cw || y < 0 || y >= ch) continue;
-    const shade = ["#7da3ff","#c7d8ff","#324a98","#ffffff"][Math.floor(Math.random()*4)];
-    ctx.globalAlpha = 0.3 + Math.random() * 0.5;
+    const shade = ["#9ebcff","#c7d8ff"][Math.floor(Math.random()*2)];
+    ctx.globalAlpha = 0.25 + Math.random() * 0.35;
     ctx.fillStyle = shade;
     ctx.fillRect(x * PX, y * PX, PX, PX);
   }
