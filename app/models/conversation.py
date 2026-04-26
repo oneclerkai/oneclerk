@@ -8,10 +8,12 @@ from app.database import Base
 
 
 class Conversation(Base):
-    __tablename__ = "conversations"
+    """Per-turn conversation log (optional; Call.conversation also stores rolled-up history)."""
+
+    __tablename__ = "conversation_turns"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid4()))
-    call_id: Mapped[str] = mapped_column(String, ForeignKey("calls.id"), nullable=False, index=True)
+    call_id: Mapped[str] = mapped_column(String, ForeignKey("calls.id", ondelete="CASCADE"), index=True)
     role: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

@@ -1,21 +1,34 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import agents, auth, calls, dashboard, webhooks
 from app.config import settings
+from app.database import init_models
+from app.routes import agents, auth, calls, dashboard, webhooks
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("rinq")
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    if settings.DATABASE_URL:
+        try:
+            await init_models()
+            logger.info("Database tables ensured.")
+        except Exception:  # pragma: no cover
+            logger.exception("Failed to initialize database tables")
+    else:
+        logger.warning("DATABASE_URL is not set — DB-backed routes will return 500.")
     yield
 
 
 app = FastAPI(
-    title="Voice AI Agent Platform",
-    description="Backend API for managing voice AI agents, calls, and conversations.",
-    version="0.1.0",
+    title="Rinq API",
+    description="The voice AI receptionist that answers your business calls.",
+    version="1.0.0",
     lifespan=lifespan,
 )
 
@@ -38,8 +51,9 @@ app.include_router(webhooks.router)
 @app.get("/")
 async def root() -> dict:
     return {
-        "name": "Voice AI Agent Platform",
-        "version": "0.1.0",
+        "product": "Rinq",
+        "tagline": "Your phone rings. Rinq handles it.",
+        "version": "1.0.0",
         "environment": settings.ENVIRONMENT or "development",
         "docs": "/docs",
         "health": "/health",
@@ -50,6 +64,10 @@ async def root() -> dict:
 async def health() -> dict:
     return {
         "status": "ok",
+        "product": "Rinq",
         "database_configured": bool(settings.DATABASE_URL),
-        "redis_configured": bool(settings.REDIS_URL),
+        "openai_configured": bool(settings.OPENAI_API_KEY),
+        "twilio_configured": bool(
+            settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN
+        ),
     }
