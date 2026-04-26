@@ -15,13 +15,13 @@ OneClerk is a voice AI receptionist for clinics, hotels, restaurants, salons, an
 ## Project Layout
 ```
 app/
-  main.py                # FastAPI app, lifespan, router wiring, /, /health
+  main.py                # FastAPI app, lifespan, router wiring, /, /health, /app, /static
   config.py              # Settings via pydantic-settings (env vars)
   database.py            # Async SQLAlchemy engine + Base + init_models() + get_db()
   routes/
     auth.py              # /auth/signup, /auth/login, /auth/me
-    agents.py            # /agents/create|list|{id}|{id}/activate|{id}/deactivate|{id}/calls
-    calls.py             # Twilio webhooks: /calls/incoming, /calls/respond/{id}, /calls/status, /calls/recent
+    agents.py            # /agents/create|list|{id}|{id}/activate|{id}/deactivate|{id}/calls, DELETE /agents/{id}
+    calls.py             # Twilio webhooks: /calls/incoming, /calls/respond/{id}, /calls/status, /calls/recent, GET /calls/{id}
     dashboard.py         # /dashboard/stats
     webhooks.py          # /webhooks/stripe, /webhooks/whatsapp
   services/
@@ -30,6 +30,8 @@ app/
     voice_engine.py      # Stub for ElevenLabs TTS (uses Twilio Polly by default)
   models/
     user.py, agent.py, call.py, contact.py, conversation.py
+  static/
+    index.html           # Single-page dashboard (Tailwind via CDN, vanilla JS) — served at /app
 ```
 
 ## Running on Replit
@@ -61,14 +63,15 @@ See `.env.example`. The app starts cleanly with none configured; features degrad
 - `GET /` / `GET /health` — service info + which integrations are configured
 - `GET /docs` — Swagger UI
 - `POST /auth/signup`, `POST /auth/login`, `GET /auth/me`
-- `POST /agents/create`, `GET /agents/list`, `PUT /agents/{id}`, `POST /agents/{id}/activate`, `POST /agents/{id}/deactivate`, `GET /agents/{id}/calls`
-- `POST /calls/incoming` (Twilio TwiML), `POST /calls/respond/{call_id}` (Twilio TwiML), `POST /calls/status`, `GET /calls/recent`
+- `POST /agents/create`, `GET /agents/list`, `PUT /agents/{id}`, `POST /agents/{id}/activate`, `POST /agents/{id}/deactivate`, `DELETE /agents/{id}`, `GET /agents/{id}/calls`
+- `POST /calls/incoming` (Twilio TwiML), `POST /calls/respond/{call_id}` (Twilio TwiML), `POST /calls/status`, `GET /calls/recent`, `GET /calls/{id}`
 - `GET /dashboard/stats`
 - `POST /webhooks/stripe`, `POST /webhooks/whatsapp`
+- `GET /app` — bundled web dashboard (login, stats, agents, recent calls, transcript view)
 
 ## Deployment
 Configured for Replit autoscale running the same uvicorn command. Push the Publish button when ready.
 
 ## Notes / next steps
 - The brief uses **Supabase**; this build uses **SQLAlchemy + Replit Postgres** so it runs without external accounts. The table shapes match (`users`, `agents`, `calls`, `contacts`) so a Supabase swap later is mechanical.
-- The Next.js dashboard from Days 11–14 is not yet built — the API is fully ready for it.
+- Days 11–14 (dashboard) are delivered as a single-page web app at `/app` instead of a separate Next.js project — same dark theme, fully wired to the API. A Next.js port can be added later if desired.

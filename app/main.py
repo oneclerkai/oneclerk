@@ -1,8 +1,11 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import init_models
@@ -46,6 +49,14 @@ app.include_router(agents.router)
 app.include_router(calls.router)
 app.include_router(dashboard.router)
 app.include_router(webhooks.router)
+
+_STATIC_DIR = Path(__file__).parent / "static"
+if _STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
+
+    @app.get("/app", include_in_schema=False)
+    async def dashboard_app() -> FileResponse:
+        return FileResponse(_STATIC_DIR / "index.html")
 
 
 @app.get("/")
