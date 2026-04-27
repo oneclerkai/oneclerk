@@ -409,11 +409,30 @@ route("auth", async () => {
         <div class="lp-side-fade lp-side-fade-l"></div>
         <div class="lp-side-fade lp-side-fade-r"></div>
 
+        <!-- 3D glassmorphic floating integration cards (whatsapp / gcal / gmail / flip-back phone) -->
+        <div class="lp-floats" aria-hidden="true">
+          <div class="lp-float" data-k="whatsapp" title="WhatsApp">
+            <div class="lp-float-ic"><i data-lucide="message-circle" class="icon"></i></div>
+          </div>
+          <div class="lp-float" data-k="gcal" title="Google Calendar">
+            <div class="lp-float-ic"><i data-lucide="calendar" class="icon"></i></div>
+          </div>
+          <div class="lp-float" data-k="gmail" title="Gmail">
+            <div class="lp-float-ic"><i data-lucide="mail" class="icon"></i></div>
+          </div>
+          <div class="lp-float" data-k="phone" title="Phone — flips to backside">
+            <div class="lp-float-ic"><i data-lucide="phone" class="icon"></i></div>
+          </div>
+        </div>
+
         <div class="lp-hero-inner">
           <span class="lp-eyebrow"><span class="pulse"></span><span>VOICE AI · LIVE 24/7</span></span>
           <h1 class="lp-title">
-            Your AI receptionist answers every call,<br/>
-            books appointments, and texts you the recap — <em>automatically.</em>
+            <span class="lp-tline">Your AI receptionist.</span>
+            <span class="lp-tline">Answers every call.</span>
+            <span class="lp-tline">Books appointments.</span>
+            <span class="lp-tline">Texts you the recap.</span>
+            <span class="lp-tline"><em>Automatically.</em></span>
           </h1>
           <div class="lp-sub" id="lp-sub-rotate">
             <span id="lp-sub-text"></span><span class="caret"></span>
@@ -1839,6 +1858,15 @@ async function openCallPaperPopup(callId) {
         </div>` : ""}
 
       <div class="cl-pop-section">
+        <div class="cl-pop-section-title">Your note on this call</div>
+        <textarea class="cl-pop-callnote" id="cl-pop-callnote" placeholder="Add a private note for yourself…">${escapeHtml(loadCallNotes()[callId] || "")}</textarea>
+        <div class="cl-pop-callnote-row">
+          <span class="cl-pop-callnote-status" id="cl-pop-callnote-status"></span>
+          <button class="cl-pop-callnote-save" id="cl-pop-callnote-save">Save note</button>
+        </div>
+      </div>
+
+      <div class="cl-pop-section">
         <div class="cl-pop-section-title">Transcript</div>
         <div class="cl-pop-transcript">
           ${(c.conversation || []).map(t => `
@@ -1849,10 +1877,31 @@ async function openCallPaperPopup(callId) {
         </div>
       </div>
     `;
+    // Wire per-call note save (persists in localStorage)
+    const saveBtn = $("#cl-pop-callnote-save", pop);
+    const noteEl  = $("#cl-pop-callnote", pop);
+    const status  = $("#cl-pop-callnote-status", pop);
+    const persist = () => {
+      const all = loadCallNotes();
+      const v = (noteEl.value || "").trim();
+      if (v) all[callId] = v; else delete all[callId];
+      saveCallNotes(all);
+      status.textContent = "Saved ✓";
+      setTimeout(() => { status.textContent = ""; }, 1400);
+    };
+    saveBtn && saveBtn.addEventListener("click", persist);
+    noteEl && noteEl.addEventListener("blur", persist);
   } catch (e) {
     $("#cl-pop-body", pop).innerHTML = `<div class="text-danger">${escapeHtml(e.message)}</div>`;
   }
 }
+
+// Per-call private notes (separate from per-day notes)
+const CL_CALL_NOTES_KEY = "oc_call_notes_v1";
+function loadCallNotes() {
+  try { return JSON.parse(localStorage.getItem(CL_CALL_NOTES_KEY) || "{}"); } catch { return {}; }
+}
+function saveCallNotes(map) { localStorage.setItem(CL_CALL_NOTES_KEY, JSON.stringify(map)); }
 
 // === Agents page — visual builder with phone/whatsapp/agent/calendar/text/upload boxes
 //     connected by curved lines with sticky notes ===
@@ -1872,23 +1921,13 @@ const AGB_BOX_DEFS = [
 ];
 
 function agbDefaultLayout(agent) {
-  // Sensible default layout for an agent. Center the agent, surround with services.
+  // Minimal: just the agent box centered. User adds the rest with the "+" orb.
   return {
     boxes: [
-      { id: "ph",  kind: "phone",    x: 60,  y: 90,  data: { number: agent.twilio_number || "" } },
-      { id: "wa",  kind: "whatsapp", x: 60,  y: 280, data: { number: agent.config?.owner_whatsapp || "" } },
-      { id: "ag",  kind: "agent",    x: 380, y: 180, data: { name: agent.config?.agent_name || agent.name || "Agent", voice: agent.voice_id || "" } },
-      { id: "cal", kind: "calendar", x: 720, y: 90,  data: { url: agent.config?.calendly_url || "", connected: false } },
-      { id: "txt", kind: "text",     x: 720, y: 280, data: { content: agent.config?.faqs || "" } },
-      { id: "up",  kind: "upload",   x: 720, y: 470, data: { files: [] } },
+      { id: "ag", kind: "agent", x: 360, y: 200,
+        data: { name: agent.config?.agent_name || agent.name || "Agent", voice: agent.voice_id || "" } },
     ],
-    edges: [
-      { from: "ph",  to: "ag", note: "incoming call" },
-      { from: "wa",  to: "ag", note: "summary out" },
-      { from: "ag",  to: "cal", note: "books appointment" },
-      { from: "ag",  to: "txt", note: "uses talking points" },
-      { from: "ag",  to: "up",  note: "learns from docs" },
-    ],
+    edges: [],
   };
 }
 
@@ -1950,63 +1989,39 @@ route("agents", async () => {
 
     const stage = $("#agb-stage", page);
     stage.innerHTML = `
-      <div class="agb-toolbar">
+      <div class="agb-toolbar agb-toolbar-clean">
         <div class="agb-toolbar-left">
           <span class="badge ${a.is_active ? 'badge-success' : 'badge-muted'}">${a.is_active ? 'Live' : 'Paused'}</span>
-          <span class="agb-meta">${escapeHtml(a.config?.business_name || '—')}</span>
-          <span class="agb-meta">·</span>
-          <span class="agb-meta">📞 ${escapeHtml(a.twilio_number || 'no number')}</span>
-          <span class="agb-meta">·</span>
-          <span class="agb-meta">${a.calls_this_month || 0} calls this month</span>
+          <span class="agb-meta">${escapeHtml(a.name)}</span>
         </div>
         <div class="agb-toolbar-right">
-          <button class="btn btn-sm" id="agb-edit"><i data-lucide="pencil" class="icon"></i>Settings</button>
-          <button class="btn btn-sm" id="agb-flow"><i data-lucide="git-branch" class="icon"></i>Flow</button>
-          <button class="btn btn-sm" id="agb-setup"><i data-lucide="phone" class="icon"></i>Connect</button>
           <button class="btn btn-sm" id="agb-toggle">${a.is_active ? 'Pause' : 'Activate'}</button>
-          <button class="btn btn-sm btn-danger" id="agb-del"><i data-lucide="trash-2" class="icon"></i></button>
-          <button class="btn btn-primary btn-sm" id="agb-save"><i data-lucide="save" class="icon"></i>Save layout</button>
+          <button class="btn btn-sm btn-danger" id="agb-del" title="Delete agent"><i data-lucide="trash-2" class="icon"></i></button>
+          <button class="btn btn-primary btn-sm" id="agb-save"><i data-lucide="save" class="icon"></i>Save</button>
         </div>
       </div>
 
-      <div class="agb-builder">
-        <aside class="agb-palette">
-          <div class="agb-palette-head">Drag onto canvas</div>
-          ${AGB_BOX_DEFS.map(d => `
-            <div class="agb-pal-item" draggable="true" data-kind="${d.kind}" style="--ax:${d.accent}">
-              <div class="agb-pal-icon"><i data-lucide="${d.icon}" class="icon"></i></div>
-              <div class="agb-pal-label">${d.label}</div>
-            </div>`).join("")}
-          <div class="agb-tip">
-            <strong>Tip:</strong> drag from the right edge of any box to another box's left edge to connect them.
-            Connections show as curved dotted lines with editable sticky notes.
-          </div>
-        </aside>
-
+      <div class="agb-builder agb-builder-clean">
         <div class="agb-canvas-wrap" id="agb-canvas-wrap">
           <div class="agb-canvas" id="agb-canvas">
             <svg class="agb-svg" id="agb-svg"></svg>
           </div>
 
-          <!-- OneClerk glassmorphic 3D orb + "+" integration menu -->
+          <!-- OneClerk glassmorphic orb + "+" integration menu -->
           <div class="agb-orb-wrap" id="agb-orb-wrap">
             <div class="agb-orb" title="OneClerk agent">
               <div class="agb-orb-glass"></div>
               <div class="agb-orb-mark">OC</div>
               <div class="agb-orb-ring"></div>
             </div>
-            <button class="agb-orb-plus" id="agb-orb-plus" title="Add a piece">
+            <button class="agb-orb-plus" id="agb-orb-plus" title="Add">
               <i data-lucide="plus" class="icon"></i>
             </button>
-            <div class="agb-orb-menu" id="agb-orb-menu" hidden>
-              <div class="agb-orb-menu-head">Add to your agent</div>
+            <div class="agb-orb-menu agb-orb-menu-mini" id="agb-orb-menu" hidden>
               ${AGB_BOX_DEFS.map(d => `
-                <button class="agb-orb-menu-item" data-add-kind="${d.kind}" style="--ax:${d.accent}">
+                <button class="agb-orb-menu-item agb-orb-menu-item-mini" data-add-kind="${d.kind}" style="--ax:${d.accent}" title="${escapeHtml(d.label)}">
                   <span class="agb-orb-menu-ic"><i data-lucide="${d.icon}" class="icon"></i></span>
-                  <span class="agb-orb-menu-text">
-                    <span class="agb-orb-menu-label">${d.label}</span>
-                    <span class="agb-orb-menu-note">${escapeHtml(d.note || '')}</span>
-                  </span>
+                  <span class="agb-orb-menu-label">${d.label}</span>
                 </button>
               `).join("")}
             </div>
@@ -2041,9 +2056,6 @@ route("agents", async () => {
     }));
 
     // Wire toolbar actions
-    $("#agb-edit", stage).addEventListener("click", () => navigate(`#/agents/${a.id}/edit`));
-    $("#agb-flow", stage).addEventListener("click", () => navigate(`#/agents/${a.id}/flow`));
-    $("#agb-setup", stage).addEventListener("click", () => navigate(`#/agents/${a.id}/setup`));
     $("#agb-toggle", stage).addEventListener("click", async () => {
       try {
         await api(`/agents/${a.id}/${a.is_active ? "deactivate" : "activate"}`, { method: "POST" });

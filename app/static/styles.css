@@ -570,13 +570,14 @@ textarea.field { resize: vertical; min-height: 80px; }
 /* ---------- HERO ---------- */
 .lp-hero {
   position: relative;
-  min-height: 100vh;
+  min-height: auto;
   width: 100%;
   overflow: hidden;
   background: #fafaf7;
+  padding-bottom: 40px;
 }
 
-/* Animated SQUARE GRID moving upwards */
+/* Animated SQUARE GRID moving upwards — fast + faded on ALL FOUR sides */
 .lp-mesh {
   position: absolute; inset: -2px 0 0 0; z-index: 1; pointer-events: none;
   background-image:
@@ -584,10 +585,10 @@ textarea.field { resize: vertical; min-height: 80px; }
     linear-gradient(to bottom, rgba(15,15,20,0.07) 1px, transparent 1px);
   background-size: 48px 48px;
   background-position: 0 0;
-  animation: lpGridUp 5s linear infinite;
-  /* SIDE-ONLY fade — keep top + bottom of grid sharp, fade the left/right edges */
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 12%, #000 88%, transparent 100%);
-          mask-image: linear-gradient(to right, transparent 0%, #000 12%, #000 88%, transparent 100%);
+  animation: lpGridUp 2.4s linear infinite;
+  /* Four-edge fade — radial gives top+bottom+left+right soft fade */
+  -webkit-mask-image: radial-gradient(ellipse 75% 75% at center, #000 35%, transparent 95%);
+          mask-image: radial-gradient(ellipse 75% 75% at center, #000 35%, transparent 95%);
 }
 @keyframes lpGridUp {
   0%   { background-position: 0 0; }
@@ -702,10 +703,10 @@ textarea.field { resize: vertical; min-height: 80px; }
 /* ---------- HERO CONTENT ---------- */
 .lp-hero-inner {
   position: relative; z-index: 6;
-  min-height: 100vh;
+  min-height: auto;
   display: flex; flex-direction: column; align-items: center;
   justify-content: center;
-  padding: 140px 24px 80px;
+  padding: 110px 24px 24px;
   text-align: center;
 }
 .lp-eyebrow {
@@ -744,6 +745,17 @@ textarea.field { resize: vertical; min-height: 80px; }
 }
 .lp-title em {
   font-style: italic; font-weight: 600; color: #c2410c;
+}
+/* Each title line forced to its own row, no wrapping */
+.lp-title .lp-tline {
+  display: block;
+  white-space: nowrap;
+  font-size: clamp(28px, 4.2vw, 56px);
+  line-height: 1.16;
+}
+.lp-title .lp-tline em { white-space: nowrap; }
+@media (max-width: 760px) {
+  .lp-title .lp-tline { white-space: normal; font-size: clamp(24px, 6.4vw, 36px); }
 }
 .lp-title .lp-thin { font-weight: 300; color: rgba(15,15,20,0.55); }
 .lp-title .lp-italic { font-style: italic; font-weight: 400; }
@@ -898,7 +910,7 @@ textarea.field { resize: vertical; min-height: 80px; }
   position: relative;
   background: #060608;
   color: #f3f3ee;
-  padding: 110px 24px 130px;
+  padding: 60px 24px 70px;
   overflow: hidden;
 }
 .lp-cases-glow {
@@ -1011,7 +1023,7 @@ textarea.field { resize: vertical; min-height: 80px; }
 .lp-reviews {
   position: relative;
   background: #fafaf7;
-  padding: 130px 0 140px;
+  padding: 70px 0 80px;
   overflow: hidden;
 }
 /* dots moving downward */
@@ -1415,7 +1427,7 @@ textarea.field { resize: vertical; min-height: 80px; }
 /* Billing / pricing section */
 .lp-billing {
   background: #fff1c5;
-  padding: 100px 24px 120px;
+  padding: 60px 24px 70px;
   position: relative;
 }
 .lp-billing-head {
@@ -2804,10 +2816,11 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 .lp-side-fade-l { left: 0;  background: linear-gradient(to right, #fafaf7 0%, rgba(250,250,247,0.85) 30%, transparent 100%); }
 .lp-side-fade-r { right: 0; background: linear-gradient(to left,  #fafaf7 0%, rgba(250,250,247,0.85) 30%, transparent 100%); }
 
-/* Hero notes row — 4 sticky notes side-by-side with SVG arrows between */
+/* Hero notes row — 4 sticky notes side-by-side with SVG arrows between.
+   Pulled tight to the title (small top margin) and trimmed bottom space. */
 .lp-notes-row {
   position: relative; z-index: 6;
-  max-width: 1180px; margin: 60px auto 80px;
+  max-width: 1180px; margin: 8px auto 18px;
   padding: 0 28px;
   display: grid; grid-template-columns: 1fr 60px 1fr 60px 1fr 60px 1fr;
   align-items: center; gap: 8px;
@@ -2932,20 +2945,20 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 }
 @keyframes lpGlassShine { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
-/* Soft gradient transitions between sections */
+/* Soft gradient transitions between sections (compact) */
 .lp-grad-soft {
-  height: 80px;
+  height: 40px;
   background: linear-gradient(180deg, #fafaf7 0%, #f6efe2 100%);
 }
 .lp-grad-soft-dark {
   background: linear-gradient(180deg, #f6efe2 0%, #ece3d4 100%);
 }
 .lp-grad-cream {
-  height: 90px;
+  height: 40px;
   background: linear-gradient(180deg, #ffffff 0%, #fff5e0 100%);
 }
 .lp-grad-tofoot {
-  height: 110px;
+  height: 50px;
   background: linear-gradient(180deg, #fff5e0 0%, #1a1a22 100%);
 }
 
@@ -2956,7 +2969,7 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 .lp-try {
   background: #0d0d0f;
   color: #fff;
-  padding: 90px 28px;
+  padding: 60px 28px;
   position: relative;
 }
 .lp-try-head {
@@ -3065,7 +3078,7 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 /* Q&A — gradient (no image) */
 .lp-qna {
   position: relative;
-  padding: 90px 28px;
+  padding: 60px 28px;
   overflow: hidden;
 }
 .lp-qna-bg {
@@ -3153,4 +3166,208 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   .lp-note-arr { display: none; }
   .lp-try-controls { grid-template-columns: 1fr; }
 }
+
+/* ============================================================ */
+/* v13 — call-popup notes, cleaner agent builder, floating 3D    */
+/* glassmorphic integration cards on the landing page            */
+/* ============================================================ */
+
+/* --- Per-call note textarea inside the call popup --- */
+.cl-pop-callnote {
+  width: 100%;
+  min-height: 84px;
+  resize: vertical;
+  border: 1px solid rgba(15,15,20,0.14);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13.5px;
+  color: #0f0f14;
+  background: #fffef9;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 1px 0 rgba(15,15,20,0.04);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.cl-pop-callnote:focus {
+  border-color: rgba(15,15,20,0.32);
+  box-shadow: 0 0 0 3px rgba(255,205,92,0.25);
+}
+.cl-pop-callnote-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 8px; gap: 10px;
+}
+.cl-pop-callnote-status {
+  font-family: 'Poppins', sans-serif; font-size: 12px;
+  color: #16a34a; font-weight: 600;
+}
+.cl-pop-callnote-save {
+  font-family: 'Poppins', sans-serif; font-size: 12.5px; font-weight: 600;
+  background: #0f0f14; color: #fff; border: none;
+  padding: 8px 14px; border-radius: 8px; cursor: pointer;
+  box-shadow: 0 6px 14px -8px rgba(15,15,20,0.5);
+  transition: transform .14s ease;
+}
+.cl-pop-callnote-save:hover { transform: translateY(-1px); }
+
+/* --- Cleaner agent builder (no side palette, no tip text) --- */
+.agb-toolbar-clean {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px;
+  background: #fff;
+  border: 1px solid rgba(15,15,20,0.08);
+  border-radius: 14px;
+  box-shadow: 0 6px 18px -10px rgba(15,15,20,0.18);
+  margin-bottom: 14px;
+}
+.agb-toolbar-clean .agb-toolbar-left {
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'Poppins', sans-serif; font-weight: 600; color: #0f0f14;
+}
+.agb-toolbar-clean .agb-toolbar-right {
+  display: flex; align-items: center; gap: 8px;
+}
+.agb-builder-clean {
+  display: block;
+}
+.agb-builder-clean .agb-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 220px);
+  min-height: 520px;
+  background:
+    radial-gradient(circle at 25% 18%, rgba(120,140,255,0.06), transparent 55%),
+    radial-gradient(circle at 78% 82%, rgba(255,180,80,0.05), transparent 60%),
+    #fafaf7;
+  border: 1px solid rgba(15,15,20,0.06);
+  border-radius: 18px;
+  overflow: auto;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 12px 30px -16px rgba(15,15,20,0.18);
+  /* dotted grid background like Make.com */
+  background-image:
+    radial-gradient(circle, rgba(15,15,20,0.10) 1px, transparent 1px),
+    radial-gradient(circle at 25% 18%, rgba(120,140,255,0.06), transparent 55%),
+    radial-gradient(circle at 78% 82%, rgba(255,180,80,0.05), transparent 60%);
+  background-size: 22px 22px, auto, auto;
+  background-position: 0 0, 0 0, 0 0;
+}
+/* Mini orb menu — icon grid, no descriptive notes */
+.agb-orb-menu-mini {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 10px;
+  width: 240px;
+}
+.agb-orb-menu-item-mini {
+  display: flex !important; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 6px;
+  border: 1px solid rgba(15,15,20,0.08);
+  border-radius: 10px;
+  background: #fff;
+  color: #0f0f14;
+  font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 600;
+  cursor: pointer;
+  transition: transform .14s ease, border-color .14s ease, background .14s ease;
+}
+.agb-orb-menu-item-mini:hover {
+  transform: translateY(-2px);
+  border-color: var(--ax, #0f0f14);
+  background: rgba(255,255,255,1);
+}
+.agb-orb-menu-item-mini .agb-orb-menu-ic {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--ax, #0f0f14); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+.agb-orb-menu-item-mini .agb-orb-menu-ic .icon { width: 16px; height: 16px; }
+.agb-orb-menu-item-mini .agb-orb-menu-label {
+  text-align: center; line-height: 1.2;
+}
+
+/* --- Floating 3D glassmorphic integration squares on landing --- */
+.lp-floats {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+.lp-floats .lp-float {
+  position: absolute;
+  width: 110px; height: 110px;
+  border-radius: 22px;
+  display: flex; align-items: center; justify-content: center;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255,255,255,0.85), rgba(255,255,255,0.25) 45%, rgba(255,255,255,0.05) 75%),
+    linear-gradient(160deg, rgba(180,200,255,0.45), rgba(255,180,220,0.4) 60%, rgba(255,220,140,0.45));
+  border: 1px solid rgba(255,255,255,0.85);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  box-shadow:
+    0 18px 36px -14px rgba(15,15,20,0.32),
+    inset 0 -8px 18px rgba(15,15,20,0.10),
+    inset 0 8px 18px rgba(255,255,255,0.85);
+  pointer-events: auto;
+  animation: lpFloatBob 6s ease-in-out infinite;
+}
+.lp-floats .lp-float::after {
+  /* glossy highlight strip */
+  content: '';
+  position: absolute; left: 8%; right: 8%; top: 6%; height: 22%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.7), transparent);
+  border-radius: 16px 16px 40% 40%;
+  pointer-events: none;
+}
+.lp-floats .lp-float .lp-float-ic {
+  position: relative; z-index: 2;
+  width: 56px; height: 56px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 16px;
+  font-size: 28px;
+  filter: drop-shadow(0 4px 8px rgba(15,15,20,0.25));
+}
+.lp-floats .lp-float .lp-float-ic .icon { width: 34px; height: 34px; }
+
+/* Per-card brand colors (for the inner ic chip) */
+.lp-float[data-k="whatsapp"] .lp-float-ic { background: linear-gradient(160deg, #25d366, #128c7e); color:#fff; }
+.lp-float[data-k="gcal"]     .lp-float-ic { background: linear-gradient(160deg, #fff, #eef2ff); color:#1a73e8; border:1px solid rgba(0,0,0,0.05); }
+.lp-float[data-k="gmail"]    .lp-float-ic { background: linear-gradient(160deg, #fff, #ffeae6); color:#ea4335; border:1px solid rgba(0,0,0,0.05); }
+.lp-float[data-k="phone"]    .lp-float-ic { background: linear-gradient(160deg, #0f0f14, #2a2a35); color:#ffd97a; }
+
+/* Random positions/timings — unique per card */
+.lp-floats .lp-float[data-k="whatsapp"] {
+  top: 14%; left: 4%; transform: rotate(-8deg);
+  animation-delay: -0.8s;
+}
+.lp-floats .lp-float[data-k="gcal"] {
+  top: 9%; right: 5%; transform: rotate(6deg);
+  animation-delay: -2.4s;
+}
+.lp-floats .lp-float[data-k="gmail"] {
+  bottom: 10%; left: 7%; transform: rotate(4deg);
+  animation-delay: -1.6s;
+}
+.lp-floats .lp-float[data-k="phone"] {
+  bottom: 14%; right: 6%; transform: rotate(-6deg);
+  animation-delay: -3.2s;
+  perspective: 600px;
+}
+/* Phone backside flip — runs forever */
+.lp-floats .lp-float[data-k="phone"] .lp-float-ic {
+  transform-style: preserve-3d;
+  animation: lpPhoneFlip 5.6s ease-in-out infinite;
+}
+@keyframes lpPhoneFlip {
+  0%, 35%   { transform: rotateY(0deg); }
+  50%, 85%  { transform: rotateY(180deg); }
+  100%      { transform: rotateY(360deg); }
+}
+@keyframes lpFloatBob {
+  0%, 100% { translate: 0 0; }
+  50%      { translate: 0 -10px; }
+}
+
+/* Hide floating cards on small screens to keep things tidy */
+@media (max-width: 900px) {
+  .lp-floats { display: none; }
+}
+
 
