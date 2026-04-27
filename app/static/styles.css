@@ -3378,54 +3378,68 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 /* rapid page transitions                                       */
 /* ============================================================ */
 
-/* --- Single-line catchy hero title --- */
+/* --- Big, two-line catchy hero title --- */
 .lp-title.lp-title-one {
   display: block;
-  white-space: nowrap;
   font-family: 'Poppins', sans-serif;
   font-weight: 800;
-  font-size: clamp(22px, 3.4vw, 48px);
-  line-height: 1.06;
+  font-size: clamp(30px, 5.4vw, 76px);
+  line-height: 1.04;
   letter-spacing: -0.035em;
-  margin: 0 auto 14px;
-  max-width: 100%;
+  margin: 14px auto 18px;
+  max-width: 1100px;
   padding: 0 16px;
-  overflow: visible;
 }
 .lp-title.lp-title-one em {
-  font-style: italic; font-weight: 700; color: #c2410c;
-  white-space: nowrap;
+  font-style: italic; font-weight: 800;
+  background: linear-gradient(120deg, #f59e0b 0%, #c2410c 50%, #9a3412 100%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 @media (max-width: 760px) {
-  .lp-title.lp-title-one { white-space: normal; font-size: clamp(22px, 6.4vw, 32px); line-height: 1.15; }
+  .lp-title.lp-title-one { font-size: clamp(26px, 7vw, 40px); line-height: 1.12; }
+  .lp-title.lp-title-one br { display: none; }
 }
 
-/* Tighten hero so the page feels smaller and notes hug the title */
-.lp-hero-inner { padding: 70px 24px 8px; }
-.lp-notes-row { margin: 18px auto 22px; }
+/* Spacious hero — notes sit comfortably below the CTA */
+.lp-hero-inner { padding: 96px 24px 28px; }
+.lp-notes-row { margin: 56px auto 28px; }
 /* Hide the redundant integrations plate — the corner brand floats already convey this */
 .lp-glass-plate { display: none; }
 @media (max-width: 880px) {
-  .lp-hero-inner { padding: 100px 16px 28px; }
+  .lp-hero-inner { padding: 110px 16px 32px; }
 }
 
-/* --- Real brand floats: drop the white-glass chip; show the actual logo --- */
+/* --- Real brand floats: bigger, fully visible, no glass chip --- */
 .lp-floats .lp-float-brand {
-  background: transparent !important;
-  border: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  width: 120px !important; height: 120px !important;
+  background: rgba(255,255,255,0.92) !important;
+  border: 1px solid rgba(255,255,255,0.95) !important;
+  backdrop-filter: blur(8px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(160%) !important;
   box-shadow:
-    0 22px 38px -16px rgba(15,15,20,0.35),
-    0 4px 10px -2px rgba(15,15,20,0.18) !important;
-  border-radius: 22px;
-  padding: 8px;
+    0 24px 44px -16px rgba(15,15,20,0.32),
+    0 6px 14px -3px rgba(15,15,20,0.18),
+    inset 0 1px 0 rgba(255,255,255,0.95) !important;
+  border-radius: 28px;
+  padding: 14px;
+  z-index: 6;
 }
 .lp-floats .lp-float-brand::after { display: none; }
 .lp-floats .lp-float-brand svg {
-  width: 76px; height: 76px;
-  filter: drop-shadow(0 6px 10px rgba(15,15,20,0.18));
+  width: 88px; height: 88px;
+  filter: drop-shadow(0 8px 14px rgba(15,15,20,0.22));
   display: block;
+}
+/* Reposition the floats so they sit clearly INSIDE the viewport at the corners */
+.lp-floats .lp-float[data-k="whatsapp"] { top: 90px;  left: 32px;  transform: rotate(-8deg); }
+.lp-floats .lp-float[data-k="gcal"]     { top: 80px;  right: 32px; transform: rotate(8deg); }
+.lp-floats .lp-float[data-k="gmail"]    { bottom: auto; top: 320px; left: 14px;  transform: rotate(6deg); }
+.lp-floats .lp-float[data-k="phone"]    { bottom: auto; top: 300px; right: 14px; transform: rotate(-6deg); perspective: 600px; }
+@media (max-width: 1100px) {
+  .lp-floats .lp-float[data-k="gmail"],
+  .lp-floats .lp-float[data-k="phone"]    { display: none; }
 }
 /* Phone "ringing" curves animation (used in landing float + builder phone box) */
 .ph-rings path {
@@ -3591,3 +3605,113 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   0%   { opacity: 0; transform: translateY(8px); }
   100% { opacity: 1; transform: translateY(0); }
 }
+
+/* ============================================================ */
+/* v15 — bigger title, bolder brand floats, engaging builder    */
+/* ============================================================ */
+
+/* Builder: clearer field labels, bigger brand chips, taller boxes */
+.agb-flabel {
+  display: block;
+  font-family: 'Poppins', sans-serif;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(15,15,20,0.55);
+  margin: 6px 0 3px;
+}
+.agb-box .agb-inline {
+  font-family: 'Poppins', sans-serif;
+  width: 100%;
+  padding: 6px 9px;
+  font-size: 12.5px;
+  border: 1px solid rgba(15,15,20,0.14);
+  border-radius: 8px;
+  background: #fffef9;
+  color: #0f0f14;
+  outline: none;
+  transition: border-color .14s, box-shadow .14s;
+}
+.agb-box .agb-inline:focus {
+  border-color: rgba(15,15,20,0.4);
+  box-shadow: 0 0 0 3px rgba(255,205,92,0.22);
+}
+.agb-box select.agb-inline {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #0f0f14 50%),
+                    linear-gradient(135deg, #0f0f14 50%, transparent 50%);
+  background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 28px;
+}
+.agb-box .agb-textarea { min-height: 70px; resize: vertical; line-height: 1.35; }
+
+/* Bigger header brand icon */
+.agb-box .agb-box-icon-brand {
+  width: 34px; height: 34px;
+}
+.agb-box .agb-box-icon-brand svg { width: 30px; height: 30px; }
+
+/* Box overall: a touch more padding, a clear soft shadow */
+.agb-box {
+  background: #fff;
+  border: 1px solid rgba(15,15,20,0.08);
+  border-radius: 14px;
+  box-shadow: 0 14px 30px -16px rgba(15,15,20,0.22), 0 2px 6px rgba(15,15,20,0.05);
+  padding: 0;
+  overflow: hidden;
+}
+.agb-box .agb-box-head {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(15,15,20,0.06);
+  background: linear-gradient(180deg, rgba(255,255,255,1), rgba(255,255,255,0.7));
+}
+.agb-box .agb-box-title {
+  flex: 1; min-width: 0;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px; font-weight: 700; color: #0f0f14;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.agb-box .agb-box-x {
+  border: none; background: transparent;
+  font-size: 18px; line-height: 1; color: rgba(15,15,20,0.45);
+  cursor: pointer; padding: 0 4px; border-radius: 4px;
+}
+.agb-box .agb-box-x:hover { color: #ef4444; background: rgba(239,68,68,0.08); }
+.agb-box .agb-box-body { padding: 8px 10px 10px; }
+
+/* Hover lift to telegraph "draggable" */
+.agb-box:hover {
+  box-shadow: 0 18px 38px -14px rgba(15,15,20,0.28), 0 3px 8px rgba(15,15,20,0.06);
+  transform: translateY(-1px);
+}
+.agb-box.is-dragging {
+  box-shadow: 0 24px 48px -12px rgba(15,15,20,0.45), 0 0 0 3px rgba(245,158,11,0.35);
+  transform: scale(1.02);
+}
+
+/* Orb menu — show real brand SVGs instead of flat icons */
+.agb-orb-menu-ic-brand {
+  width: 34px; height: 34px;
+  background: transparent !important;
+  display: flex; align-items: center; justify-content: center;
+}
+.agb-orb-menu-ic-brand svg {
+  width: 30px; height: 30px;
+  filter: drop-shadow(0 3px 5px rgba(15,15,20,0.15));
+}
+.agb-orb-menu-mini { width: 280px; }
+
+/* Upload icon inside the file label */
+.agb-upload-ic {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+}
+.agb-upload-ic svg { width: 26px; height: 26px; }
+
+/* Updated pricing: trial subline */
+.lp-billing-head p { font-size: 14px; }
+.lp-billing-head p strong { color: #0f0f14; }

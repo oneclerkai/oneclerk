@@ -10,7 +10,7 @@ from app.database import Base
 
 
 def _trial_end() -> datetime:
-    return datetime.utcnow() + timedelta(days=14)
+    return datetime.utcnow() + timedelta(days=7)
 
 
 class User(Base):

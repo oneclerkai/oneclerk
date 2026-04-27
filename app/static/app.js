@@ -64,6 +64,14 @@ const BRAND_SVG = {
   gcal: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="5" y="5" width="22" height="22" rx="2" fill="#fff"/><path fill="#1A73E8" d="M5 9h22v3H5z"/><path fill="#EA4335" d="M22 5h3v6h-3z"/><path fill="#FBBC04" d="M7 5h3v6H7z"/><text x="16" y="22.5" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" font-weight="700" fill="#1A73E8">31</text></svg>`,
   ig: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><radialGradient id="igG" cx=".3" cy="1.05" r="1.1"><stop offset="0%" stop-color="#FED576"/><stop offset="26%" stop-color="#F47133"/><stop offset="61%" stop-color="#BC3081"/><stop offset="100%" stop-color="#4C63D2"/></radialGradient></defs><rect x="4" y="4" width="24" height="24" rx="6" fill="url(#igG)"/><circle cx="16" cy="16" r="5.6" fill="none" stroke="#fff" stroke-width="2"/><circle cx="22.5" cy="9.5" r="1.4" fill="#fff"/></svg>`,
   phone: `<svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g class="ph-rings" fill="none" stroke="#0d6efd" stroke-width="1.6" stroke-linecap="round"><path d="M22.5 9.5c1.7 1.2 3 2.9 3.6 4.9"/><path d="M24.5 6.5c2.7 1.6 4.7 4.1 5.5 7.1"/><path d="M26.5 3.5c3.6 2 6.2 5.4 7.2 9.4"/></g><path fill="#0d6efd" d="M11.4 14.5c1.4 2.7 3.6 4.9 6.3 6.3l2.1-2.1c.3-.3.7-.4 1-.2 1.2.4 2.5.6 3.8.6.6 0 1 .4 1 1V23c0 .6-.4 1-1 1C13.4 24 8 18.6 8 11.4c0-.6.4-1 1-1h2.9c.6 0 1 .4 1 1 0 1.3.2 2.6.6 3.8.1.4 0 .7-.2 1l-1.9 2.3z"/></svg>`,
+  // OneClerk AI agent — orange gradient orb with "OC"
+  agent: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><radialGradient id="ocG" cx=".35" cy=".3" r=".9"><stop offset="0%" stop-color="#ffe39a"/><stop offset="55%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#9a3412"/></radialGradient></defs><circle cx="16" cy="16" r="14" fill="url(#ocG)"/><circle cx="16" cy="16" r="14" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1"/><text x="16" y="20.5" text-anchor="middle" font-family="Poppins,Arial,sans-serif" font-size="11" font-weight="800" fill="#fff">OC</text></svg>`,
+  // Talking points — sticky note
+  text: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="5" y="6" width="22" height="22" rx="3" fill="#fef9c3" stroke="#eab308" stroke-width="1.2"/><path d="M9 12h14M9 16h14M9 20h10" stroke="#854d0e" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+  // Upload — cloud + arrow up
+  upload: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M9 22a5 5 0 1 1 1.2-9.85A7 7 0 0 1 24 14a4.5 4.5 0 0 1 0 9H9z" fill="#dbeafe" stroke="#2563eb" stroke-width="1.4"/><path d="M16 13v8M12 17l4-4 4 4" stroke="#1d4ed8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`,
+  // Slack
+  slack: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="6" y="14" width="6" height="2.5" rx="1.25" fill="#36C5F0"/><rect x="14" y="6" width="2.5" height="6" rx="1.25" fill="#2EB67D"/><rect x="20" y="15.5" width="6" height="2.5" rx="1.25" fill="#ECB22E"/><rect x="15.5" y="20" width="2.5" height="6" rx="1.25" fill="#E01E5A"/><circle cx="11" cy="11" r="2.2" fill="#36C5F0"/><circle cx="21" cy="11" r="2.2" fill="#2EB67D"/><circle cx="21" cy="21" r="2.2" fill="#ECB22E"/><circle cx="11" cy="21" r="2.2" fill="#E01E5A"/></svg>`,
 };
 function brandSvg(key) { return BRAND_SVG[key] || ""; }
 
@@ -119,7 +127,6 @@ const LANDING_PLANS = [
     features: [
       "AI voice agent in one language",
       "Updates on WhatsApp",
-      "100 minutes / month",
       "1 phone number",
       "1 AI agent",
       "Email support",
@@ -131,7 +138,6 @@ const LANDING_PLANS = [
     features: [
       "Multi-language voice agent",
       "Live WhatsApp + email recaps",
-      "500 minutes / month",
       "2 phone numbers",
       "3 AI agents",
       "Google Calendar sync",
@@ -140,11 +146,11 @@ const LANDING_PLANS = [
     badge: "Most popular",
   },
   {
-    key: "scale", name: "Scale", price: 199, sub: "Multi-location, high volume",
+    key: "scale", name: "Scale", price: 149, sub: "Multi-location, high volume",
     features: [
+      "1,000 calls per month",
       "Custom voice clone",
       "WhatsApp + Slack + email recaps",
-      "2,000 minutes / month",
       "Unlimited numbers",
       "10 AI agents",
       "API + webhooks",
@@ -430,7 +436,8 @@ route("auth", async () => {
         <div class="lp-hero-inner">
           <span class="lp-eyebrow"><span class="pulse"></span><span>VOICE AI · LIVE 24/7</span></span>
           <h1 class="lp-title lp-title-one">
-            Your phone never sleeps. <em>Neither does OneClerk.</em>
+            World's <em>No.1</em> AI Voice Agent Builder.<br/>
+            Build Your Agent And <em>Replace Your Clerk.</em>
           </h1>
           <div class="lp-sub" id="lp-sub-rotate">
             <span id="lp-sub-text"></span><span class="caret"></span>
@@ -595,7 +602,7 @@ route("auth", async () => {
         <div class="lp-billing-head">
           <span class="eb">PRICING</span>
           <h2>Pay only for the calls you <em>actually</em> answer.</h2>
-          <p>Every plan starts with a 14-day free trial. No credit card required. Cancel any time.</p>
+          <p>Every plan starts with a 7-day free trial. No credit card required. Cancel any time.</p>
         </div>
         <div class="lp-plan-grid">
           ${LANDING_PLANS.map(p => `
@@ -1969,17 +1976,19 @@ function saveCallNotes(map) { localStorage.setItem(CL_CALL_NOTES_KEY, JSON.strin
 // === Agents page — visual builder with phone/whatsapp/agent/calendar/text/upload boxes
 //     connected by curved lines with sticky notes ===
 const AGB_BOX_DEFS = [
-  { kind: "phone",    label: "Phone number",     icon: "phone",          accent: "#f59e0b",
+  { kind: "phone",    label: "Phone number",     icon: "phone",          brand: "phone",     accent: "#0d6efd",
     note: "Forward your business line here. We pick up in 2 seconds." },
-  { kind: "whatsapp", label: "WhatsApp",         icon: "message-circle", accent: "#25d366",
+  { kind: "whatsapp", label: "WhatsApp",         icon: "message-circle", brand: "whatsapp",  accent: "#25d366",
     note: "Owner gets a recap text the moment the caller hangs up." },
-  { kind: "agent",    label: "AI Agent",         icon: "bot",            accent: "#0d0d0f",
+  { kind: "agent",    label: "AI Agent",         icon: "bot",            brand: "agent",     accent: "#f59e0b",
     note: "This is the brain — give it a name and a voice." },
-  { kind: "calendar", label: "Google Calendar",  icon: "calendar",       accent: "#4285f4",
+  { kind: "calendar", label: "Google Calendar",  icon: "calendar",       brand: "gcal",      accent: "#4285f4",
     note: "Bookings drop straight into your real calendar." },
-  { kind: "text",     label: "Talking points",   icon: "file-text",      accent: "#6366f1",
+  { kind: "gmail",    label: "Gmail",            icon: "mail",           brand: "gmail",     accent: "#ea4335",
+    note: "Send the caller a follow-up email." },
+  { kind: "text",     label: "Talking points",   icon: "file-text",      brand: "text",      accent: "#eab308",
     note: "Hours, prices, FAQs — anything the AI should mention." },
-  { kind: "upload",   label: "Upload docs",      icon: "upload-cloud",   accent: "#94a3b8",
+  { kind: "upload",   label: "Upload docs",      icon: "upload-cloud",   brand: "upload",    accent: "#2563eb",
     note: "PDFs, menus, intake forms — drag in for the AI to learn." },
 ];
 
@@ -2083,7 +2092,7 @@ route("agents", async () => {
             <div class="agb-orb-menu agb-orb-menu-mini" id="agb-orb-menu" hidden>
               ${AGB_BOX_DEFS.map(d => `
                 <button class="agb-orb-menu-item agb-orb-menu-item-mini" data-add-kind="${d.kind}" style="--ax:${d.accent}" title="${escapeHtml(d.label)}">
-                  <span class="agb-orb-menu-ic"><i data-lucide="${d.icon}" class="icon"></i></span>
+                  <span class="agb-orb-menu-ic agb-orb-menu-ic-brand">${brandSvg(d.brand)}</span>
                   <span class="agb-orb-menu-label">${d.label}</span>
                 </button>
               `).join("")}
@@ -2181,7 +2190,7 @@ function initBuilderCanvas(stage, layout) {
     selectedEdge: null,
   };
 
-  const BOX_W = 220, BOX_H = 130;
+  const BOX_W = 240, BOX_H = 170;
 
   function defOf(kind) { return AGB_BOX_DEFS.find(d => d.kind === kind) || AGB_BOX_DEFS[0]; }
   function boxById(id) { return layout.boxes.find(b => b.id === id); }
@@ -2199,11 +2208,12 @@ function initBuilderCanvas(stage, layout) {
     return `M ${sx} ${sy} C ${sx + dx} ${sy + 12}, ${gx - dx} ${gy - 12}, ${gx} ${gy}`;
   }
 
-  // Brand-aware icon for the box header — uses real SVG logos where available
+  // Brand-aware icon for the box header — every kind has a real brand SVG
   function boxHeadIcon(kind) {
-    const brandKey = ({ whatsapp: "whatsapp", phone: "phone", calendar: "gcal" })[kind];
-    if (brandKey) return `<div class="agb-box-icon agb-box-icon-brand">${brandSvg(brandKey)}</div>`;
     const def = defOf(kind);
+    if (def.brand && BRAND_SVG[def.brand]) {
+      return `<div class="agb-box-icon agb-box-icon-brand">${brandSvg(def.brand)}</div>`;
+    }
     return `<div class="agb-box-icon"><i data-lucide="${def.icon}" class="icon"></i></div>`;
   }
 
@@ -2211,33 +2221,51 @@ function initBuilderCanvas(stage, layout) {
     const def = defOf(box.kind);
     let body = "";
     if (box.kind === "phone") {
+      const linked = !!(box.data.number || "").trim();
       body = `
         <div class="agb-phone-rings" aria-hidden="true">
           <span></span><span></span><span></span>
         </div>
+        <label class="agb-flabel">Forwarding number</label>
         <input class="agb-inline" data-field="number" placeholder="+1 555 0100" value="${escapeHtml(box.data.number || '')}"/>
-        <div class="agb-hint">Forward your business line here.</div>`;
+        <div class="agb-cal-status ${linked ? 'is-linked' : ''}">${linked ? '✓ Receiving calls' : 'Paste your business line'}</div>`;
     } else if (box.kind === "whatsapp") {
+      const linked = !!(box.data.number || "").trim();
       body = `
-        <input class="agb-inline" data-field="number" placeholder="WhatsApp +1 555 0100" value="${escapeHtml(box.data.number || '')}"/>
-        <div class="agb-hint">Owner gets a recap text after every call.</div>`;
+        <label class="agb-flabel">Owner WhatsApp</label>
+        <input class="agb-inline" data-field="number" placeholder="+1 555 0100" value="${escapeHtml(box.data.number || '')}"/>
+        <div class="agb-cal-status ${linked ? 'is-linked' : ''}">${linked ? '✓ Recaps will be sent here' : 'Owner gets a recap after every call'}</div>`;
     } else if (box.kind === "agent") {
       body = `
-        <input class="agb-inline" data-field="name" placeholder="Agent name (e.g. Maya)" value="${escapeHtml(box.data.name || '')}"/>
-        <input class="agb-inline agb-inline-sm" data-field="voice" placeholder="Voice (e.g. warm female)" value="${escapeHtml(box.data.voice || '')}"/>`;
+        <label class="agb-flabel">Agent name</label>
+        <input class="agb-inline" data-field="name" placeholder="e.g. Maya" value="${escapeHtml(box.data.name || '')}"/>
+        <label class="agb-flabel">Voice</label>
+        <select class="agb-inline" data-field="voice">
+          ${["warm female","calm male","cheerful female","authoritative male","gentle elder"].map(v =>
+            `<option value="${v}" ${box.data.voice === v ? 'selected' : ''}>${v}</option>`).join("")}
+        </select>`;
     } else if (box.kind === "calendar") {
-      const linked = !!box.data.url;
+      const linked = !!(box.data.url || "").trim();
       body = `
-        <input class="agb-inline" data-field="url" placeholder="Calendly or Google Calendar URL" value="${escapeHtml(box.data.url || '')}"/>
-        <div class="agb-cal-status ${linked ? 'is-linked' : ''}">${linked ? '✓ Linked' : 'Paste link to connect'}</div>`;
+        <label class="agb-flabel">Calendar link</label>
+        <input class="agb-inline" data-field="url" placeholder="calendly.com/yourname or Google link" value="${escapeHtml(box.data.url || '')}"/>
+        <div class="agb-cal-status ${linked ? 'is-linked' : ''}">${linked ? '✓ Linked — bookings drop in' : 'Paste link to connect'}</div>`;
+    } else if (box.kind === "gmail") {
+      const linked = !!(box.data.email || "").trim();
+      body = `
+        <label class="agb-flabel">From email</label>
+        <input class="agb-inline" data-field="email" placeholder="hello@yourbiz.com" value="${escapeHtml(box.data.email || '')}"/>
+        <div class="agb-cal-status ${linked ? 'is-linked' : ''}">${linked ? '✓ Will send follow-ups' : 'We email the caller after the call'}</div>`;
     } else if (box.kind === "text") {
-      body = `<textarea class="agb-inline agb-textarea" data-field="content" placeholder="Hours, services, prices, FAQs…">${escapeHtml(box.data.content || '')}</textarea>`;
+      body = `
+        <label class="agb-flabel">Talking points</label>
+        <textarea class="agb-inline agb-textarea" data-field="content" placeholder="Hours, services, prices, FAQs…">${escapeHtml(box.data.content || '')}</textarea>`;
     } else if (box.kind === "upload") {
       const files = Array.isArray(box.data.files) ? box.data.files : [];
       body = `
         <label class="agb-upload-label">
           <input type="file" class="agb-upload-input" data-field="files" multiple/>
-          <i data-lucide="upload-cloud" class="icon"></i>
+          <span class="agb-upload-ic">${brandSvg("upload")}</span>
           <span>${files.length ? `${files.length} file(s) attached` : 'Click or drop files'}</span>
         </label>`;
     }

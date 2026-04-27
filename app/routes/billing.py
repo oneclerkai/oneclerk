@@ -23,8 +23,8 @@ router = APIRouter(prefix="/billing", tags=["billing"])
 
 PLANS = {
     "starter": {"name": "Starter", "price_monthly": 39, "calls_limit": 200},
-    "growth": {"name": "Growth", "price_monthly": 99, "calls_limit": 1000},
-    "scale": {"name": "Scale", "price_monthly": 199, "calls_limit": None},
+    "growth": {"name": "Growth", "price_monthly": 99, "calls_limit": 500},
+    "scale": {"name": "Scale", "price_monthly": 149, "calls_limit": 1000},
 }
 
 

@@ -100,3 +100,14 @@ Configured for Replit autoscale running the same uvicorn command. Push the Publi
 - **Agent builder**: brand-logo box headers (`.agb-box-icon-brand`), drag-from-anywhere (mousedown anywhere on `.agb-box`, ignoring inputs/buttons/handles; toggles `is-dragging` cursor), ringing-phone bars on the phone box (`.agb-phone-rings` + `agbRing` keyframes), helper hints (`.agb-hint`), green linked-state for calendar status.
 - **Page transitions**: `.page` and `.landing` get a 220ms `pageEnter` translateY+fade.
 - Cache-bust bumped to `v=14` in `index.html`.
+
+## v15 landing/builder/billing refresh (2026-04-27)
+- **Hero title**: bigger, bolder two-sentence catch — "World's *No.1* AI Voice Agent Builder. Build Your Agent And *Replace Your Clerk.*" with a gradient-orange italic accent on the highlighted phrases. Hero spacing widened so the page breathes.
+- **Brand floats**: bumped to 120×120px, repositioned firmly inside the corners (32px insets) so they're never clipped, glassy white background + soft drop shadow, larger 88px logos.
+- **Pricing**: Starter $39, Growth $99, Scale $149 (now headlined "1,000 calls per month"). Trial copy reduced to **7-day** free trial across landing + dashboard. Backend `PLANS` dict + `_trial_end()` updated to match.
+- **Agent builder (drag-and-drop)**:
+  - Added a Gmail card to the integration menu (real Gmail logo).
+  - Every box header + orb-menu item now uses real brand SVGs (WhatsApp, Phone, Google Calendar, Gmail, OneClerk OC orb, sticky-note for Talking points, cloud for Upload).
+  - Inputs got proper uppercase labels (`.agb-flabel`), a custom-styled `<select>` for the agent voice, and consistent linked/unlinked status lines (`✓ Receiving calls`, `✓ Linked — bookings drop in`, etc.).
+  - Boxes are larger (240×170), with a softer card style, hover-lift, and a strong scale + amber ring while dragging — clearly draggable from anywhere.
+- Cache-bust bumped to `v=15` in `index.html`.
