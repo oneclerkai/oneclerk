@@ -83,3 +83,11 @@ Configured for Replit autoscale running the same uvicorn command. Push the Publi
 ## Notes / next steps
 - The brief uses **Supabase**; this build uses **SQLAlchemy + Replit Postgres** so it runs without external accounts. The table shapes match (`users`, `agents`, `calls`, `contacts`) so a Supabase swap later is mechanical.
 - Days 11–14 (dashboard) are delivered as a single-page web app at `/app` instead of a separate Next.js project — same dark theme, fully wired to the API. A Next.js port can be added later if desired.
+
+## v12 redesign (2026-04-27)
+- **Landing**: Poppins title resized & centered (`clamp(34px, 4.4vw, 64px)`), faster mesh animation (5s) with side-only fade, four 3D comic sticky notes (`.lp-note-3d`) in a horizontal sequence connected by SVG arrows of varied art-styles (loop/zigzag/doublecurl/hook), glassmorphic 3D integrations plate (`.lp-glass-plate`) with Phone/WhatsApp/IG/GCal/Gmail, auto slideshow (no hover pause), anime sticky review cards (click-to-pause tip), gradient strips between sections, gradient (no image) Q&A panel, footer triangular white glow + section shadows, working in-page nav scroll.
+- **Voice tester** section: language + voice + agent type pickers with animated waveform driven by Web Speech API (`.lp-try`).
+- **Calls page**: 2-column layout (`cl-layout-2`) with agent history showing phone+company+name, recent callers list, big calendar (`.cl-bigcal`) with month nav, booking blocks, click-to-popup day editor with custom user notes (color-tagged) saved to localStorage (`CL_NOTES_KEY`). Call popup includes auto-generated 5-line summary and full transcript.
+- **Agent builder**: "Create your first agent" auto-creates a default agent and drops into Make.com-style canvas with glassmorphic 3D OneClerk orb (`.agb-orb`) + `+` button popup menu of integrations (whatsapp/phone/calendar/gmail/data uploads).
+- **Onboarding**: replaced background image with pure CSS multi-radial gradient (`.ob-bg`); removed `app/static/img/onboarding_bg.png`.
+- Cache-bust bumped to `v=12` in `index.html`.

@@ -61,65 +61,115 @@ function renderIcons(root) { if (window.lucide) window.lucide.createIcons({ attr
 // --- Landing view (white paper-grid + 3D carousel + parabola footer) ---
 
 const SUBTITLES = [
-  "An autonomous receptionist that answers in your voice.",
-  "Books appointments. Flags emergencies. Texts the summary.",
-  "Set up in twelve minutes. Live forever.",
-  "Built for clinics, salons, and the calls that matter.",
+  "Answers every call in your voice — books, reschedules, and texts you the recap.",
+  "Picks up in two seconds, even at 3am, even when you're already on another call.",
+  "Drag-and-drop setup in twelve minutes. No code. No phone tree. No missed revenue.",
+  "Built for clinics, salons, restaurants and the calls that turn into customers.",
 ];
 
-// Sticky-note features expressing real problems + features
-// Each note has a curved dotted arrow pointing toward the title.
+// Sticky-note features below the hero title — laid out in a horizontal sequence.
+// Each note carries a real, vivid problem the AI solves, in long-form Poppins copy.
+// Each arrow uses a different artistic style (loop, zigzag, double-curl, hook).
 const HERO_NOTES = [
   {
-    title: "Drag-and-drop setup",
-    body: "Sketch your whole agent on a canvas. No code, no docs, ten minutes.",
-    pos: "top:13%; left:2.2%; transform:rotate(-7deg)",
-    // Curve from note → toward title (center-top). Coords are SVG viewBox 0..1000.
-    // Each path starts near the note, curves, ends with arrow tip near hero center.
-    arrow: { x1: 165, y1: 180, cx: 290, cy: 90,  x2: 470, y2: 270 },
+    title: "Picks up every single call — even at 3am",
+    body: "Two-second answer, day or night, holidays, lunch breaks, when you're driving. The line never goes to voicemail again. Most owners say this alone pays for the plan in week one.",
+    arrowStyle: "loop",
   },
   {
-    title: "Books, reschedules, cancels",
-    body: "Handles every appointment autonomously — Google Calendar, Calendly, Square.",
-    pos: "top:11%; right:2.2%; transform:rotate(6deg)",
-    arrow: { x1: 835, y1: 175, cx: 720, cy: 95,  x2: 540, y2: 265 },
+    title: "Books appointments straight into your calendar",
+    body: "Reads your real availability from Google Calendar, Calendly or Square, offers slots in natural conversation, then writes the booking back. No double-booking. No spreadsheets. No staff time.",
+    arrowStyle: "zigzag",
   },
   {
-    title: "Speaks 30+ languages",
-    body: "Switch voice and tongue mid-call. English, Hindi, Spanish, Mandarin, Vietnamese.",
-    pos: "bottom:11%; left:3%;  transform:rotate(4deg)",
-    arrow: { x1: 175, y1: 555, cx: 320, cy: 640, x2: 480, y2: 410 },
+    title: "Speaks 30+ languages with a real human voice",
+    body: "Switches tongue mid-call when a Spanish or Hindi caller picks up. Voice clones your front-desk in 30 seconds — patients honestly cannot tell it isn't a person.",
+    arrowStyle: "doublecurl",
   },
   {
-    title: "Learns your business",
-    body: "GPT-4 with your seasonal menu, staff rotation, policies — context aware on every call.",
-    pos: "bottom:9%;  right:2.5%; transform:rotate(-5deg)",
-    arrow: { x1: 825, y1: 565, cx: 700, cy: 645, x2: 530, y2: 410 },
+    title: "Texts you a clean WhatsApp summary after every call",
+    body: "Caller name, what they wanted, what was promised, urgency flag, and a one-tap link to the full transcript and recording. Owner gets the recap before the customer's car leaves the lot.",
+    arrowStyle: "hook",
   },
+];
+
+// Integrations shown in the glassmorphic plate under the hero CTA.
+const HERO_INTEGRATIONS = [
+  { key: "phone",    label: "Phone",            icon: "phone",          tilt: -8,  x: 6,  y: 18, scale: 1.05 },
+  { key: "whatsapp", label: "WhatsApp",         icon: "message-circle", tilt: 5,   x: 28, y: 62, scale: 1.15 },
+  { key: "ig",       label: "Instagram",        icon: "camera",         tilt: -3,  x: 50, y: 12, scale: 0.95 },
+  { key: "gcal",     label: "Google Calendar",  icon: "calendar",       tilt: 7,   x: 72, y: 52, scale: 1.1  },
+  { key: "gmail",    label: "Gmail",            icon: "mail",           tilt: -6,  x: 90, y: 22, scale: 0.9  },
 ];
 
 // 4-tier pricing for the landing billing section.
 const LANDING_PLANS = [
   {
-    key: "starter", name: "Starter", price: 49, sub: "Solo operators, low call volume",
-    features: ["100 minutes / month", "1 phone number", "1 AI agent", "WhatsApp summaries", "Email support"],
+    key: "starter", name: "Starter", price: 39, sub: "Solo operators, low call volume",
+    features: [
+      "AI voice agent in one language",
+      "Updates on WhatsApp",
+      "100 minutes / month",
+      "1 phone number",
+      "1 AI agent",
+      "Email support",
+    ],
     badge: null,
   },
   {
-    key: "growth", name: "Growth", price: 149, sub: "Most busy front desks pick this",
-    features: ["500 minutes / month", "2 phone numbers", "3 AI agents", "Google Calendar sync", "Multi-language", "Priority support"],
+    key: "growth", name: "Growth", price: 99, sub: "Most busy front desks pick this",
+    features: [
+      "Multi-language voice agent",
+      "Live WhatsApp + email recaps",
+      "500 minutes / month",
+      "2 phone numbers",
+      "3 AI agents",
+      "Google Calendar sync",
+      "Priority support",
+    ],
     badge: "Most popular",
   },
   {
-    key: "scale", name: "Scale", price: 399, sub: "Multi-location, high volume",
-    features: ["2,000 minutes / month", "Unlimited numbers", "10 AI agents", "Custom voice clone", "API + webhooks", "Dedicated CSM"],
+    key: "scale", name: "Scale", price: 199, sub: "Multi-location, high volume",
+    features: [
+      "Custom voice clone",
+      "WhatsApp + Slack + email recaps",
+      "2,000 minutes / month",
+      "Unlimited numbers",
+      "10 AI agents",
+      "API + webhooks",
+      "Dedicated CSM",
+    ],
     badge: null,
   },
   {
     key: "enterprise", name: "Enterprise", price: null, sub: "SOC2, BAA, custom SLAs",
-    features: ["Unlimited minutes", "Unlimited agents", "On-prem option", "HIPAA / SOC2", "White-glove onboarding", "24/7 hotline"],
+    features: [
+      "Unlimited minutes",
+      "Unlimited agents",
+      "On-prem option",
+      "HIPAA / SOC2",
+      "White-glove onboarding",
+      "24/7 hotline",
+    ],
     badge: "Talk to us",
   },
+];
+
+// QnA section (better written, no image — pure CSS gradient panel)
+const LANDING_QNA = [
+  { q: "Will my callers actually believe it's a real person?",
+    a: "Yes. We clone your existing front-desk voice from a 30-second sample. In our pilot data, 94% of callers never asked if they were speaking to AI — and the ones who did asked it nicely, then continued the conversation." },
+  { q: "What happens on the call I really care about — an emergency?",
+    a: "OneClerk is trained to detect urgency the way a paramedic would. Chest pain, water leak, locked-out customer — it stays on the line, follows your escalation script, and pings you on WhatsApp within seconds." },
+  { q: "How long until my agent is actually live on my number?",
+    a: "Twelve minutes is the median. You drag your tools onto a canvas, drop in a few PDFs and FAQs, point your business line's call-forwarding at our number, and OneClerk picks up the next ring." },
+  { q: "Does it actually book into my calendar, or just take messages?",
+    a: "Real bookings. Live two-way sync with Google Calendar, Calendly and Square. The AI sees real availability, offers real slots, writes real events back, and sends the customer a confirmation text." },
+  { q: "What if a caller asks something the AI doesn't know?",
+    a: "It politely takes a message, summarises it, flags it as 'follow-up needed' and texts you the context. You get a one-tap link to call them back from the dashboard with the full transcript already loaded." },
+  { q: "Is my customer data and call audio stored safely?",
+    a: "All audio and transcripts are encrypted at rest and in transit. We're SOC2 Type II in audit, HIPAA-ready on Scale and above, and we never train shared models on your data — ever." },
 ];
 
 // 7 product mockup frames — SVG illustrations as data URIs
@@ -336,23 +386,14 @@ const REVIEWS = [
 route("auth", async () => {
   const root = h(`
     <div class="landing">
-      <!-- SVG defs for pencil-textured 'VOICE' -->
-      <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-        <defs>
-          <filter id="lp-pencil" x="-5%" y="-5%" width="110%" height="110%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="noise"/>
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.2"/>
-          </filter>
-        </defs>
-      </svg>
-
       <!-- NAV -->
       <nav class="lp-nav">
         <div class="lp-brand"><span class="dot"></span>OneClerk</div>
         <div class="lp-links">
           <a data-scroll="lp-cases">Use cases</a>
-          <a data-scroll="lp-cases">Pricing</a>
-          <a data-scroll="lp-cases">Docs</a>
+          <a data-scroll="lp-try">Try it live</a>
+          <a data-scroll="lp-billing">Pricing</a>
+          <a data-scroll="lp-qna">FAQ</a>
         </div>
         <div class="lp-cta">
           <button class="lp-signin" data-open-auth="login">Sign in</button>
@@ -363,45 +404,16 @@ route("auth", async () => {
       </nav>
 
       <!-- HERO -->
-      <section class="lp-hero">
+      <section class="lp-hero" id="lp-hero">
         <div class="lp-mesh"></div>
-        <div class="lp-light-cone"></div>
-        <div class="lp-light-bright"></div>
-        <div class="lp-floor-shadow"></div>
-
-        <!-- Curved dotted arrows from each note → toward the title -->
-        <svg class="lp-note-arrows" viewBox="0 0 1000 720" preserveAspectRatio="none" aria-hidden="true">
-          <defs>
-            <marker id="lp-arrow-tip" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M0 0 L10 5 L0 10 z" fill="rgba(15,15,20,0.55)"/>
-            </marker>
-          </defs>
-          ${HERO_NOTES.map(n => `
-            <path d="M${n.arrow.x1} ${n.arrow.y1} Q${n.arrow.cx} ${n.arrow.cy} ${n.arrow.x2} ${n.arrow.y2}"
-                  fill="none" stroke="rgba(15,15,20,0.5)"
-                  stroke-width="1.6" stroke-linecap="round"
-                  stroke-dasharray="3 6"
-                  marker-end="url(#lp-arrow-tip)"/>
-          `).join("")}
-        </svg>
-
-        <div class="lp-notes" id="lp-notes">
-          ${HERO_NOTES.map(n => `
-            <div class="lp-note" style="${n.pos}">
-              <div class="lp-note-paper"></div>
-              <div class="lp-note-tape"></div>
-              <div class="lp-note-content">
-                <span class="lp-note-title">${n.title}</span>
-                <span class="lp-note-body">${n.body}</span>
-              </div>
-            </div>`).join("")}
-        </div>
+        <div class="lp-side-fade lp-side-fade-l"></div>
+        <div class="lp-side-fade lp-side-fade-r"></div>
 
         <div class="lp-hero-inner">
           <span class="lp-eyebrow"><span class="pulse"></span><span>VOICE AI · LIVE 24/7</span></span>
           <h1 class="lp-title">
-            World's <span class="lp-italic lp-thin">first</span> autonomous<br/>
-            <span class="lp-brick">Voice</span> agent for your phone
+            Your AI receptionist answers every call,<br/>
+            books appointments, and texts you the recap — <em>automatically.</em>
           </h1>
           <div class="lp-sub" id="lp-sub-rotate">
             <span id="lp-sub-text"></span><span class="caret"></span>
@@ -410,10 +422,47 @@ route("auth", async () => {
             <button class="lp-cta-primary" data-open-auth="signup">
               <span>Get started free</span><span class="arr">→</span>
             </button>
-            <button class="lp-cta-secondary" data-open-auth="login">Sign in</button>
+            <button class="lp-cta-secondary" data-scroll="lp-try">Hear it talk →</button>
+          </div>
+
+          <!-- Glassmorphic plate of integrations (Phone, WhatsApp, IG, GCal, Gmail) -->
+          <div class="lp-glass-plate" aria-hidden="true">
+            <div class="lp-glass-plate-inner">
+              ${HERO_INTEGRATIONS.map(it => `
+                <div class="lp-int" style="left:${it.x}%; top:${it.y}%; transform:translate(-50%,-50%) rotate(${it.tilt}deg) scale(${it.scale})">
+                  <div class="lp-int-ic"><i data-lucide="${it.icon}" class="icon"></i></div>
+                  <div class="lp-int-lbl">${it.label}</div>
+                </div>
+              `).join("")}
+              <div class="lp-glass-shine"></div>
+            </div>
           </div>
         </div>
+
+        <!-- Sticky-note SEQUENCE row (4 notes side-by-side BELOW the title) -->
+        <div class="lp-notes-row">
+          ${HERO_NOTES.map((n, i) => `
+            <div class="lp-note lp-note-3d" data-i="${i}">
+              <div class="lp-note-paper"></div>
+              <div class="lp-note-tape"></div>
+              <div class="lp-note-fold"></div>
+              <div class="lp-note-content">
+                <div class="lp-note-num">${String(i+1).padStart(2,'0')}</div>
+                <div class="lp-note-title">${n.title}</div>
+                <div class="lp-note-body">${n.body}</div>
+              </div>
+            </div>
+            ${i < HERO_NOTES.length - 1
+              ? `<svg class="lp-note-arr lp-arr-${HERO_NOTES[i].arrowStyle}" viewBox="0 0 120 80" aria-hidden="true">
+                  ${arrowSvgPath(HERO_NOTES[i].arrowStyle)}
+                </svg>`
+              : ''}
+          `).join("")}
+        </div>
       </section>
+
+      <!-- soft gradient strip -->
+      <div class="lp-grad-soft" aria-hidden="true"></div>
 
       <!-- USE CASES (forward-facing infinite slider) -->
       <section class="lp-cases" id="lp-cases">
@@ -423,24 +472,105 @@ route("auth", async () => {
           <h2>One agent. <em>Every part</em> of the call.</h2>
           <p>From the first ring to the WhatsApp summary, all on autopilot.</p>
         </div>
-        <div class="lp-slider" id="lp-slider">
+        <div class="lp-slider lp-slider-auto" id="lp-slider">
           <div class="lp-slider-track" id="lp-slider-track"></div>
         </div>
       </section>
 
-      <!-- REVIEWS (white bg, dots moving down, single-color realistic notes, avatars) -->
-      <section class="lp-reviews">
+      <!-- soft gradient between sections -->
+      <div class="lp-grad-soft lp-grad-soft-dark" aria-hidden="true"></div>
+
+      <!-- TRY IT LIVE — voice agent test with waveform -->
+      <section class="lp-try" id="lp-try">
+        <div class="lp-try-head">
+          <span class="eb">TRY THE AGENT — RIGHT HERE</span>
+          <h2>Hear it talk in <em>your language</em>, in <em>your voice</em>.</h2>
+          <p>Pick a voice and a language, hit talk, and the agent will demo a real reception call. No signup.</p>
+        </div>
+        <div class="lp-try-card">
+          <div class="lp-try-controls">
+            <label class="lp-try-field">
+              <span>Language</span>
+              <select id="lp-try-lang">
+                <option>English (US)</option>
+                <option>Hindi (हिंदी)</option>
+                <option>Spanish (Español)</option>
+                <option>French (Français)</option>
+                <option>Mandarin (普通话)</option>
+                <option>Vietnamese (Tiếng Việt)</option>
+                <option>Arabic (العربية)</option>
+                <option>Portuguese (Português)</option>
+              </select>
+            </label>
+            <label class="lp-try-field">
+              <span>Voice</span>
+              <select id="lp-try-voice">
+                <option>Maya — warm, mid-30s</option>
+                <option>Arjun — calm, deep</option>
+                <option>Sofia — bright, friendly</option>
+                <option>Daniel — professional</option>
+                <option>Linh — soft, soothing</option>
+              </select>
+            </label>
+            <label class="lp-try-field">
+              <span>Agent type</span>
+              <select id="lp-try-agent">
+                <option>Dental clinic front desk</option>
+                <option>Hair salon receptionist</option>
+                <option>Restaurant host</option>
+                <option>HVAC dispatcher</option>
+                <option>Law firm intake</option>
+              </select>
+            </label>
+          </div>
+          <div class="lp-try-stage">
+            <canvas class="lp-try-wave" id="lp-try-wave"></canvas>
+            <div class="lp-try-status" id="lp-try-status">Press <strong>Talk</strong> to hear a sample reception call.</div>
+          </div>
+          <div class="lp-try-actions">
+            <button class="lp-try-talk" id="lp-try-talk">
+              <span class="lp-try-talk-dot"></span>
+              <span id="lp-try-talk-label">Talk to the agent</span>
+            </button>
+            <button class="lp-try-secondary" data-open-auth="signup">Build your own — free →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- REVIEWS (white bg, dots moving down, anime sticky note realistic, avatars) -->
+      <section class="lp-reviews" id="lp-reviews">
         <div class="lp-reviews-head">
           <span class="eb">FROM REAL FRONT DESKS</span>
           <h2>Owners are <em>obsessed</em>.</h2>
         </div>
-        <div class="lp-track-wrap">
+        <div class="lp-track-wrap" id="lp-track-wrap">
           <div class="lp-track" id="lp-track-1"></div>
           <div class="lp-track reverse" id="lp-track-2"></div>
+          <div class="lp-track-tip" id="lp-track-tip">Click to pause</div>
         </div>
       </section>
 
-      <!-- GRADIENT TRANSITION: reviews (white) → billing (warm cream) -->
+      <!-- soft gradient -->
+      <div class="lp-grad-soft" aria-hidden="true"></div>
+
+      <!-- QNA (gradient panel, no image) -->
+      <section class="lp-qna" id="lp-qna">
+        <div class="lp-qna-bg"></div>
+        <div class="lp-qna-head">
+          <span class="eb">FREQUENTLY ASKED</span>
+          <h2>The questions <em>everyone</em> asks before signing up.</h2>
+        </div>
+        <div class="lp-qna-list" id="lp-qna-list">
+          ${LANDING_QNA.map((qa, i) => `
+            <details class="lp-qna-item" ${i === 0 ? "open" : ""}>
+              <summary><span>${escapeHtml(qa.q)}</span><span class="lp-qna-chev">+</span></summary>
+              <div class="lp-qna-a">${escapeHtml(qa.a)}</div>
+            </details>
+          `).join("")}
+        </div>
+      </section>
+
+      <!-- GRADIENT TRANSITION: → billing -->
       <div class="lp-grad-cream" aria-hidden="true"></div>
 
       <!-- BILLING / PRICING -->
@@ -474,8 +604,9 @@ route("auth", async () => {
       <!-- GRADIENT TRANSITION: cream → black footer -->
       <div class="lp-grad-tofoot" aria-hidden="true"></div>
 
-      <!-- FOOTER (parabola → fully horizontal) -->
+      <!-- FOOTER (parabola → fully horizontal, with triangular light glow toward name) -->
       <footer class="lp-footer">
+        <div class="lp-footer-light"></div>
         <div class="lp-footer-links">
           <div class="lp-footer-col">
             <h4>OneClerk</h4>
@@ -483,7 +614,7 @@ route("auth", async () => {
           </div>
           <div class="lp-footer-col">
             <h4>Product</h4>
-            <a>Features</a><a>Pricing</a><a>Integrations</a><a>Changelog</a>
+            <a data-scroll="lp-cases">Features</a><a data-scroll="lp-billing">Pricing</a><a data-scroll="lp-try">Try it live</a><a data-scroll="lp-qna">FAQ</a>
           </div>
           <div class="lp-footer-col">
             <h4>Company</h4>
@@ -511,6 +642,8 @@ route("auth", async () => {
     initFrameSlider(root);
     initReviewTracks(root);
     initParabolaWord(root);
+    initLandingNavScroll(root);
+    initVoiceTester(root);
     if (window.lucide) lucide.createIcons({ attrs: { class: "icon" } });
   }, 0);
 
@@ -520,6 +653,126 @@ route("auth", async () => {
 
   return root;
 });
+
+// SVG path strings for the four arrow art-styles between hero notes.
+function arrowSvgPath(style) {
+  const stroke = `stroke="rgba(15,15,20,0.55)" stroke-width="2" fill="none" stroke-linecap="round" marker-end="url(#lp-arrtip)"`;
+  const head = `<defs><marker id="lp-arrtip" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="rgba(15,15,20,0.55)"/></marker></defs>`;
+  if (style === "loop") {
+    return head + `<path d="M5 40 C 30 5, 50 5, 60 40 C 65 60, 90 60, 110 40" stroke-dasharray="3 5" ${stroke}/>`;
+  }
+  if (style === "zigzag") {
+    return head + `<path d="M5 40 L 35 18 L 60 50 L 90 22 L 110 40" stroke-dasharray="2 4" ${stroke}/>`;
+  }
+  if (style === "doublecurl") {
+    return head + `<path d="M5 40 C 25 12, 45 60, 60 35 C 75 12, 95 60, 110 40" stroke-dasharray="4 3" ${stroke}/>`;
+  }
+  // hook
+  return head + `<path d="M5 40 C 35 40, 60 0, 80 35 C 90 55, 100 50, 110 40" ${stroke}/>`;
+}
+
+// Smooth-scroll the in-page nav links.
+function initLandingNavScroll(root) {
+  root.querySelectorAll("[data-scroll]").forEach(a => {
+    a.addEventListener("click", (ev) => {
+      const id = a.dataset.scroll;
+      const target = root.querySelector(`#${id}`);
+      if (!target) return;
+      ev.preventDefault();
+      const top = target.getBoundingClientRect().top + window.scrollY - 70;
+      window.scrollTo({ top, behavior: "smooth" });
+    });
+  });
+}
+
+// Voice-tester: animated waveform driven by a small synthesizer + Web Speech API
+function initVoiceTester(root) {
+  const canvas = root.querySelector("#lp-try-wave");
+  const status = root.querySelector("#lp-try-status");
+  const btn    = root.querySelector("#lp-try-talk");
+  const lbl    = root.querySelector("#lp-try-talk-label");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    canvas.width = r.width * devicePixelRatio;
+    canvas.height = r.height * devicePixelRatio;
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  // Idle calm wave + speaking wave
+  let speaking = false, t = 0, raf = null, level = 0.1;
+  function frame() {
+    t += 0.04;
+    level += ((speaking ? 0.85 : 0.12) - level) * 0.08;
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    const grd = ctx.createLinearGradient(0, 0, w, 0);
+    grd.addColorStop(0, "rgba(255,205,92,0.9)");
+    grd.addColorStop(0.5, "rgba(255,138,61,0.95)");
+    grd.addColorStop(1, "rgba(99,102,241,0.85)");
+    ctx.fillStyle = grd;
+    const bars = 64;
+    const bw = w / bars;
+    for (let i = 0; i < bars; i++) {
+      const phase = i * 0.35 + t;
+      const amp = (Math.sin(phase) * 0.35 + Math.sin(phase * 1.7) * 0.35 + Math.sin(phase * 0.7) * 0.30);
+      const a = Math.abs(amp) * level;
+      const bh = Math.max(4 * devicePixelRatio, a * h * 0.9);
+      const x = i * bw + bw * 0.18;
+      const y = (h - bh) / 2;
+      ctx.fillRect(x, y, bw * 0.6, bh);
+    }
+    raf = requestAnimationFrame(frame);
+  }
+  frame();
+
+  // Use browser TTS to make the agent actually speak the demo line.
+  function pickVoice(langPick) {
+    if (!window.speechSynthesis) return null;
+    const voices = window.speechSynthesis.getVoices();
+    const wantedHint = (langPick.match(/\(([^)]+)\)/) || [])[1] || "";
+    const want = (langPick.split(" ")[0] || "").toLowerCase();
+    return voices.find(v => v.lang.toLowerCase().startsWith(want.slice(0,2))) ||
+           voices.find(v => v.name.includes(wantedHint)) ||
+           voices[0];
+  }
+  const lines = {
+    "Dental clinic front desk":   "Hi, this is City Dental — how can I help you today? I can book a cleaning, look up insurance, or transfer you to Dr. Patel.",
+    "Hair salon receptionist":    "Hello, you've reached Glow Salon, this is Maya. Are you calling to book in with your usual stylist, or trying us for the first time?",
+    "Restaurant host":            "Good evening, thanks for calling Lumière. Would you like to book a table for tonight, or hear about our new winter tasting menu?",
+    "HVAC dispatcher":            "Thanks for calling A&T Heating. Is your heat out right now? I can dispatch a tech, or schedule a tune-up — which would you like?",
+    "Law firm intake":            "Jensen and Vega Law, this is the intake line. Can you tell me a bit about the matter so I can route you to the right partner?",
+  };
+
+  btn.addEventListener("click", () => {
+    if (speaking) {
+      window.speechSynthesis && window.speechSynthesis.cancel();
+      speaking = false;
+      lbl.textContent = "Talk to the agent";
+      status.innerHTML = "Stopped. Press <strong>Talk</strong> again to replay.";
+      return;
+    }
+    const lang = root.querySelector("#lp-try-lang").value;
+    const agent = root.querySelector("#lp-try-agent").value;
+    const line = lines[agent] || lines["Dental clinic front desk"];
+    status.innerHTML = `<strong>Speaking…</strong> "${escapeHtml(line)}"`;
+    lbl.textContent = "Stop";
+    speaking = true;
+    if (window.speechSynthesis) {
+      const u = new SpeechSynthesisUtterance(line);
+      const v = pickVoice(lang);
+      if (v) u.voice = v;
+      u.rate = 1.02; u.pitch = 1.05;
+      u.onend = () => { speaking = false; lbl.textContent = "Talk to the agent"; status.innerHTML = "Done. Want one in <em>your</em> voice? <strong>Get started free →</strong>"; };
+      try { window.speechSynthesis.speak(u); } catch (e) { /* noop */ }
+    } else {
+      // no Web Speech — just animate for 4s
+      setTimeout(() => { speaking = false; lbl.textContent = "Talk to the agent"; status.innerHTML = "Demo finished."; }, 4200);
+    }
+  });
+}
 
 // --- Landing helpers ---
 
@@ -1139,21 +1392,33 @@ route("dashboard", async () => {
 
 // === Calls page — three-column layout: agent history (left) · call cards (center)
 //     · calendar + comic notes (right). Click any call → paper-textured detail popup. ===
+// Per-day custom notes — stored locally so the user can scribble plans on the calendar.
+const CL_NOTES_KEY = "oc_cal_notes_v1";
+function loadUserNotes() {
+  try { return JSON.parse(localStorage.getItem(CL_NOTES_KEY) || "{}"); } catch { return {}; }
+}
+function saveUserNotes(map) { localStorage.setItem(CL_NOTES_KEY, JSON.stringify(map)); }
+
 route("calls", async () => {
-  const wrap = shell("calls", "Calls", "Every conversation, fully transcribed.");
+  const wrap = shell("calls", "Calls", "Every call, every booking, every reminder — in one place.");
   const page = $("#page", wrap);
   page.innerHTML = `
-    <div class="cl-layout">
-      <aside class="cl-left">
+    <div class="cl-layout cl-layout-2">
+      <aside class="cl-left cl-left-tall">
         <div class="cl-side-head"><i data-lucide="bot" class="icon"></i>Agent history</div>
         <div id="cl-agents">${skeleton(4)}</div>
+
+        <div class="cl-side-head" style="margin-top:18px">
+          <i data-lucide="phone-incoming" class="icon"></i>Recent callers
+        </div>
+        <div id="cl-recent-callers" class="cl-recent-callers">${skeleton(4)}</div>
       </aside>
 
-      <section class="cl-center">
+      <section class="cl-center cl-center-cal">
         <div class="cl-toolbar">
           <div class="cl-search">
             <i data-lucide="search" class="icon"></i>
-            <input id="cl-q" placeholder="Search by number, name, or transcript…"/>
+            <input id="cl-q" placeholder="Search by number, name, company, or transcript…"/>
           </div>
           <div class="cl-filters">
             <button class="cl-filter active" data-f="all">All</button>
@@ -1161,20 +1426,17 @@ route("calls", async () => {
             <button class="cl-filter" data-f="booking">Booked</button>
           </div>
         </div>
-        <div id="cl-list" class="cl-list">${skeleton(6)}</div>
-      </section>
 
-      <aside class="cl-right">
-        <div class="cl-side-head"><i data-lucide="calendar-days" class="icon"></i>This month</div>
-        <div id="cl-cal" class="cl-cal"></div>
-        <div class="cl-side-head" style="margin-top:18px"><i data-lucide="sticky-note" class="icon"></i>Upcoming bookings</div>
-        <div id="cl-notes" class="cl-notes"></div>
-      </aside>
+        <!-- BIG CALENDAR with month navigation, booking rectangles, user notes -->
+        <div class="cl-bigcal" id="cl-bigcal"></div>
+
+        <div class="cl-side-head" style="margin-top:6px">
+          <i data-lucide="list" class="icon"></i>Recent calls
+        </div>
+        <div id="cl-list" class="cl-list">${skeleton(4)}</div>
+      </section>
     </div>`;
   renderIcons(page);
-
-  // Build the mini calendar
-  buildMiniCalendar($("#cl-cal", page));
 
   // Load data in parallel
   let calls = [], agents = [];
@@ -1194,12 +1456,14 @@ route("calls", async () => {
   } else {
     agentsEl.innerHTML = agents.map(a => {
       const count = calls.filter(c => c.agent_id === a.id).length;
+      const company = (a.config && (a.config.business_name || a.config.business_type)) || "—";
       return `
         <button class="cl-agent-row" data-aid="${a.id}">
           <span class="dot ${a.is_active ? 'dot-success' : 'dot-muted'}"></span>
           <div class="cl-agent-info">
             <div class="cl-agent-name">${escapeHtml(a.name)}</div>
-            <div class="cl-agent-meta">${count} call${count === 1 ? '' : 's'}</div>
+            <div class="cl-agent-meta">${escapeHtml(company)} · ${count} call${count === 1 ? '' : 's'}</div>
+            <div class="cl-agent-meta-2">${escapeHtml(a.twilio_number || 'no number')}</div>
           </div>
           <i data-lucide="chevron-right" class="icon"></i>
         </button>`;
@@ -1207,29 +1471,104 @@ route("calls", async () => {
     renderIcons(agentsEl);
   }
 
-  // --- Right: upcoming bookings as comic notes ---
-  const notesEl = $("#cl-notes", page);
-  const bookings = calls.filter(c => c.booking_made && c.booking_details);
-  if (!bookings.length) {
-    notesEl.innerHTML = `<div class="cl-side-empty">No bookings yet. They'll show up here as the AI takes calls.</div>`;
+  // --- Recent callers list (with phone, name, company) ---
+  const recentEl = $("#cl-recent-callers", page);
+  const lookup = (aid) => agents.find(a => a.id === aid);
+  if (!calls.length) {
+    recentEl.innerHTML = `<div class="cl-side-empty">No calls yet — the moment your agent answers one, it shows up here.</div>`;
   } else {
-    const colors = ["yellow", "pink", "blue"];
-    notesEl.innerHTML = bookings.slice(0, 5).map((b, i) => {
-      const det = b.booking_details || {};
-      const when = det.datetime || det.when || det.date || (b.created_at ? new Date(b.created_at).toLocaleDateString() : "");
-      const who = det.name || b.caller_number || "Caller";
-      const what = det.service || det.topic || det.reason || "Appointment";
-      const tilt = (i % 2 === 0 ? -1 : 1) * (1 + (i % 3));
+    recentEl.innerHTML = calls.slice(0, 8).map(c => {
+      const ag = lookup(c.agent_id) || {};
+      const company = ag.config?.business_name || "—";
+      const name = c.caller_name || (c.booking_details && c.booking_details.name) || "Unknown caller";
+      const ago = c.created_at ? timeAgo(new Date(c.created_at)) : "";
       return `
-        <div class="cl-comic-note cl-comic-${colors[i % colors.length]}" style="transform:rotate(${tilt}deg)">
-          <div class="cl-comic-when">${escapeHtml(when)}</div>
-          <div class="cl-comic-who">${escapeHtml(who)}</div>
-          <div class="cl-comic-what">${escapeHtml(what)}</div>
-        </div>`;
+        <button class="cl-recent-caller" data-id="${c.id}">
+          <div class="cl-recent-num">${escapeHtml(c.caller_number || "Unknown")}</div>
+          <div class="cl-recent-name">${escapeHtml(name)} · <span class="cl-recent-co">${escapeHtml(company)}</span></div>
+          <div class="cl-recent-when">${escapeHtml(ago)}</div>
+        </button>`;
     }).join("");
+    $$("[data-id]", recentEl).forEach(b => b.addEventListener("click", () => openCallPaperPopup(b.dataset.id)));
   }
 
-  // --- Center: filterable list ---
+  // --- BIG CALENDAR with month navigation + booking blocks + user notes ---
+  const userNotes = loadUserNotes();
+  const calState = { y: new Date().getFullYear(), m: new Date().getMonth() };
+  const bigEl = $("#cl-bigcal", page);
+
+  function bookingsByDate() {
+    const map = {};
+    calls.forEach(c => {
+      if (!c.booking_made || !c.booking_details) return;
+      const det = c.booking_details;
+      const raw = det.datetime || det.when || det.date || c.created_at;
+      const dt = raw ? new Date(raw) : null;
+      if (!dt || isNaN(dt)) return;
+      const key = `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
+      (map[key] = map[key] || []).push({ call: c, det });
+    });
+    return map;
+  }
+
+  function renderBigCalendar() {
+    const { y, m } = calState;
+    const monthName = new Date(y, m, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    const startDow = new Date(y, m, 1).getDay();
+    const daysIn = new Date(y, m + 1, 0).getDate();
+    const today = new Date();
+    const isThisMonth = today.getFullYear() === y && today.getMonth() === m;
+    const bk = bookingsByDate();
+
+    let html = `
+      <div class="cl-bigcal-head">
+        <button class="cl-cal-nav" data-nav="-1"><i data-lucide="chevron-left" class="icon"></i></button>
+        <div class="cl-bigcal-title">${monthName}</div>
+        <button class="cl-cal-nav" data-nav="0">Today</button>
+        <button class="cl-cal-nav" data-nav="1"><i data-lucide="chevron-right" class="icon"></i></button>
+      </div>
+      <div class="cl-bigcal-grid">
+        ${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d => `<div class="cl-bigcal-dow">${d}</div>`).join("")}`;
+    for (let i = 0; i < startDow; i++) html += `<div class="cl-bigcal-cell cl-bigcal-empty"></div>`;
+    for (let d = 1; d <= daysIn; d++) {
+      const key = `${y}-${m}-${d}`;
+      const isToday = isThisMonth && d === today.getDate();
+      const dayBookings = bk[key] || [];
+      const userNote = userNotes[key];
+      const noteCol = userNote?.color || "amber";
+      html += `
+        <div class="cl-bigcal-cell ${isToday ? 'cl-bigcal-today' : ''}" data-key="${key}" data-d="${d}">
+          <div class="cl-bigcal-num">${d}</div>
+          <div class="cl-bigcal-blocks">
+            ${dayBookings.slice(0, 3).map(b => `
+              <div class="cl-bigcal-block cl-bigcal-block-booking" title="${escapeHtml(b.det.name || b.call.caller_number || 'Booking')}">
+                <span class="cl-bigcal-dot"></span>${escapeHtml((b.det.service || b.det.topic || 'Booking').slice(0, 18))}
+              </div>`).join("")}
+            ${dayBookings.length > 3 ? `<div class="cl-bigcal-more">+${dayBookings.length - 3} more</div>` : ""}
+            ${userNote ? `
+              <div class="cl-bigcal-block cl-bigcal-usernote cl-bigcal-c-${noteCol}">
+                <span class="cl-bigcal-dot"></span>${escapeHtml((userNote.text || '').slice(0, 18))}
+              </div>` : ""}
+          </div>
+        </div>`;
+    }
+    html += `</div>`;
+    bigEl.innerHTML = html;
+    renderIcons(bigEl);
+
+    bigEl.querySelectorAll("[data-nav]").forEach(b => b.addEventListener("click", () => {
+      const nav = +b.dataset.nav;
+      if (nav === 0) { calState.y = new Date().getFullYear(); calState.m = new Date().getMonth(); }
+      else { calState.m += nav; if (calState.m < 0) { calState.m = 11; calState.y--; } if (calState.m > 11) { calState.m = 0; calState.y++; } }
+      renderBigCalendar();
+    }));
+    bigEl.querySelectorAll("[data-key]").forEach(cell => cell.addEventListener("click", () => {
+      openDayPopup(cell.dataset.key, cell.dataset.d, bk[cell.dataset.key] || [], () => renderBigCalendar());
+    }));
+  }
+  renderBigCalendar();
+
+  // --- Calls list ---
   let filter = "all", q = "", agentFilter = null;
   const list = $("#cl-list", page);
   function renderList() {
@@ -1238,7 +1577,10 @@ route("calls", async () => {
     if (filter === "booking") v = v.filter(c => c.booking_made);
     if (agentFilter) v = v.filter(c => c.agent_id === agentFilter);
     if (q) v = v.filter(c => {
+      const ag = lookup(c.agent_id) || {};
       const s = (c.caller_number || "") + " " +
+                (c.caller_name || "") + " " +
+                (ag.config?.business_name || "") + " " +
                 (c.summary || "") + " " +
                 JSON.stringify(c.conversation || "");
       return s.toLowerCase().includes(q);
@@ -1261,15 +1603,22 @@ route("calls", async () => {
       const status = c.is_urgent ? "urgent" : c.booking_made ? "booked" : "handled";
       const when = c.created_at ? new Date(c.created_at) : null;
       const ago = when ? timeAgo(when) : "";
+      const ag = lookup(c.agent_id) || {};
+      const company = ag.config?.business_name || "";
+      const name = c.caller_name || (c.booking_details && c.booking_details.name) || "Unknown caller";
       return `
         <button class="cl-card cl-card-${status}" data-id="${c.id}">
           <div class="cl-card-left">
             <div class="cl-card-status">
               <span class="dot ${c.is_urgent ? 'dot-danger' : c.booking_made ? 'dot-success' : 'dot-muted'}"></span>
               <span class="cl-card-status-label">${status}</span>
+              ${company ? `<span class="cl-card-co">· ${escapeHtml(company)}</span>` : ''}
             </div>
-            <div class="cl-card-num">${escapeHtml(c.caller_number || "Unknown caller")}</div>
-            <div class="cl-card-summary">${escapeHtml((c.summary || "").slice(0, 120) || "No summary yet.")}</div>
+            <div class="cl-card-num">
+              <span class="cl-card-phone">${escapeHtml(c.caller_number || "Unknown")}</span>
+              <span class="cl-card-name">${escapeHtml(name)}</span>
+            </div>
+            <div class="cl-card-summary">${escapeHtml((c.summary || "").slice(0, 160) || "Tap to read the full transcript and a 5-line summary.")}</div>
           </div>
           <div class="cl-card-right">
             <div class="cl-card-time">${escapeHtml(ago)}</div>
@@ -1296,6 +1645,81 @@ route("calls", async () => {
   renderList();
   return wrap;
 });
+
+// Day-detail popup: shows bookings for the day + lets the user save a custom note.
+function openDayPopup(key, dayNum, bookings, onChange) {
+  const userNotes = loadUserNotes();
+  const existing = userNotes[key] || { text: "", color: "amber" };
+  const overlay = h(`<div class="cl-pop-overlay"></div>`);
+  const [yy, mm, dd] = key.split("-").map(Number);
+  const dateLabel = new Date(yy, mm, dd).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  const colors = ["amber","pink","blue","green","violet"];
+  const pop = h(`
+    <div class="cl-day-pop">
+      <button class="cl-pop-close" title="Close">×</button>
+      <div class="cl-day-pop-head">
+        <div class="cl-pop-eyebrow">SCHEDULE</div>
+        <div class="cl-pop-num">${escapeHtml(dateLabel)}</div>
+      </div>
+
+      <div class="cl-day-section">
+        <div class="cl-day-section-title">Bookings (${bookings.length})</div>
+        <div class="cl-day-bookings">
+          ${bookings.length ? bookings.map(b => `
+            <div class="cl-day-booking" data-call-id="${b.call.id}">
+              <div class="cl-day-booking-time">${escapeHtml(b.det.time || b.det.when || "")}</div>
+              <div class="cl-day-booking-who">${escapeHtml(b.det.name || b.call.caller_number || "Caller")}</div>
+              <div class="cl-day-booking-what">${escapeHtml(b.det.service || b.det.topic || b.det.reason || "Appointment")}</div>
+              <button class="cl-day-booking-open">Open transcript →</button>
+            </div>`).join("") : `<div class="cl-side-empty">No AI bookings on this day yet.</div>`}
+        </div>
+      </div>
+
+      <div class="cl-day-section">
+        <div class="cl-day-section-title">Your note</div>
+        <textarea class="cl-day-note" id="cl-day-note" placeholder="Anything you want to remember on this day…">${escapeHtml(existing.text || "")}</textarea>
+        <div class="cl-day-note-row">
+          <div class="cl-day-colors">
+            ${colors.map(c => `<button class="cl-day-color cl-day-c-${c} ${c === existing.color ? 'sel' : ''}" data-c="${c}" title="${c}"></button>`).join("")}
+          </div>
+          <div class="cl-day-note-actions">
+            <button class="cl-day-note-del">Delete</button>
+            <button class="cl-day-note-save">Save note</button>
+          </div>
+        </div>
+      </div>
+    </div>`);
+  document.body.append(overlay, pop);
+  const close = () => { overlay.remove(); pop.remove(); };
+  overlay.addEventListener("click", close);
+  $(".cl-pop-close", pop).addEventListener("click", close);
+
+  let chosen = existing.color;
+  pop.querySelectorAll(".cl-day-color").forEach(b => b.addEventListener("click", () => {
+    chosen = b.dataset.c;
+    pop.querySelectorAll(".cl-day-color").forEach(x => x.classList.remove("sel"));
+    b.classList.add("sel");
+  }));
+  $(".cl-day-note-save", pop).addEventListener("click", () => {
+    const text = $("#cl-day-note", pop).value.trim();
+    const all = loadUserNotes();
+    if (text) all[key] = { text, color: chosen };
+    else delete all[key];
+    saveUserNotes(all);
+    onChange && onChange();
+    close();
+  });
+  $(".cl-day-note-del", pop).addEventListener("click", () => {
+    const all = loadUserNotes(); delete all[key]; saveUserNotes(all);
+    onChange && onChange(); close();
+  });
+  pop.querySelectorAll(".cl-day-booking-open").forEach((btn, i) => btn.addEventListener("click", () => {
+    const callId = btn.closest("[data-call-id]").dataset.callId;
+    close();
+    setTimeout(() => openCallPaperPopup(callId), 80);
+  }));
+  renderIcons(pop);
+}
 
 function timeAgo(d) {
   const s = Math.floor((Date.now() - d.getTime()) / 1000);
@@ -1349,13 +1773,44 @@ async function openCallPaperPopup(callId) {
 
   try {
     const c = await api(`/calls/${callId}`);
+    let agentInfo = {};
+    try { agentInfo = (await api(`/agents/${c.agent_id}`)).agent || {}; } catch { /* ok */ }
+    const company = agentInfo.config?.business_name || "—";
+    const callerName = c.caller_name || (c.booking_details && c.booking_details.name) || "Unknown caller";
+
+    // Build a 5-line summary from whatever we have.
+    function buildFiveLineSummary(call, ag) {
+      const det = call.booking_details || {};
+      const conv = (call.conversation || []);
+      const firstLine = conv.find(t => t.role === "user")?.content?.trim();
+      const lastAi = [...conv].reverse().find(t => t.role === "assistant")?.content?.trim();
+      const goal = det.service || det.topic || det.reason || (call.is_urgent ? "Urgent issue raised" : "General inquiry");
+      const outcome = call.booking_made
+        ? `Booking confirmed${det.datetime || det.when || det.date ? ' for ' + (det.datetime || det.when || det.date) : ''}.`
+        : call.is_urgent ? "Owner alerted on WhatsApp for follow-up."
+        : "Caller acknowledged, no booking made.";
+      const lines = [
+        `Caller: ${callerName} (${call.caller_number || 'unknown number'}) reached ${ag.name || 'the agent'}${company !== '—' ? ' at ' + company : ''}.`,
+        `Reason: ${goal}.`,
+        firstLine ? `Opening: "${firstLine.slice(0, 140)}"` : `Opening: caller began conversation immediately.`,
+        lastAi ? `Closing: "${lastAi.slice(0, 140)}"` : `Closing: agent ended the call politely.`,
+        `Outcome: ${outcome} Total duration ${call.duration_seconds || 0}s.`,
+      ];
+      return lines;
+    }
+    const fiveLines = buildFiveLineSummary(c, agentInfo);
+
     const body = $("#cl-pop-body", pop);
     body.innerHTML = `
       <div class="cl-pop-head">
         <div>
           <div class="cl-pop-eyebrow">CALL FROM</div>
           <div class="cl-pop-num">${escapeHtml(c.caller_number || "Unknown")}</div>
-          <div class="cl-pop-when">${c.created_at ? new Date(c.created_at).toLocaleString() : ""}</div>
+          <div class="cl-pop-when">
+            <strong>${escapeHtml(callerName)}</strong>
+            ${company !== "—" ? ` · ${escapeHtml(company)}` : ""}
+            ${c.created_at ? ` · ${new Date(c.created_at).toLocaleString()}` : ""}
+          </div>
         </div>
         <div class="cl-pop-tags">
           ${c.is_urgent ? `<span class="cl-pop-tag cl-pop-tag-urgent">URGENT</span>` : ""}
@@ -1364,9 +1819,16 @@ async function openCallPaperPopup(callId) {
         </div>
       </div>
 
+      <div class="cl-pop-section">
+        <div class="cl-pop-section-title">5-line summary</div>
+        <ol class="cl-pop-five">
+          ${fiveLines.map(l => `<li>${escapeHtml(l)}</li>`).join("")}
+        </ol>
+      </div>
+
       ${c.summary ? `
         <div class="cl-pop-section">
-          <div class="cl-pop-section-title">Summary</div>
+          <div class="cl-pop-section-title">Notes from the agent</div>
           <div class="cl-pop-summary">${escapeHtml(c.summary)}</div>
         </div>` : ""}
 
@@ -1525,9 +1987,58 @@ route("agents", async () => {
           <div class="agb-canvas" id="agb-canvas">
             <svg class="agb-svg" id="agb-svg"></svg>
           </div>
+
+          <!-- OneClerk glassmorphic 3D orb + "+" integration menu -->
+          <div class="agb-orb-wrap" id="agb-orb-wrap">
+            <div class="agb-orb" title="OneClerk agent">
+              <div class="agb-orb-glass"></div>
+              <div class="agb-orb-mark">OC</div>
+              <div class="agb-orb-ring"></div>
+            </div>
+            <button class="agb-orb-plus" id="agb-orb-plus" title="Add a piece">
+              <i data-lucide="plus" class="icon"></i>
+            </button>
+            <div class="agb-orb-menu" id="agb-orb-menu" hidden>
+              <div class="agb-orb-menu-head">Add to your agent</div>
+              ${AGB_BOX_DEFS.map(d => `
+                <button class="agb-orb-menu-item" data-add-kind="${d.kind}" style="--ax:${d.accent}">
+                  <span class="agb-orb-menu-ic"><i data-lucide="${d.icon}" class="icon"></i></span>
+                  <span class="agb-orb-menu-text">
+                    <span class="agb-orb-menu-label">${d.label}</span>
+                    <span class="agb-orb-menu-note">${escapeHtml(d.note || '')}</span>
+                  </span>
+                </button>
+              `).join("")}
+            </div>
+          </div>
         </div>
       </div>`;
     renderIcons(stage);
+
+    // OneClerk orb "+" toggle + add-from-menu actions.
+    const orbPlus = $("#agb-orb-plus", stage);
+    const orbMenu = $("#agb-orb-menu", stage);
+    orbPlus && orbPlus.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      orbMenu.hidden = !orbMenu.hidden;
+    });
+    document.addEventListener("click", function hideMenu(ev) {
+      if (!orbMenu) return;
+      if (!orbMenu.contains(ev.target) && ev.target !== orbPlus) orbMenu.hidden = true;
+    });
+    orbMenu && orbMenu.querySelectorAll("[data-add-kind]").forEach(b => b.addEventListener("click", () => {
+      const kind = b.dataset.addKind;
+      const wrapEl = $("#agb-canvas-wrap", stage);
+      const r = wrapEl.getBoundingClientRect();
+      const sx = wrapEl.scrollLeft, sy = wrapEl.scrollTop;
+      // Place the new box near the visible center of the canvas.
+      const x = sx + r.width / 2 - 110 + (Math.random() * 80 - 40);
+      const y = sy + r.height / 2 - 65 + (Math.random() * 80 - 40);
+      layout.boxes.push({ id: "b" + Math.random().toString(36).slice(2, 9), kind, x, y, data: {} });
+      orbMenu.hidden = true;
+      // Trigger redraw via event by re-mounting the builder
+      initBuilderCanvas(stage, layout);
+    }));
 
     // Wire toolbar actions
     $("#agb-edit", stage).addEventListener("click", () => navigate(`#/agents/${a.id}/edit`));
@@ -1937,20 +2448,45 @@ function readAgentForm(form) {
   };
 }
 
+// Skip the form. Spin up a sensibly-named blank agent and drop the user straight onto
+// the drag-and-drop canvas — exactly like Make.com.
 route("agentNew", async () => {
-  const wrap = shell("agents", "Create agent", "Tell us about the business — your AI follows these rules on every call.");
+  const wrap = shell("agents", "Create agent", "Building your blank canvas…");
   const page = $("#page", wrap);
-  const form = agentForm();
-  page.appendChild(form);
-  $("#cancel", form).addEventListener("click", () => navigate("#/agents"));
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
+  page.innerHTML = `<div class="agb-empty"><div class="agb-empty-card">
+    <i data-lucide="loader" class="icon agb-empty-icon"></i>
+    <h2>Spinning up a blank agent…</h2>
+    <p>You'll be on the canvas in a second.</p>
+  </div></div>`;
+  renderIcons(page);
+  try {
+    let n = 1;
     try {
-      await api("/agents/create", { method: "POST", body: readAgentForm(form) });
-      toast("Agent created", "success");
-      navigate("#/agents");
-    } catch (ex) { $("#err", form).textContent = ex.message; $("#err", form).classList.remove("hidden"); }
-  });
+      const list = await api("/agents/list");
+      n = (list.agents || []).length + 1;
+    } catch { /* ok */ }
+    const created = await api("/agents/create", {
+      method: "POST",
+      body: {
+        name: `New agent ${n}`,
+        twilio_number: "",
+        forwarding_number: "",
+        config: {
+          business_name: "", business_type: "",
+          agent_name: "", greeting_message: "How can I help you today?",
+          operating_hours: "Mon–Sat 9am–6pm", services: "",
+          location: "", pricing: "", faqs: "", booking_instructions: "",
+          escalation_triggers: "emergency, urgent",
+          owner_name: "", owner_whatsapp: "",
+          language: "English", calendly_url: "",
+        },
+      },
+    });
+    toast("Agent created — drag pieces in to build it.", "success");
+    navigate("#/agents");
+  } catch (ex) {
+    page.innerHTML = `<div class="card p-6 text-danger">${escapeHtml(ex.message)}</div>`;
+  }
   return wrap;
 });
 
