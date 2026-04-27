@@ -58,7 +58,7 @@ function parseRoute() {
 function renderIcons(root) { if (window.lucide) window.lucide.createIcons({ attrs: { class: "icon" }, ...(root ? { context: root } : {}) }); }
 
 // --- Auth view ---
-// --- Landing view (white paper-graph + 3D carousel + parabola footer) ---
+// --- Landing view (white paper-grid + 3D carousel + parabola footer) ---
 
 const SUBTITLES = [
   "An autonomous receptionist that answers in your voice.",
@@ -67,62 +67,250 @@ const SUBTITLES = [
   "Built for clinics, salons, and the calls that matter.",
 ];
 
-const USE_CASES = [
+// Sticky-note features expressing real problems + features
+const HERO_NOTES = [
   {
-    icon: "stethoscope",
-    title: "Medical clinics",
-    desc: "Triages calls, books visits, and routes urgent symptoms to staff in real time.",
-    bullets: ["HIPAA-aware intake", "Symptom triage flow", "Same-day booking"],
+    title: "Drag & drop builder",
+    body: "Sketch your call flow on a canvas, no code, no docs.",
+    pos: "top:14%; left:2.5%; transform:rotate(-7deg)",
   },
   {
-    icon: "scissors",
-    title: "Salons & spas",
-    desc: "Confirms bookings, suggests open slots, and re-fills cancellations automatically.",
-    bullets: ["Square / Booksy sync", "Cancellation recovery", "SMS confirmations"],
+    title: "Books your calendar",
+    body: "Confirms appointments straight into Google or Square.",
+    pos: "top:12%; right:2.5%; transform:rotate(6deg)",
   },
   {
-    icon: "hammer",
-    title: "Home services",
-    desc: "Captures lead details, qualifies the job, and texts the photos to your tech.",
-    bullets: ["Smart job intake", "Photo + address capture", "After-hours coverage"],
+    title: "Texts the summary",
+    body: "WhatsApp recap with caller intent the moment they hang up.",
+    pos: "bottom:12%; left:3.5%; transform:rotate(4deg)",
   },
   {
-    icon: "scale",
-    title: "Law firms",
-    desc: "Screens new matters, schedules consults, and protects privileged conversations.",
-    bullets: ["Conflict screening", "Calendar booking", "Encrypted summaries"],
-  },
-  {
-    icon: "graduation-cap",
-    title: "Tutoring & schools",
-    desc: "Answers parent questions, registers students, and reschedules lessons gracefully.",
-    bullets: ["Multi-language", "Roster sync", "Make-up scheduling"],
+    title: "Sounds like you",
+    body: "Cloned voice and tone. Callers think they got the front desk.",
+    pos: "bottom:10%; right:3%; transform:rotate(-5deg)",
   },
 ];
 
+// 7 product mockup frames — SVG illustrations as data URIs
+function makeFrameSvg(bg, content) {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 240'>
+    <rect width='320' height='240' fill='${bg}'/>
+    ${content}
+  </svg>`;
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+const FRAMES = [
+  {
+    title: "Drag-and-drop call flow",
+    sub: "Build branching conversations on a visual canvas.",
+    img: makeFrameSvg('#fafaf7', `
+      <rect x='14' y='14' width='90' height='42' rx='8' fill='#ffcd5c'/>
+      <text x='59' y='40' text-anchor='middle' font-family='Poppins' font-size='11' font-weight='700' fill='#1a1408'>Greeting</text>
+      <rect x='118' y='14' width='90' height='42' rx='8' fill='#fff' stroke='#0d0d0f' stroke-width='1.2'/>
+      <text x='163' y='40' text-anchor='middle' font-family='Poppins' font-size='11' font-weight='600' fill='#0d0d0f'>Ask reason</text>
+      <rect x='222' y='14' width='84' height='42' rx='8' fill='#fff' stroke='#0d0d0f' stroke-width='1.2' stroke-dasharray='4 3'/>
+      <text x='264' y='40' text-anchor='middle' font-family='Poppins' font-size='11' font-weight='600' fill='#0d0d0f'>Branch</text>
+      <path d='M104 35 L118 35 M208 35 L222 35' stroke='#0d0d0f' stroke-width='1.4'/>
+      <rect x='42' y='90' width='110' height='42' rx='8' fill='#fff' stroke='#0d0d0f' stroke-width='1.2'/>
+      <text x='97' y='116' text-anchor='middle' font-family='Poppins' font-size='11' font-weight='600' fill='#0d0d0f'>Book visit</text>
+      <rect x='168' y='90' width='110' height='42' rx='8' fill='#fff' stroke='#0d0d0f' stroke-width='1.2'/>
+      <text x='223' y='116' text-anchor='middle' font-family='Poppins' font-size='11' font-weight='600' fill='#0d0d0f'>Escalate</text>
+      <path d='M264 56 L264 70 L97 70 L97 90 M264 70 L223 70 L223 90' stroke='#0d0d0f' stroke-width='1.2' fill='none' stroke-dasharray='3 3'/>
+      <rect x='42' y='160' width='236' height='52' rx='8' fill='#0d0d0f'/>
+      <text x='160' y='185' text-anchor='middle' font-family='Poppins' font-size='11' font-weight='700' fill='#ffcd5c'>Send WhatsApp summary</text>
+      <text x='160' y='201' text-anchor='middle' font-family='Poppins' font-size='9' fill='#fafaf7' opacity='0.7'>to owner@clinic.com</text>
+    `),
+  },
+  {
+    title: "Live call dashboard",
+    sub: "Track every call, intent, and outcome in real time.",
+    img: makeFrameSvg('#fafaf7', `
+      <rect x='14' y='14' width='292' height='52' rx='10' fill='#fff' stroke='#0d0d0f' stroke-width='1' opacity='0.95'/>
+      <circle cx='38' cy='40' r='14' fill='#ffcd5c'/>
+      <text x='38' y='44' text-anchor='middle' font-family='Poppins' font-size='13' font-weight='700' fill='#1a1408'>24</text>
+      <text x='62' y='34' font-family='Poppins' font-size='10' fill='#0d0d0f' opacity='0.55'>CALLS TODAY</text>
+      <text x='62' y='52' font-family='Poppins' font-size='13' font-weight='600' fill='#0d0d0f'>+8 vs yesterday</text>
+      <rect x='180' y='24' width='70' height='32' rx='8' fill='#0d0d0f'/>
+      <text x='215' y='44' text-anchor='middle' font-family='Poppins' font-size='10' font-weight='600' fill='#ffcd5c'>87% booked</text>
+      <rect x='258' y='24' width='40' height='32' rx='8' fill='#fff' stroke='#0d0d0f'/>
+      <text x='278' y='44' text-anchor='middle' font-family='Poppins' font-size='10' font-weight='600' fill='#0d0d0f'>$2.4k</text>
+      <g font-family='Poppins' font-size='10' fill='#0d0d0f'>
+        <rect x='14' y='80' width='292' height='34' rx='8' fill='#fff' stroke='#0d0d0f' stroke-opacity='0.1'/>
+        <circle cx='30' cy='97' r='5' fill='#16a34a'/>
+        <text x='44' y='100' font-weight='600'>Sarah · booked Tue 10am</text>
+        <text x='250' y='100' opacity='0.5'>2m ago</text>
+        <rect x='14' y='120' width='292' height='34' rx='8' fill='#fff' stroke='#0d0d0f' stroke-opacity='0.1'/>
+        <circle cx='30' cy='137' r='5' fill='#d97706'/>
+        <text x='44' y='140' font-weight='600'>Mike · transferred to staff</text>
+        <text x='250' y='140' opacity='0.5'>9m ago</text>
+        <rect x='14' y='160' width='292' height='34' rx='8' fill='#fff' stroke='#0d0d0f' stroke-opacity='0.1'/>
+        <circle cx='30' cy='177' r='5' fill='#16a34a'/>
+        <text x='44' y='180' font-weight='600'>Linh · question answered</text>
+        <text x='250' y='180' opacity='0.5'>14m ago</text>
+        <rect x='14' y='200' width='292' height='28' rx='8' fill='#fff5cc'/>
+        <text x='30' y='219' font-weight='600' fill='#1a1408'>+ 21 more this morning</text>
+      </g>
+    `),
+  },
+  {
+    title: "Ringing through",
+    sub: "Customers hear your warm, branded greeting in two seconds.",
+    img: makeFrameSvg('#0d0d0f', `
+      <circle cx='160' cy='115' r='62' fill='none' stroke='#ffcd5c' stroke-width='2' opacity='0.3'/>
+      <circle cx='160' cy='115' r='42' fill='none' stroke='#ffcd5c' stroke-width='2' opacity='0.55'/>
+      <circle cx='160' cy='115' r='26' fill='#ffcd5c'/>
+      <path d='M152 109 q4 -4 8 0 q4 4 8 0 v6 q-4 4 -8 0 q-4 -4 -8 0 z' fill='#1a1408'/>
+      <text x='160' y='200' text-anchor='middle' font-family='Poppins' font-size='14' font-weight='700' fill='#fff'>Glow Salon · incoming</text>
+      <text x='160' y='220' text-anchor='middle' font-family='Poppins' font-size='10' fill='#fff' opacity='0.55'>+1 (415) 555 · 0142</text>
+    `),
+  },
+  {
+    title: "Sounds like your team",
+    sub: "Clone your voice in 30 seconds. Patients can't tell.",
+    img: makeFrameSvg('#fafaf7', `
+      <rect x='30' y='40' width='260' height='160' rx='14' fill='#fff' stroke='#0d0d0f' stroke-width='1'/>
+      <text x='50' y='70' font-family='Poppins' font-size='11' font-weight='600' fill='#0d0d0f' opacity='0.55'>VOICE PROFILE</text>
+      <text x='50' y='92' font-family='Poppins' font-size='15' font-weight='700' fill='#0d0d0f'>"Maya at Glow Salon"</text>
+      <g>
+        ${Array.from({length:32}).map((_,i)=>{const h=8+Math.abs(Math.sin(i*0.7))*46;return `<rect x='${50+i*7}' y='${130-h/2}' width='4' height='${h}' rx='2' fill='#0d0d0f' opacity='${0.4+Math.sin(i*0.5)*0.3}'/>`}).join('')}
+      </g>
+      <rect x='50' y='160' width='90' height='28' rx='14' fill='#0d0d0f'/>
+      <text x='95' y='178' text-anchor='middle' font-family='Poppins' font-size='11' font-weight='700' fill='#ffcd5c'>▶ play sample</text>
+      <text x='160' y='178' font-family='Poppins' font-size='10' fill='#0d0d0f' opacity='0.6'>0:18 / 0:30</text>
+    `),
+  },
+  {
+    title: "WhatsApp summary",
+    sub: "Owner gets the recap before the caller hits the parking lot.",
+    img: makeFrameSvg('#e6f5e0', `
+      <rect x='30' y='30' width='260' height='180' rx='16' fill='#fff' stroke='#0d0d0f' stroke-opacity='0.1'/>
+      <rect x='30' y='30' width='260' height='32' rx='16' fill='#075e54'/>
+      <text x='48' y='51' font-family='Poppins' font-size='12' font-weight='700' fill='#fff'>OneClerk · Summary</text>
+      <text x='240' y='51' font-family='Poppins' font-size='10' fill='#fff' opacity='0.7'>now</text>
+      <rect x='44' y='78' width='200' height='90' rx='10' fill='#dcf8c6'/>
+      <text x='54' y='98' font-family='Poppins' font-size='10' font-weight='700' fill='#1a1408'>Sarah Mehta · 2:14pm</text>
+      <text x='54' y='114' font-family='Poppins' font-size='10' fill='#1a1408' opacity='0.85'>Booked: Tue 10am — color</text>
+      <text x='54' y='128' font-family='Poppins' font-size='10' fill='#1a1408' opacity='0.85'>Stylist requested: Maya</text>
+      <text x='54' y='142' font-family='Poppins' font-size='10' fill='#1a1408' opacity='0.85'>First-time client · referral</text>
+      <text x='54' y='158' font-family='Poppins' font-size='10' font-weight='700' fill='#16a34a'>$220 estimated</text>
+      <rect x='44' y='180' width='90' height='22' rx='11' fill='#0d0d0f'/>
+      <text x='89' y='194' text-anchor='middle' font-family='Poppins' font-size='9' font-weight='700' fill='#ffcd5c'>view recording</text>
+    `),
+  },
+  {
+    title: "Smart triage",
+    sub: "Urgent calls get flagged. The rest get handled.",
+    img: makeFrameSvg('#fff5e0', `
+      <rect x='20' y='28' width='280' height='52' rx='12' fill='#fff' stroke='#dc2626' stroke-width='1.5'/>
+      <circle cx='44' cy='54' r='10' fill='#dc2626'/>
+      <text x='44' y='58' text-anchor='middle' font-family='Poppins' font-size='12' font-weight='800' fill='#fff'>!</text>
+      <text x='62' y='50' font-family='Poppins' font-size='11' font-weight='700' fill='#dc2626'>URGENT · chest pain mentioned</text>
+      <text x='62' y='66' font-family='Poppins' font-size='10' fill='#0d0d0f' opacity='0.6'>Texted Dr. Lee + 911 protocol shown</text>
+      <rect x='20' y='94' width='280' height='40' rx='10' fill='#fff' stroke='#0d0d0f' stroke-opacity='0.1'/>
+      <circle cx='40' cy='114' r='6' fill='#16a34a'/>
+      <text x='56' y='117' font-family='Poppins' font-size='11' font-weight='600' fill='#0d0d0f'>Routine: cleaning rebook</text>
+      <rect x='20' y='144' width='280' height='40' rx='10' fill='#fff' stroke='#0d0d0f' stroke-opacity='0.1'/>
+      <circle cx='40' cy='164' r='6' fill='#16a34a'/>
+      <text x='56' y='167' font-family='Poppins' font-size='11' font-weight='600' fill='#0d0d0f'>Routine: insurance question</text>
+      <rect x='20' y='194' width='280' height='30' rx='8' fill='#0d0d0f'/>
+      <text x='160' y='213' text-anchor='middle' font-family='Poppins' font-size='10' font-weight='700' fill='#ffcd5c'>3 calls handled · 0 missed</text>
+    `),
+  },
+  {
+    title: "Twelve-minute setup",
+    sub: "Forward your line. Pick a voice. You're live.",
+    img: makeFrameSvg('#fafaf7', `
+      <text x='30' y='40' font-family='Poppins' font-size='11' font-weight='700' fill='#0d0d0f' opacity='0.55'>SETUP · 3 OF 4</text>
+      <rect x='30' y='52' width='260' height='6' rx='3' fill='rgba(15,15,20,0.08)'/>
+      <rect x='30' y='52' width='195' height='6' rx='3' fill='#ffcd5c'/>
+      <g font-family='Poppins'>
+        <rect x='30' y='78' width='260' height='38' rx='10' fill='#16a34a' opacity='0.12'/>
+        <text x='44' y='102' font-size='11' font-weight='700' fill='#15803d'>1 · Forward your number</text>
+        <text x='270' y='102' text-anchor='end' font-size='14' fill='#15803d'>✓</text>
+        <rect x='30' y='124' width='260' height='38' rx='10' fill='#16a34a' opacity='0.12'/>
+        <text x='44' y='148' font-size='11' font-weight='700' fill='#15803d'>2 · Pick a voice</text>
+        <text x='270' y='148' text-anchor='end' font-size='14' fill='#15803d'>✓</text>
+        <rect x='30' y='170' width='260' height='38' rx='10' fill='#fff' stroke='#0d0d0f' stroke-width='1.4'/>
+        <text x='44' y='194' font-size='11' font-weight='700' fill='#0d0d0f'>3 · Test a call</text>
+        <text x='270' y='194' text-anchor='end' font-size='12' fill='#0d0d0f' opacity='0.5'>↻</text>
+      </g>
+    `),
+  },
+];
+
+// Reviews — real problems solved, real-sounding people, with avatars + place
 const REVIEWS = [
-  { quote: "Caught 17 missed calls our first week. Two became patients the same day.", who: "Dr. Marisol R.", role: "Family Practice", color: "" },
-  { quote: "Sounds exactly like our front desk. Clients have no idea it's AI.", who: "Jamie L.", role: "Salon owner", color: "color-pink" },
-  { quote: "Setup took 14 minutes. Has been live ever since. No bugs, no fuss.", who: "Andre T.", role: "HVAC, Phoenix", color: "color-blue" },
-  { quote: "We saved a full receptionist salary in month one.", who: "Priya N.", role: "Dental", color: "color-green" },
-  { quote: "It books, it cancels, it texts the summary. That's the whole job.", who: "Mike H.", role: "Plumbing co.", color: "color-orange" },
-  { quote: "The voice is uncanny. In a good way.", who: "Linh P.", role: "Med spa", color: "" },
-  { quote: "Finally, an AI that doesn't sound like an AI.", who: "Carla J.", role: "Law office", color: "color-pink" },
-  { quote: "Our after-hours bookings tripled.", who: "Rohan S.", role: "Auto detailing", color: "color-blue" },
+  {
+    quote: "Caught 17 missed calls our first week. Two became patients the same day. The triage on the chest-pain call texted me before I even knew it happened.",
+    name: "Dr. Marisol Ruiz",
+    place: "Family Practice · Austin, TX",
+    img: "https://i.pravatar.cc/120?img=47",
+  },
+  {
+    quote: "Sounds exactly like my front desk girl. Clients send selfies thanking 'her' for fitting them in. The drag-and-drop builder took twenty minutes total.",
+    name: "Jamie Lin",
+    place: "Owner · Glow Salon, Brooklyn",
+    img: "https://i.pravatar.cc/120?img=32",
+  },
+  {
+    quote: "We were missing every after-hours emergency call. Now I get a WhatsApp recap before I even open my laptop. Booked $4k in jobs the first weekend.",
+    name: "Andre Thompson",
+    place: "Owner · A&T Heating, Phoenix",
+    img: "https://i.pravatar.cc/120?img=12",
+  },
+  {
+    quote: "Saved a full receptionist salary in month one. The calendar sync to Square just works — no double bookings since we switched.",
+    name: "Priya Nair",
+    place: "Manager · Bright Smiles Dental",
+    img: "https://i.pravatar.cc/120?img=44",
+  },
+  {
+    quote: "It books, it cancels, it texts the summary. That's the whole job and it actually does it. The 'sounds like you' voice is uncanny.",
+    name: "Mike Hartman",
+    place: "Owner · Hartman Plumbing Co.",
+    img: "https://i.pravatar.cc/120?img=15",
+  },
+  {
+    quote: "Bilingual callers used to hang up. Now Spanish, Mandarin, even Vietnamese — handled. Our cancellation rate dropped to single digits.",
+    name: "Linh Pham",
+    place: "Director · Lotus Med Spa",
+    img: "https://i.pravatar.cc/120?img=49",
+  },
+  {
+    quote: "Finally, an AI that doesn't sound like an AI. Two of my partners thought we hired a new paralegal. We hadn't.",
+    name: "Carla Jensen",
+    place: "Partner · Jensen & Vega Law",
+    img: "https://i.pravatar.cc/120?img=28",
+  },
+  {
+    quote: "After-hours bookings tripled. Clients can't believe we 'have someone working until midnight.' We don't — OneClerk does.",
+    name: "Rohan Shah",
+    place: "Founder · Polish Auto Detailing",
+    img: "https://i.pravatar.cc/120?img=8",
+  },
+  {
+    quote: "The flow builder felt like Figma for phone calls. Built our entire intake in one cup of coffee.",
+    name: "Eva Müller",
+    place: "Ops Lead · Berlin Tutoring",
+    img: "https://i.pravatar.cc/120?img=20",
+  },
+  {
+    quote: "It pre-screens conflict checks before they even reach me. That's a paralegal-level task happening on a phone call. Wild.",
+    name: "Devin Okafor",
+    place: "Solo Attorney · Houston, TX",
+    img: "https://i.pravatar.cc/120?img=33",
+  },
 ];
 
 route("auth", async () => {
   const root = h(`
     <div class="landing">
-      <!-- SVG defs for pencil-textured 'VOICE' word -->
+      <!-- SVG defs for pencil-textured 'VOICE' -->
       <svg width="0" height="0" style="position:absolute" aria-hidden="true">
         <defs>
           <filter id="lp-pencil" x="-5%" y="-5%" width="110%" height="110%">
             <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="noise"/>
             <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.2"/>
-            <feComponentTransfer>
-              <feFuncA type="linear" slope="1"/>
-            </feComponentTransfer>
           </filter>
         </defs>
       </svg>
@@ -147,16 +335,17 @@ route("auth", async () => {
       <section class="lp-hero">
         <div class="lp-mesh"></div>
         <div class="lp-light-cone"></div>
-        <div class="lp-light"></div>
+        <div class="lp-light-bright"></div>
         <div class="lp-floor-shadow"></div>
 
-        <div class="lp-arrows" id="lp-arrows"></div>
-
         <div class="lp-notes" id="lp-notes">
-          <div class="lp-note" style="top:16%; left:3%; transform:rotate(-7deg)">Drag &amp; drop flow</div>
-          <div class="lp-note color-pink" style="top:14%; right:3%; transform:rotate(6deg)">Books your calendar</div>
-          <div class="lp-note color-blue" style="bottom:14%; left:5%; transform:rotate(4deg)">Texts the summary</div>
-          <div class="lp-note color-green" style="bottom:11%; right:4%; transform:rotate(-5deg)">Sounds like you</div>
+          ${HERO_NOTES.map(n => `
+            <div class="lp-note" style="${n.pos}">
+              <div>
+                <span class="lp-note-title">${n.title}</span>
+                <span class="lp-note-body">${n.body}</span>
+              </div>
+            </div>`).join("")}
         </div>
 
         <div class="lp-hero-inner">
@@ -177,35 +366,32 @@ route("auth", async () => {
         </div>
       </section>
 
-      <!-- USE CASES (3D carousel) -->
+      <!-- USE CASES (forward-facing infinite slider) -->
       <section class="lp-cases" id="lp-cases">
         <div class="lp-cases-glow"></div>
         <div class="lp-cases-head">
-          <span class="eb">USE CASES</span>
-          <h2>One agent. <em>Every kind</em> of front desk.</h2>
-          <p>Trained on your scripts. Fluent in your business. Patient with everyone who calls.</p>
+          <span class="eb">SEE IT IN ACTION</span>
+          <h2>One agent. <em>Every part</em> of the call.</h2>
+          <p>From the first ring to the WhatsApp summary, all on autopilot.</p>
         </div>
-        <div class="lp-carousel" id="lp-carousel">
-          <div class="lp-carousel-stage" id="lp-carousel-stage"></div>
-        </div>
-        <div class="lp-carousel-controls">
-          <button id="lp-prev" aria-label="Previous"><i data-lucide="chevron-left" class="icon"></i></button>
-          <button id="lp-next" aria-label="Next"><i data-lucide="chevron-right" class="icon"></i></button>
+        <div class="lp-slider" id="lp-slider">
+          <div class="lp-slider-track" id="lp-slider-track"></div>
         </div>
       </section>
 
-      <!-- REVIEWS (infinite track) -->
+      <!-- REVIEWS (white bg, dots moving down, single-color realistic notes, avatars) -->
       <section class="lp-reviews">
         <div class="lp-reviews-head">
           <span class="eb">FROM REAL FRONT DESKS</span>
           <h2>Owners are <em>obsessed</em>.</h2>
         </div>
         <div class="lp-track-wrap">
-          <div class="lp-track" id="lp-track"></div>
+          <div class="lp-track" id="lp-track-1"></div>
+          <div class="lp-track reverse" id="lp-track-2"></div>
         </div>
       </section>
 
-      <!-- FOOTER (parabola word) -->
+      <!-- FOOTER (parabola → fully horizontal) -->
       <footer class="lp-footer">
         <div class="lp-footer-links">
           <div class="lp-footer-col">
@@ -214,24 +400,15 @@ route("auth", async () => {
           </div>
           <div class="lp-footer-col">
             <h4>Product</h4>
-            <a>Features</a>
-            <a>Pricing</a>
-            <a>Integrations</a>
-            <a>Changelog</a>
+            <a>Features</a><a>Pricing</a><a>Integrations</a><a>Changelog</a>
           </div>
           <div class="lp-footer-col">
             <h4>Company</h4>
-            <a>About</a>
-            <a>Customers</a>
-            <a>Careers</a>
-            <a>Contact</a>
+            <a>About</a><a>Customers</a><a>Careers</a><a>Contact</a>
           </div>
           <div class="lp-footer-col">
             <h4>Legal</h4>
-            <a>Privacy</a>
-            <a>Terms</a>
-            <a>Security</a>
-            <a>DPA</a>
+            <a>Privacy</a><a>Terms</a><a>Security</a><a>DPA</a>
           </div>
         </div>
 
@@ -246,20 +423,14 @@ route("auth", async () => {
       </footer>
     </div>`);
 
-  // Mount + initialize
   setTimeout(() => {
     initSubtitleRotator(root.querySelector("#lp-sub-text"));
-    drawCurvedArrows(root);
-    init3DCarousel(root);
-    initInfiniteReviews(root);
+    initFrameSlider(root);
+    initReviewTracks(root);
     initParabolaWord(root);
     if (window.lucide) lucide.createIcons({ attrs: { class: "icon" } });
-
-    // Recompute arrows on resize
-    window.addEventListener("resize", () => drawCurvedArrows(root));
   }, 0);
 
-  // CTAs → modal
   root.querySelectorAll("[data-open-auth]").forEach(b =>
     b.addEventListener("click", () => openAuthModal(b.dataset.openAuth))
   );
@@ -276,11 +447,7 @@ function initSubtitleRotator(el) {
     if (!deleting) {
       charIdx++;
       el.textContent = current.slice(0, charIdx);
-      if (charIdx >= current.length) {
-        deleting = true;
-        setTimeout(tick, 2600);
-        return;
-      }
+      if (charIdx >= current.length) { deleting = true; setTimeout(tick, 2600); return; }
       setTimeout(tick, 22 + Math.random() * 30);
     } else {
       charIdx -= 2;
@@ -298,154 +465,70 @@ function initSubtitleRotator(el) {
   tick();
 }
 
-// Hand-drawn dotted arrows from the title block out to each sticky note
-function drawCurvedArrows(root) {
-  const host = root.querySelector("#lp-arrows");
-  const hero = root.querySelector(".lp-hero");
-  const title = root.querySelector(".lp-title");
-  const notes = Array.from(root.querySelectorAll(".lp-note"));
-  if (!host || !hero || !title || notes.length === 0) return;
-
-  const heroRect = hero.getBoundingClientRect();
-  const titleRect = title.getBoundingClientRect();
-  // Anchor points on title (left, right, left-bottom, right-bottom)
-  const anchors = [
-    { x: titleRect.left - heroRect.left + 30,  y: titleRect.top - heroRect.top + titleRect.height * 0.4 },
-    { x: titleRect.right - heroRect.left - 30, y: titleRect.top - heroRect.top + titleRect.height * 0.4 },
-    { x: titleRect.left - heroRect.left + 60,  y: titleRect.bottom - heroRect.top - 10 },
-    { x: titleRect.right - heroRect.left - 60, y: titleRect.bottom - heroRect.top - 10 },
-  ];
-
-  const paths = notes.map((note, i) => {
-    const r = note.getBoundingClientRect();
-    const target = {
-      x: r.left - heroRect.left + r.width / 2,
-      y: r.top - heroRect.top + r.height / 2,
-    };
-    // Aim arrow tip to the closest edge of the note (not center)
-    const a = anchors[i] || anchors[0];
-    const dx = target.x - a.x, dy = target.y - a.y;
-    const dist = Math.hypot(dx, dy) || 1;
-    const tipX = target.x - (dx / dist) * (r.width * 0.55);
-    const tipY = target.y - (dy / dist) * (r.height * 0.55);
-
-    // Curved path with control offset (perpendicular)
-    const mx = (a.x + tipX) / 2;
-    const my = (a.y + tipY) / 2;
-    const nx = -dy / dist, ny = dx / dist;
-    const curveAmt = 90 * (i % 2 === 0 ? 1 : -1);
-    const cx = mx + nx * curveAmt;
-    const cy = my + ny * curveAmt;
-    return { d: `M ${a.x} ${a.y} Q ${cx} ${cy} ${tipX} ${tipY}`, tipX, tipY, cx, cy };
-  });
-
-  host.innerHTML = `
-    <svg viewBox="0 0 ${heroRect.width} ${heroRect.height}" preserveAspectRatio="none"
-         width="${heroRect.width}" height="${heroRect.height}">
-      <defs>
-        <marker id="lp-arrowhead" viewBox="0 0 10 10" refX="8" refY="5"
-                markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#0d0d0f" opacity="0.55"/>
-        </marker>
-      </defs>
-      ${paths.map(p => `<path d="${p.d}" marker-end="url(#lp-arrowhead)"/>`).join("")}
-    </svg>`;
-}
-
-// 3D semi-circular auto-rotating carousel
-function init3DCarousel(root) {
-  const stage = root.querySelector("#lp-carousel-stage");
-  const prev = root.querySelector("#lp-prev");
-  const next = root.querySelector("#lp-next");
-  if (!stage) return;
-
-  const N = USE_CASES.length;
-  const step = 360 / N;
-  const radius = 380;
-  let current = 0;
-  let timer;
-
-  // Build cards
-  USE_CASES.forEach((uc, i) => {
-    const card = h(`
-      <div class="lp-uc-card" data-i="${i}">
-        <div class="icon-wrap"><i data-lucide="${uc.icon}" class="icon"></i></div>
-        <h3>${uc.title}</h3>
-        <p>${uc.desc}</p>
-        <ul>${uc.bullets.map(b => `<li>${b}</li>`).join("")}</ul>
-      </div>`);
-    card.style.transform = `rotateY(${i * step}deg) translateZ(${radius}px)`;
-    stage.appendChild(card);
-  });
-
-  function update() {
-    stage.style.transform = `translateZ(-${radius}px) rotateY(${-current * step}deg)`;
-    Array.from(stage.children).forEach((c, i) => {
-      const offset = ((i - current) % N + N) % N;
-      const dist = Math.min(offset, N - offset);
-      c.style.opacity = dist === 0 ? 1 : (dist === 1 ? 0.55 : 0.22);
-    });
-  }
-
-  function rotate(dir = 1) { current = (current + dir + N) % N; update(); }
-  function autoplay() {
-    clearInterval(timer);
-    timer = setInterval(() => rotate(1), 4200);
-  }
-
-  next.addEventListener("click", () => { rotate(1); autoplay(); });
-  prev.addEventListener("click", () => { rotate(-1); autoplay(); });
-  // Pause on hover
-  root.querySelector("#lp-carousel").addEventListener("mouseenter", () => clearInterval(timer));
-  root.querySelector("#lp-carousel").addEventListener("mouseleave", autoplay);
-
-  update();
-  autoplay();
-}
-
-// Infinite-loop sticky-note review track (CSS animation; we just duplicate content)
-function initInfiniteReviews(root) {
-  const track = root.querySelector("#lp-track");
+// Forward-facing image slider (frames + caption below)
+// Auto-loops via CSS keyframe; we just duplicate content for seamless loop.
+function initFrameSlider(root) {
+  const track = root.querySelector("#lp-slider-track");
   if (!track) return;
-  const html = REVIEWS.map(r => {
-    const initials = r.who.split(" ").map(s => s[0]).join("").slice(0, 2).toUpperCase();
-    return `
-      <div class="lp-review ${r.color || ''}">
-        <div class="quote">"${r.quote}"</div>
-        <div class="who">
-          <span class="av">${initials}</span>
-          <span><strong>${r.who}</strong> · ${r.role}</span>
-        </div>
-      </div>`;
-  }).join("");
-  // Duplicate so the -50% translate seamlessly loops
-  track.innerHTML = html + html;
+  const html = FRAMES.map(f => `
+    <article class="lp-frame">
+      <img class="lp-frame-img" src="${f.img}" alt="${f.title}" />
+      <div class="lp-frame-caption">
+        <h4>${f.title}</h4>
+        <p>${f.sub}</p>
+      </div>
+    </article>`).join("");
+  track.innerHTML = html + html; // duplicate for seamless -50% loop
 }
 
-// Giant ONECLERK letters arc upward (parabola) and straighten as you scroll into view
+function initReviewTracks(root) {
+  const top = root.querySelector("#lp-track-1");
+  const bot = root.querySelector("#lp-track-2");
+  if (!top || !bot) return;
+  const half = REVIEWS.slice(0, Math.ceil(REVIEWS.length / 2));
+  const rest = REVIEWS.slice(Math.ceil(REVIEWS.length / 2));
+  const card = (r) => `
+    <div class="lp-review">
+      <div class="quote">"${r.quote}"</div>
+      <div class="who">
+        <img src="${r.img}" alt="${r.name}" loading="lazy"
+             onerror="this.style.display='none'"/>
+        <div>
+          <div class="name">${r.name}</div>
+          <div class="place">${r.place}</div>
+        </div>
+      </div>
+    </div>`;
+  const topHtml = half.map(card).join("");
+  const botHtml = rest.map(card).join("");
+  top.innerHTML = topHtml + topHtml;
+  bot.innerHTML = botHtml + botHtml;
+}
+
+// Giant ONECLERK letters arc upward (parabola), end FULLY horizontal
 function initParabolaWord(root) {
   const wrap = root.querySelector("#lp-bigword");
   if (!wrap) return;
   const letters = Array.from(wrap.querySelectorAll(".ltr"));
   const N = letters.length;
-  // Each letter has a normalized x position from -1 (left) to +1 (right)
   const positions = letters.map((_, i) => (i - (N - 1) / 2) / ((N - 1) / 2));
 
   function update() {
     const rect = wrap.getBoundingClientRect();
     const vh = window.innerHeight;
-    // Progress: 0 when wrap top is at viewport bottom, 1 when wrap bottom is at viewport top
-    const raw = 1 - (rect.top + rect.height * 0.4) / vh;
-    const t = Math.max(0, Math.min(1, raw));
-    // Curvature decreases as t -> 1 (straightens out)
-    const curve = (1 - t) * 220; // px lift in middle when t=0
+    // raw progress 0 (just appearing at bottom) → 1+ (passed)
+    const raw = 1 - (rect.top + rect.height * 0.55) / vh;
+    // Curve only operates 0..1
+    const t = Math.max(0, Math.min(1, raw * 1.15));
+    // Ease-out so the END settles to perfectly straight
+    const ease = 1 - Math.pow(1 - t, 3);
+    const remaining = 1 - ease;
+    const curve = remaining * 200; // px lift in middle when t=0
     letters.forEach((el, i) => {
       const x = positions[i];
-      // parabola: y = curve * (1 - x^2), but inverted (down = +)
-      // We want letters to ARCH UP at the start, so apply negative translate
+      // y = -curve * (1 - x^2): arches upward (negative Y)
       const lift = -curve * (1 - x * x);
-      // Slight rotation toward arc tangent
-      const rot = (1 - t) * x * 8; // degrees
+      const rot = remaining * x * 6;
       el.style.transform = `translateY(${lift.toFixed(1)}px) rotate(${rot.toFixed(2)}deg)`;
     });
   }
