@@ -436,8 +436,8 @@ route("auth", async () => {
         <div class="lp-hero-inner">
           <span class="lp-eyebrow"><span class="pulse"></span><span>VOICE AI · LIVE 24/7</span></span>
           <h1 class="lp-title lp-title-one">
-            World's <em>No.1</em> AI Voice Agent Builder.<br/>
-            Build Your Agent And <em>Replace Your Clerk.</em>
+            <span class="lp-title-line">World's <em>No.1</em> AI Voice Agent Builder.</span>
+            <span class="lp-title-line">Build Your Agent And <em>Replace Your Clerk.</em></span>
           </h1>
           <div class="lp-sub" id="lp-sub-rotate">
             <span id="lp-sub-text"></span><span class="caret"></span>
@@ -2107,11 +2107,18 @@ route("agents", async () => {
     const orbMenu = $("#agb-orb-menu", stage);
     orbPlus && orbPlus.addEventListener("click", (ev) => {
       ev.stopPropagation();
+      ev.preventDefault();
       orbMenu.hidden = !orbMenu.hidden;
+      orbPlus.classList.toggle("is-open", !orbMenu.hidden);
     });
     document.addEventListener("click", function hideMenu(ev) {
       if (!orbMenu) return;
-      if (!orbMenu.contains(ev.target) && ev.target !== orbPlus) orbMenu.hidden = true;
+      if (orbMenu.hidden) return;
+      // Use closest() so clicking the inner SVG of the plus button still counts as the plus
+      if (orbMenu.contains(ev.target)) return;
+      if (ev.target.closest && ev.target.closest("#agb-orb-plus")) return;
+      orbMenu.hidden = true;
+      if (orbPlus) orbPlus.classList.remove("is-open");
     });
     orbMenu && orbMenu.querySelectorAll("[data-add-kind]").forEach(b => b.addEventListener("click", () => {
       const kind = b.dataset.addKind;
@@ -2164,6 +2171,8 @@ route("agents", async () => {
     });
 
     initBuilderCanvas(stage, layout);
+    // First-ever build? Show the friendly tutorial.
+    maybeShowBuilderTutorial(stage);
   }
 
   // Tab switching
@@ -2177,6 +2186,157 @@ route("agents", async () => {
   renderStage();
   return wrap;
 });
+
+// First-time builder tutorial — shown once, gated by localStorage so even after
+// deleting the agent the user never sees it again.
+const BUILDER_TUTORIAL_KEY = "oc_seen_builder_tutorial";
+function maybeShowBuilderTutorial(stage) {
+  if (localStorage.getItem(BUILDER_TUTORIAL_KEY)) return;
+  // Wait one frame so the canvas/orb have measured layouts
+  requestAnimationFrame(() => showBuilderTutorial(stage));
+}
+
+function showBuilderTutorial(stage) {
+  const isFirstEver = !localStorage.getItem(BUILDER_TUTORIAL_KEY);
+  const canvas = $("#agb-canvas-wrap", stage);
+  if (!canvas) return;
+
+  const STEPS = [
+    {
+      target: () => $(".agb-orb", stage),
+      title: "Meet your AI Agent",
+      body: "This glowing orb is your OneClerk agent — the brain that picks up the phone. Everything you add will plug into it.",
+      placement: "right",
+    },
+    {
+      target: () => $("#agb-orb-plus", stage),
+      title: "Add an integration",
+      body: "Click the plus to open the menu — phone, WhatsApp, Google Calendar, Gmail, FAQs, files. Click plus again any time to close it.",
+      placement: "right",
+    },
+    {
+      target: () => $(".agb-box", stage) || $(".agb-orb", stage),
+      title: "Drag from anywhere",
+      body: "Cards are draggable from anywhere on them — just press and move. Drop them wherever you want on the canvas.",
+      placement: "bottom",
+    },
+    {
+      target: () => $(".agb-handle-out", stage) || $(".agb-orb", stage),
+      title: "Connect the dots",
+      body: "Drag the small handle on the right edge of any card onto another card to connect them. Label the line with what should happen.",
+      placement: "bottom",
+    },
+    {
+      target: () => $("#agb-save", stage),
+      title: "Save when ready",
+      body: "Hit Save to lock in your setup. You can come back and edit any time — nothing's permanent.",
+      placement: "bottom",
+    },
+  ];
+
+  let i = 0;
+  const overlay = h(`
+    <div class="agb-tut-overlay" role="dialog" aria-label="Agent builder tutorial">
+      <div class="agb-tut-mask"></div>
+      <div class="agb-tut-spot" id="agb-tut-spot"></div>
+      <div class="agb-tut-arrow" id="agb-tut-arrow"></div>
+      <div class="agb-tut-card" id="agb-tut-card">
+        <div class="agb-tut-step">Step <span id="agb-tut-i">1</span> of ${STEPS.length}</div>
+        <div class="agb-tut-title" id="agb-tut-title"></div>
+        <div class="agb-tut-body" id="agb-tut-body"></div>
+        <div class="agb-tut-actions">
+          ${isFirstEver ? `<button class="agb-tut-skip" id="agb-tut-skip">Skip tour</button>` : `<span></span>`}
+          <div class="agb-tut-nav">
+            <button class="agb-tut-back" id="agb-tut-back" disabled>← Back</button>
+            <button class="agb-tut-next" id="agb-tut-next">Next →</button>
+          </div>
+        </div>
+      </div>
+    </div>`);
+  document.body.appendChild(overlay);
+
+  function close(markSeen) {
+    if (markSeen) localStorage.setItem(BUILDER_TUTORIAL_KEY, "1");
+    overlay.remove();
+    window.removeEventListener("resize", reposition);
+    window.removeEventListener("scroll", reposition, true);
+  }
+
+  function place() {
+    const step = STEPS[i];
+    const target = step.target();
+    if (!target) return;
+    const r = target.getBoundingClientRect();
+    const spot = $("#agb-tut-spot", overlay);
+    const card = $("#agb-tut-card", overlay);
+    const arrow = $("#agb-tut-arrow", overlay);
+    const pad = 10;
+    spot.style.left = (r.left - pad) + "px";
+    spot.style.top  = (r.top - pad) + "px";
+    spot.style.width = (r.width + pad * 2) + "px";
+    spot.style.height = (r.height + pad * 2) + "px";
+
+    // Card placement
+    const cw = 320, ch = 180;
+    let cx, cy, ax, ay, arot = 0;
+    const placement = step.placement || "right";
+    if (placement === "right" && r.right + cw + 40 < window.innerWidth) {
+      cx = r.right + 28; cy = Math.max(20, r.top + r.height / 2 - ch / 2);
+      ax = r.right + 4; ay = r.top + r.height / 2; arot = 0;
+    } else if (placement === "bottom" && r.bottom + ch + 40 < window.innerHeight) {
+      cx = Math.max(20, Math.min(window.innerWidth - cw - 20, r.left + r.width / 2 - cw / 2));
+      cy = r.bottom + 28;
+      ax = r.left + r.width / 2; ay = r.bottom + 4; arot = 90;
+    } else {
+      // Fallback above
+      cx = Math.max(20, Math.min(window.innerWidth - cw - 20, r.left + r.width / 2 - cw / 2));
+      cy = Math.max(20, r.top - ch - 28);
+      ax = r.left + r.width / 2; ay = r.top - 4; arot = -90;
+    }
+    card.style.left = cx + "px";
+    card.style.top  = cy + "px";
+    arrow.style.left = ax + "px";
+    arrow.style.top  = ay + "px";
+    arrow.style.transform = `translate(-50%, -50%) rotate(${arot}deg)`;
+  }
+  function reposition() { try { place(); } catch (_) {} }
+
+  function render() {
+    const step = STEPS[i];
+    $("#agb-tut-i", overlay).textContent = String(i + 1);
+    $("#agb-tut-title", overlay).textContent = step.title;
+    $("#agb-tut-body", overlay).textContent = step.body;
+    $("#agb-tut-back", overlay).disabled = (i === 0);
+    $("#agb-tut-next", overlay).textContent = (i === STEPS.length - 1) ? "Got it ✓" : "Next →";
+    place();
+  }
+
+  $("#agb-tut-back", overlay).addEventListener("click", () => { if (i > 0) { i--; render(); } });
+  $("#agb-tut-next", overlay).addEventListener("click", () => {
+    if (i === STEPS.length - 1) { close(true); return; }
+    // Auto-open the orb menu when we reach the "Add an integration" step preview
+    if (i === 1) {
+      const orbMenu = $("#agb-orb-menu", stage);
+      const orbPlus = $("#agb-orb-plus", stage);
+      if (orbMenu) { orbMenu.hidden = false; }
+      if (orbPlus) orbPlus.classList.add("is-open");
+    }
+    i++; render();
+  });
+  const skipBtn = $("#agb-tut-skip", overlay);
+  if (skipBtn) skipBtn.addEventListener("click", () => close(true));
+  // Esc closes
+  document.addEventListener("keydown", function onKey(e) {
+    if (!document.body.contains(overlay)) {
+      document.removeEventListener("keydown", onKey);
+      return;
+    }
+    if (e.key === "Escape") close(true);
+  });
+  window.addEventListener("resize", reposition);
+  window.addEventListener("scroll", reposition, true);
+  render();
+}
 
 // Builder canvas: draggable boxes, curved dotted connections with sticky-note labels.
 function initBuilderCanvas(stage, layout) {

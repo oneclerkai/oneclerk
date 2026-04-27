@@ -3378,17 +3378,22 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 /* rapid page transitions                                       */
 /* ============================================================ */
 
-/* --- Big, two-line catchy hero title --- */
+/* --- EXACTLY two horizontal lines, auto-fits the viewport --- */
 .lp-title.lp-title-one {
   display: block;
   font-family: 'Poppins', sans-serif;
   font-weight: 800;
-  font-size: clamp(30px, 5.4vw, 76px);
-  line-height: 1.04;
-  letter-spacing: -0.035em;
+  font-size: clamp(20px, 3.4vw, 50px);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
   margin: 14px auto 18px;
-  max-width: 1100px;
-  padding: 0 16px;
+  max-width: 1280px;
+  padding: 0 12px;
+  text-align: center;
+}
+.lp-title.lp-title-one .lp-title-line {
+  display: block;
+  white-space: nowrap;
 }
 .lp-title.lp-title-one em {
   font-style: italic; font-weight: 800;
@@ -3397,9 +3402,12 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
           background-clip: text;
   -webkit-text-fill-color: transparent;
 }
-@media (max-width: 760px) {
-  .lp-title.lp-title-one { font-size: clamp(26px, 7vw, 40px); line-height: 1.12; }
-  .lp-title.lp-title-one br { display: none; }
+@media (max-width: 900px) {
+  .lp-title.lp-title-one { font-size: clamp(18px, 4.2vw, 30px); }
+}
+@media (max-width: 600px) {
+  .lp-title.lp-title-one .lp-title-line { white-space: normal; }
+  .lp-title.lp-title-one { font-size: clamp(22px, 6.5vw, 30px); line-height: 1.18; }
 }
 
 /* Spacious hero — notes sit comfortably below the CTA */
@@ -3432,14 +3440,21 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   filter: drop-shadow(0 8px 14px rgba(15,15,20,0.22));
   display: block;
 }
-/* Reposition the floats so they sit clearly INSIDE the viewport at the corners */
-.lp-floats .lp-float[data-k="whatsapp"] { top: 90px;  left: 32px;  transform: rotate(-8deg); }
-.lp-floats .lp-float[data-k="gcal"]     { top: 80px;  right: 32px; transform: rotate(8deg); }
-.lp-floats .lp-float[data-k="gmail"]    { bottom: auto; top: 320px; left: 14px;  transform: rotate(6deg); }
-.lp-floats .lp-float[data-k="phone"]    { bottom: auto; top: 300px; right: 14px; transform: rotate(-6deg); perspective: 600px; }
-@media (max-width: 1100px) {
+/* Pull floats DOWN to the level of the comic-notes row, 2 on each side, fully visible */
+.lp-floats .lp-float[data-k="whatsapp"] { top: 470px; left: 24px;  transform: rotate(-9deg); }
+.lp-floats .lp-float[data-k="gmail"]    { top: 660px; left: 24px;  transform: rotate(7deg); }
+.lp-floats .lp-float[data-k="gcal"]     { top: 470px; right: 24px; transform: rotate(9deg); }
+.lp-floats .lp-float[data-k="phone"]    { top: 660px; right: 24px; transform: rotate(-7deg); perspective: 600px; }
+@media (max-width: 1280px) {
+  .lp-floats .lp-float-brand { width: 96px !important; height: 96px !important; padding: 10px; }
+  .lp-floats .lp-float-brand svg { width: 70px; height: 70px; }
+  .lp-floats .lp-float[data-k="whatsapp"],
+  .lp-floats .lp-float[data-k="gcal"]   { top: 440px; }
   .lp-floats .lp-float[data-k="gmail"],
-  .lp-floats .lp-float[data-k="phone"]    { display: none; }
+  .lp-floats .lp-float[data-k="phone"]  { top: 600px; }
+}
+@media (max-width: 900px) {
+  .lp-floats { display: none; }
 }
 /* Phone "ringing" curves animation (used in landing float + builder phone box) */
 .ph-rings path {
@@ -3715,3 +3730,126 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 /* Updated pricing: trial subline */
 .lp-billing-head p { font-size: 14px; }
 .lp-billing-head p strong { color: #0f0f14; }
+
+/* ============================================================ */
+/* v16 — first-time builder tutorial                            */
+/* ============================================================ */
+.agb-tut-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  pointer-events: none;
+}
+.agb-tut-mask {
+  position: absolute; inset: 0;
+  background: rgba(15,15,20,0.55);
+  pointer-events: auto;
+  animation: agbTutFade .25s ease;
+}
+@keyframes agbTutFade { from { opacity: 0; } to { opacity: 1; } }
+.agb-tut-spot {
+  position: absolute;
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 9999px rgba(15,15,20,0.55),
+    0 0 0 3px rgba(245,158,11,0.95),
+    0 0 24px 6px rgba(245,158,11,0.45);
+  background: transparent;
+  pointer-events: none;
+  transition: all .28s cubic-bezier(.2,.95,.35,1);
+  z-index: 2;
+}
+.agb-tut-arrow {
+  position: absolute;
+  width: 28px; height: 28px;
+  background: #f59e0b;
+  clip-path: polygon(0 50%, 100% 0, 75% 50%, 100% 100%);
+  pointer-events: none;
+  z-index: 3;
+  filter: drop-shadow(0 4px 8px rgba(245,158,11,0.4));
+  animation: agbTutBob 1.1s ease-in-out infinite;
+}
+@keyframes agbTutBob {
+  0%,100% { translate: 0 0; }
+  50%     { translate: -4px 0; }
+}
+.agb-tut-card {
+  position: absolute;
+  width: 320px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow:
+    0 24px 50px -12px rgba(15,15,20,0.45),
+    0 0 0 1px rgba(15,15,20,0.06);
+  padding: 18px 18px 14px;
+  font-family: 'Poppins', sans-serif;
+  color: #0f0f14;
+  pointer-events: auto;
+  z-index: 4;
+  animation: agbTutPop .28s cubic-bezier(.2,1.05,.4,1.05);
+}
+@keyframes agbTutPop {
+  from { opacity: 0; transform: translateY(6px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+.agb-tut-step {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c2410c;
+  margin-bottom: 6px;
+}
+.agb-tut-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.agb-tut-body {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: rgba(15,15,20,0.7);
+  margin-bottom: 14px;
+}
+.agb-tut-actions {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+}
+.agb-tut-skip {
+  background: transparent;
+  border: none;
+  color: rgba(15,15,20,0.5);
+  font-family: 'Poppins', sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 4px;
+  text-decoration: underline;
+}
+.agb-tut-skip:hover { color: #0f0f14; }
+.agb-tut-nav { display: flex; gap: 8px; }
+.agb-tut-back, .agb-tut-next {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(15,15,20,0.12);
+  background: #fff;
+  color: #0f0f14;
+  cursor: pointer;
+  transition: transform .12s, background .12s;
+}
+.agb-tut-back:disabled { opacity: 0.4; cursor: not-allowed; }
+.agb-tut-back:not(:disabled):hover { background: #f4f4f0; }
+.agb-tut-next {
+  background: #0f0f14;
+  color: #fff;
+  border-color: #0f0f14;
+}
+.agb-tut-next:hover { transform: translateY(-1px); }
+
+/* Plus button visual state when menu is open */
+.agb-orb-plus.is-open {
+  transform: rotate(45deg);
+  background: #f59e0b;
+  color: #fff;
+}

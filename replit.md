@@ -111,3 +111,11 @@ Configured for Replit autoscale running the same uvicorn command. Push the Publi
   - Inputs got proper uppercase labels (`.agb-flabel`), a custom-styled `<select>` for the agent voice, and consistent linked/unlinked status lines (`✓ Receiving calls`, `✓ Linked — bookings drop in`, etc.).
   - Boxes are larger (240×170), with a softer card style, hover-lift, and a strong scale + amber ring while dragging — clearly draggable from anywhere.
 - Cache-bust bumped to `v=15` in `index.html`.
+
+## v16 — title fit, brand float reflow, tutorial, auth memory (2026-04-27)
+- **Hero title**: now exactly two horizontal lines via per-sentence `<span class="lp-title-line">` with `white-space: nowrap` and a smaller, fluid font (`clamp(20px, 3.4vw, 50px)`) so each sentence stays on its own line at all common widths.
+- **Brand floats**: pulled all 4 down to the comic-notes row — WhatsApp/Gmail on the left at top:470/660, Google Cal/Phone on the right at 470/660. Added `≤1280px` shrink rule (96×96 chips) and `≤900px` hide so they never overlap mobile content.
+- **Builder + button**: now uses `closest("#agb-orb-plus")` in the document-level outside-click handler so clicking the inner SVG no longer re-opens the menu after closing. Plus also gets `is-open` state (rotates 45°, turns amber).
+- **First-ever builder tutorial**: 5-step coach-mark overlay (welcome orb, click +, drag from anywhere, connect handles, save). Highlights the target with a glowing amber spot, animated pointer arrow, white card with `Step n of 5`, Back / Next, plus a `Skip tour` button shown **only on the first ever build** (gated by `localStorage["oc_seen_builder_tutorial"]`). Esc closes; resize/scroll repositions; auto-opens the orb menu when arriving at the "Add an integration" step.
+- **Auth remembering**: `ACCESS_TOKEN_EXPIRE_MINUTES` bumped to 30 days (was 60 min) so users stay signed in across sessions.
+- Cache-bust bumped to `v=16` in `index.html`.
