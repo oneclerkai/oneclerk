@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta
+from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -25,3 +27,5 @@ class User(Base):
     stripe_customer_id: Mapped[str | None] = mapped_column(String, nullable=True)
     stripe_subscription_id: Mapped[str | None] = mapped_column(String, nullable=True)
     subscription_status: Mapped[str | None] = mapped_column(String, nullable=True)
+    onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    business_profile: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)

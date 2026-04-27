@@ -72,6 +72,8 @@ _LIGHTWEIGHT_MIGRATIONS: tuple[str, ...] = (
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE NOT NULL",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS business_profile JSONB",
     "ALTER TABLE conversation_turns ADD COLUMN IF NOT EXISTS source VARCHAR DEFAULT 'voice'",
     "ALTER TABLE conversation_turns ADD COLUMN IF NOT EXISTS caller_number VARCHAR",
     "ALTER TABLE conversation_turns ADD COLUMN IF NOT EXISTS agent_id VARCHAR",

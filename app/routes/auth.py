@@ -62,7 +62,14 @@ def _user_dict(user: User) -> dict:
         "whatsapp_number": user.whatsapp_number,
         "plan": user.plan,
         "trial_ends_at": user.trial_ends_at.isoformat() if user.trial_ends_at else None,
+        "onboarding_completed": bool(user.onboarding_completed),
+        "business_profile": user.business_profile or None,
     }
+
+
+class OnboardingRequest(BaseModel):
+    profile: dict
+    completed: bool = True
 
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -121,4 +128,21 @@ async def get_current_user(
 
 @router.get("/me")
 async def me(current_user: User = Depends(get_current_user)) -> dict:
+    return _user_dict(current_user)
+
+
+@router.post("/onboarding")
+async def save_onboarding(
+    data: OnboardingRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    current_user.business_profile = data.profile
+    current_user.onboarding_completed = data.completed
+    if data.profile.get("business_name") and not current_user.name:
+        current_user.name = data.profile.get("contact_name") or current_user.name
+    if data.profile.get("whatsapp_number") and not current_user.whatsapp_number:
+        current_user.whatsapp_number = data.profile.get("whatsapp_number")
+    await db.commit()
+    await db.refresh(current_user)
     return _user_dict(current_user)
