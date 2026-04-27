@@ -58,84 +58,205 @@ function parseRoute() {
 function renderIcons(root) { if (window.lucide) window.lucide.createIcons({ attrs: { class: "icon" }, ...(root ? { context: root } : {}) }); }
 
 // --- Auth view ---
-route("auth", async () => {
-  // Pre-build the brand pixel logo "O" (7x7 grid)
-  const logoMatrix = [
-    [0,1,1,1,1,1,0],
-    [1,2,0,0,0,2,1],
-    [1,0,0,2,0,0,1],
-    [1,0,2,2,2,0,1],
-    [1,0,0,2,0,0,1],
-    [1,2,0,0,0,2,1],
-    [0,1,1,1,1,1,0],
-  ];
-  const pixelLogoCells = logoMatrix.flat().map(v =>
-    `<i class="${v===1?'on':v===2?'dim':''}"></i>`).join("");
+// --- Landing view (white paper-graph + 3D carousel + parabola footer) ---
 
+const SUBTITLES = [
+  "An autonomous receptionist that answers in your voice.",
+  "Books appointments. Flags emergencies. Texts the summary.",
+  "Set up in twelve minutes. Live forever.",
+  "Built for clinics, salons, and the calls that matter.",
+];
+
+const USE_CASES = [
+  {
+    icon: "stethoscope",
+    title: "Medical clinics",
+    desc: "Triages calls, books visits, and routes urgent symptoms to staff in real time.",
+    bullets: ["HIPAA-aware intake", "Symptom triage flow", "Same-day booking"],
+  },
+  {
+    icon: "scissors",
+    title: "Salons & spas",
+    desc: "Confirms bookings, suggests open slots, and re-fills cancellations automatically.",
+    bullets: ["Square / Booksy sync", "Cancellation recovery", "SMS confirmations"],
+  },
+  {
+    icon: "hammer",
+    title: "Home services",
+    desc: "Captures lead details, qualifies the job, and texts the photos to your tech.",
+    bullets: ["Smart job intake", "Photo + address capture", "After-hours coverage"],
+  },
+  {
+    icon: "scale",
+    title: "Law firms",
+    desc: "Screens new matters, schedules consults, and protects privileged conversations.",
+    bullets: ["Conflict screening", "Calendar booking", "Encrypted summaries"],
+  },
+  {
+    icon: "graduation-cap",
+    title: "Tutoring & schools",
+    desc: "Answers parent questions, registers students, and reschedules lessons gracefully.",
+    bullets: ["Multi-language", "Roster sync", "Make-up scheduling"],
+  },
+];
+
+const REVIEWS = [
+  { quote: "Caught 17 missed calls our first week. Two became patients the same day.", who: "Dr. Marisol R.", role: "Family Practice", color: "" },
+  { quote: "Sounds exactly like our front desk. Clients have no idea it's AI.", who: "Jamie L.", role: "Salon owner", color: "color-pink" },
+  { quote: "Setup took 14 minutes. Has been live ever since. No bugs, no fuss.", who: "Andre T.", role: "HVAC, Phoenix", color: "color-blue" },
+  { quote: "We saved a full receptionist salary in month one.", who: "Priya N.", role: "Dental", color: "color-green" },
+  { quote: "It books, it cancels, it texts the summary. That's the whole job.", who: "Mike H.", role: "Plumbing co.", color: "color-orange" },
+  { quote: "The voice is uncanny. In a good way.", who: "Linh P.", role: "Med spa", color: "" },
+  { quote: "Finally, an AI that doesn't sound like an AI.", who: "Carla J.", role: "Law office", color: "color-pink" },
+  { quote: "Our after-hours bookings tripled.", who: "Rohan S.", role: "Auto detailing", color: "color-blue" },
+];
+
+route("auth", async () => {
   const root = h(`
     <div class="landing">
-      <canvas class="pixel-canvas" id="px-canvas"></canvas>
-      <div class="pixel-veil"></div>
-      <div class="perspective" id="perspective"></div>
+      <!-- SVG defs for pencil-textured 'VOICE' word -->
+      <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+        <defs>
+          <filter id="lp-pencil" x="-5%" y="-5%" width="110%" height="110%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="noise"/>
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.2"/>
+            <feComponentTransfer>
+              <feFuncA type="linear" slope="1"/>
+            </feComponentTransfer>
+          </filter>
+        </defs>
+      </svg>
 
-      <nav class="landing-nav">
-        <div class="nav-brand">
-          <div class="pixel-logo">${pixelLogoCells}</div>
-          <div class="brand-name">ONECLERK</div>
+      <!-- NAV -->
+      <nav class="lp-nav">
+        <div class="lp-brand"><span class="dot"></span>OneClerk</div>
+        <div class="lp-links">
+          <a data-scroll="lp-cases">Use cases</a>
+          <a data-scroll="lp-cases">Pricing</a>
+          <a data-scroll="lp-cases">Docs</a>
         </div>
-        <div class="nav-links">
-          <a data-scroll="how">How it works</a>
-          <a data-scroll="agents">Agents</a>
-          <a data-scroll="pricing">Pricing</a>
-          <a data-scroll="docs">Docs</a>
-        </div>
-        <div class="nav-cta">
-          <button class="ghost" data-open-auth="login">Sign in</button>
-          <button class="glass-pill" data-open-auth="signup">
-            <span>Get Started</span>
-            <span class="arrow">→</span>
+        <div class="lp-cta">
+          <button class="lp-signin" data-open-auth="login">Sign in</button>
+          <button class="lp-getstarted" data-open-auth="signup">
+            <span>Get started</span><span class="arr">→</span>
           </button>
         </div>
       </nav>
 
-      <div class="vertical-text">
-        WHEN <span class="accent">AI</span> MEETS <span class="accent">INTELLIGENCE</span>
-      </div>
+      <!-- HERO -->
+      <section class="lp-hero">
+        <div class="lp-mesh"></div>
+        <div class="lp-light-cone"></div>
+        <div class="lp-light"></div>
+        <div class="lp-floor-shadow"></div>
 
-      <main class="landing-hero">
-        <div class="crystal-stage">
-          <div class="crystal-glow"></div>
-          <canvas id="crystal-canvas" width="520" height="520"></canvas>
-        </div>
-        <div class="eyebrow">
-          <span class="dot"></span>
-          <span>VOICE AI RECEPTIONIST</span>
-        </div>
-        <h1>Never miss a <span class="accent">call</span>.</h1>
-        <div class="sub" id="sub-rotate">
-          <span id="sub-text"></span><span class="caret"></span>
-        </div>
-        <div class="cta-row">
-          <button class="cta-primary" data-open-auth="signup">
-            <span>Get started</span><span class="arr">→</span>
-          </button>
-          <button class="cta-secondary" data-open-auth="login">
-            <span>Sign in</span>
-          </button>
-        </div>
-      </main>
+        <div class="lp-arrows" id="lp-arrows"></div>
 
-      <div class="ground-line">
-        <span>RECEPTION · ROUTING · REPLY</span>
-      </div>
+        <div class="lp-notes" id="lp-notes">
+          <div class="lp-note" style="top:16%; left:3%; transform:rotate(-7deg)">Drag &amp; drop flow</div>
+          <div class="lp-note color-pink" style="top:14%; right:3%; transform:rotate(6deg)">Books your calendar</div>
+          <div class="lp-note color-blue" style="bottom:14%; left:5%; transform:rotate(4deg)">Texts the summary</div>
+          <div class="lp-note color-green" style="bottom:11%; right:4%; transform:rotate(-5deg)">Sounds like you</div>
+        </div>
+
+        <div class="lp-hero-inner">
+          <span class="lp-eyebrow"><span class="pulse"></span><span>VOICE AI · LIVE 24/7</span></span>
+          <h1 class="lp-title">
+            World's <span class="lp-italic lp-thin">first</span> autonomous<br/>
+            <span class="lp-brick">Voice</span> agent for your phone
+          </h1>
+          <div class="lp-sub" id="lp-sub-rotate">
+            <span id="lp-sub-text"></span><span class="caret"></span>
+          </div>
+          <div class="lp-cta-row">
+            <button class="lp-cta-primary" data-open-auth="signup">
+              <span>Get started free</span><span class="arr">→</span>
+            </button>
+            <button class="lp-cta-secondary" data-open-auth="login">Sign in</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- USE CASES (3D carousel) -->
+      <section class="lp-cases" id="lp-cases">
+        <div class="lp-cases-glow"></div>
+        <div class="lp-cases-head">
+          <span class="eb">USE CASES</span>
+          <h2>One agent. <em>Every kind</em> of front desk.</h2>
+          <p>Trained on your scripts. Fluent in your business. Patient with everyone who calls.</p>
+        </div>
+        <div class="lp-carousel" id="lp-carousel">
+          <div class="lp-carousel-stage" id="lp-carousel-stage"></div>
+        </div>
+        <div class="lp-carousel-controls">
+          <button id="lp-prev" aria-label="Previous"><i data-lucide="chevron-left" class="icon"></i></button>
+          <button id="lp-next" aria-label="Next"><i data-lucide="chevron-right" class="icon"></i></button>
+        </div>
+      </section>
+
+      <!-- REVIEWS (infinite track) -->
+      <section class="lp-reviews">
+        <div class="lp-reviews-head">
+          <span class="eb">FROM REAL FRONT DESKS</span>
+          <h2>Owners are <em>obsessed</em>.</h2>
+        </div>
+        <div class="lp-track-wrap">
+          <div class="lp-track" id="lp-track"></div>
+        </div>
+      </section>
+
+      <!-- FOOTER (parabola word) -->
+      <footer class="lp-footer">
+        <div class="lp-footer-links">
+          <div class="lp-footer-col">
+            <h4>OneClerk</h4>
+            <p>The autonomous voice receptionist that picks up so you never miss the call that matters.</p>
+          </div>
+          <div class="lp-footer-col">
+            <h4>Product</h4>
+            <a>Features</a>
+            <a>Pricing</a>
+            <a>Integrations</a>
+            <a>Changelog</a>
+          </div>
+          <div class="lp-footer-col">
+            <h4>Company</h4>
+            <a>About</a>
+            <a>Customers</a>
+            <a>Careers</a>
+            <a>Contact</a>
+          </div>
+          <div class="lp-footer-col">
+            <h4>Legal</h4>
+            <a>Privacy</a>
+            <a>Terms</a>
+            <a>Security</a>
+            <a>DPA</a>
+          </div>
+        </div>
+
+        <div class="lp-bigword" id="lp-bigword">
+          ${"ONECLERK".split("").map(c => `<span class="ltr">${c}</span>`).join("")}
+        </div>
+
+        <div class="lp-footer-bottom">
+          <span>© 2026 OneClerk Labs, Inc.</span>
+          <span>Made for the calls that matter.</span>
+        </div>
+      </footer>
     </div>`);
 
-  // === Mount + animate ===
+  // Mount + initialize
   setTimeout(() => {
-    initPixelField(root.querySelector("#px-canvas"));
-    drawPixelCrystal(root.querySelector("#crystal-canvas"));
-    initPerspectiveLines(root.querySelector("#perspective"));
-    initSubtitleRotator(root.querySelector("#sub-text"));
+    initSubtitleRotator(root.querySelector("#lp-sub-text"));
+    drawCurvedArrows(root);
+    init3DCarousel(root);
+    initInfiniteReviews(root);
+    initParabolaWord(root);
+    if (window.lucide) lucide.createIcons({ attrs: { class: "icon" } });
+
+    // Recompute arrows on resize
+    window.addEventListener("resize", () => drawCurvedArrows(root));
   }, 0);
 
   // CTAs → modal
@@ -147,13 +268,6 @@ route("auth", async () => {
 });
 
 // --- Landing helpers ---
-
-const SUBTITLES = [
-  "An AI receptionist that answers in your voice.",
-  "Books appointments. Flags emergencies. Texts the summary.",
-  "Set up in twelve minutes. Live forever.",
-  "Built for clinics, salons, and the calls that matter.",
-];
 
 function initSubtitleRotator(el) {
   if (!el) return;
@@ -184,267 +298,165 @@ function initSubtitleRotator(el) {
   tick();
 }
 
-function initPerspectiveLines(host) {
-  if (!host) return;
-  const draw = () => {
-    const W = window.innerWidth, H = window.innerHeight;
-    const cx = W / 2, cy = H / 2;
-    const sq = 18;
-    const x1 = cx - sq, y1 = cy - sq, x2 = cx + sq, y2 = cy + sq;
-    host.innerHTML = `
-      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="pl-grad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="rgba(125,163,255,0.0)"/>
-            <stop offset="100%" stop-color="rgba(199,216,255,0.32)"/>
-          </linearGradient>
-        </defs>
-        <line class="pl" x1="0" y1="0" x2="${x1}" y2="${y1}" stroke="url(#pl-grad)"/>
-        <line class="pl" x1="${W}" y1="0" x2="${x2}" y2="${y1}" stroke="url(#pl-grad)"/>
-        <line class="pl" x1="0" y1="${H}" x2="${x1}" y2="${y2}" stroke="url(#pl-grad)"/>
-        <line class="pl" x1="${W}" y1="${H}" x2="${x2}" y2="${y2}" stroke="url(#pl-grad)"/>
-        <rect class="center-square" x="${x1}" y="${y1}" width="${sq*2}" height="${sq*2}"/>
-      </svg>`;
-  };
-  draw();
+// Hand-drawn dotted arrows from the title block out to each sticky note
+function drawCurvedArrows(root) {
+  const host = root.querySelector("#lp-arrows");
+  const hero = root.querySelector(".lp-hero");
+  const title = root.querySelector(".lp-title");
+  const notes = Array.from(root.querySelectorAll(".lp-note"));
+  if (!host || !hero || !title || notes.length === 0) return;
+
+  const heroRect = hero.getBoundingClientRect();
+  const titleRect = title.getBoundingClientRect();
+  // Anchor points on title (left, right, left-bottom, right-bottom)
+  const anchors = [
+    { x: titleRect.left - heroRect.left + 30,  y: titleRect.top - heroRect.top + titleRect.height * 0.4 },
+    { x: titleRect.right - heroRect.left - 30, y: titleRect.top - heroRect.top + titleRect.height * 0.4 },
+    { x: titleRect.left - heroRect.left + 60,  y: titleRect.bottom - heroRect.top - 10 },
+    { x: titleRect.right - heroRect.left - 60, y: titleRect.bottom - heroRect.top - 10 },
+  ];
+
+  const paths = notes.map((note, i) => {
+    const r = note.getBoundingClientRect();
+    const target = {
+      x: r.left - heroRect.left + r.width / 2,
+      y: r.top - heroRect.top + r.height / 2,
+    };
+    // Aim arrow tip to the closest edge of the note (not center)
+    const a = anchors[i] || anchors[0];
+    const dx = target.x - a.x, dy = target.y - a.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const tipX = target.x - (dx / dist) * (r.width * 0.55);
+    const tipY = target.y - (dy / dist) * (r.height * 0.55);
+
+    // Curved path with control offset (perpendicular)
+    const mx = (a.x + tipX) / 2;
+    const my = (a.y + tipY) / 2;
+    const nx = -dy / dist, ny = dx / dist;
+    const curveAmt = 90 * (i % 2 === 0 ? 1 : -1);
+    const cx = mx + nx * curveAmt;
+    const cy = my + ny * curveAmt;
+    return { d: `M ${a.x} ${a.y} Q ${cx} ${cy} ${tipX} ${tipY}`, tipX, tipY, cx, cy };
+  });
+
+  host.innerHTML = `
+    <svg viewBox="0 0 ${heroRect.width} ${heroRect.height}" preserveAspectRatio="none"
+         width="${heroRect.width}" height="${heroRect.height}">
+      <defs>
+        <marker id="lp-arrowhead" viewBox="0 0 10 10" refX="8" refY="5"
+                markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#0d0d0f" opacity="0.55"/>
+        </marker>
+      </defs>
+      ${paths.map(p => `<path d="${p.d}" marker-end="url(#lp-arrowhead)"/>`).join("")}
+    </svg>`;
+}
+
+// 3D semi-circular auto-rotating carousel
+function init3DCarousel(root) {
+  const stage = root.querySelector("#lp-carousel-stage");
+  const prev = root.querySelector("#lp-prev");
+  const next = root.querySelector("#lp-next");
+  if (!stage) return;
+
+  const N = USE_CASES.length;
+  const step = 360 / N;
+  const radius = 380;
+  let current = 0;
+  let timer;
+
+  // Build cards
+  USE_CASES.forEach((uc, i) => {
+    const card = h(`
+      <div class="lp-uc-card" data-i="${i}">
+        <div class="icon-wrap"><i data-lucide="${uc.icon}" class="icon"></i></div>
+        <h3>${uc.title}</h3>
+        <p>${uc.desc}</p>
+        <ul>${uc.bullets.map(b => `<li>${b}</li>`).join("")}</ul>
+      </div>`);
+    card.style.transform = `rotateY(${i * step}deg) translateZ(${radius}px)`;
+    stage.appendChild(card);
+  });
+
+  function update() {
+    stage.style.transform = `translateZ(-${radius}px) rotateY(${-current * step}deg)`;
+    Array.from(stage.children).forEach((c, i) => {
+      const offset = ((i - current) % N + N) % N;
+      const dist = Math.min(offset, N - offset);
+      c.style.opacity = dist === 0 ? 1 : (dist === 1 ? 0.55 : 0.22);
+    });
+  }
+
+  function rotate(dir = 1) { current = (current + dir + N) % N; update(); }
+  function autoplay() {
+    clearInterval(timer);
+    timer = setInterval(() => rotate(1), 4200);
+  }
+
+  next.addEventListener("click", () => { rotate(1); autoplay(); });
+  prev.addEventListener("click", () => { rotate(-1); autoplay(); });
+  // Pause on hover
+  root.querySelector("#lp-carousel").addEventListener("mouseenter", () => clearInterval(timer));
+  root.querySelector("#lp-carousel").addEventListener("mouseleave", autoplay);
+
+  update();
+  autoplay();
+}
+
+// Infinite-loop sticky-note review track (CSS animation; we just duplicate content)
+function initInfiniteReviews(root) {
+  const track = root.querySelector("#lp-track");
+  if (!track) return;
+  const html = REVIEWS.map(r => {
+    const initials = r.who.split(" ").map(s => s[0]).join("").slice(0, 2).toUpperCase();
+    return `
+      <div class="lp-review ${r.color || ''}">
+        <div class="quote">"${r.quote}"</div>
+        <div class="who">
+          <span class="av">${initials}</span>
+          <span><strong>${r.who}</strong> · ${r.role}</span>
+        </div>
+      </div>`;
+  }).join("");
+  // Duplicate so the -50% translate seamlessly loops
+  track.innerHTML = html + html;
+}
+
+// Giant ONECLERK letters arc upward (parabola) and straighten as you scroll into view
+function initParabolaWord(root) {
+  const wrap = root.querySelector("#lp-bigword");
+  if (!wrap) return;
+  const letters = Array.from(wrap.querySelectorAll(".ltr"));
+  const N = letters.length;
+  // Each letter has a normalized x position from -1 (left) to +1 (right)
+  const positions = letters.map((_, i) => (i - (N - 1) / 2) / ((N - 1) / 2));
+
+  function update() {
+    const rect = wrap.getBoundingClientRect();
+    const vh = window.innerHeight;
+    // Progress: 0 when wrap top is at viewport bottom, 1 when wrap bottom is at viewport top
+    const raw = 1 - (rect.top + rect.height * 0.4) / vh;
+    const t = Math.max(0, Math.min(1, raw));
+    // Curvature decreases as t -> 1 (straightens out)
+    const curve = (1 - t) * 220; // px lift in middle when t=0
+    letters.forEach((el, i) => {
+      const x = positions[i];
+      // parabola: y = curve * (1 - x^2), but inverted (down = +)
+      // We want letters to ARCH UP at the start, so apply negative translate
+      const lift = -curve * (1 - x * x);
+      // Slight rotation toward arc tangent
+      const rot = (1 - t) * x * 8; // degrees
+      el.style.transform = `translateY(${lift.toFixed(1)}px) rotate(${rot.toFixed(2)}deg)`;
+    });
+  }
+
+  update();
   let raf;
-  window.addEventListener("resize", () => {
+  window.addEventListener("scroll", () => {
     cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(draw);
-  });
-}
-
-// Reactive pixel field — black/blue/white tiny squares
-function initPixelField(canvas) {
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  const PX = 4;        // pixel size in screen px
-  const DENSITY = 0.18; // fraction of cells that are filled
-  const HOVER_R = 130;  // mouse influence radius
-  let cells = [];
-  let baseImg = null;
-  let mx = -9999, my = -9999, prev = null;
-
-  function regen() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    const cw = Math.ceil(canvas.width / PX);
-    const ch = Math.ceil(canvas.height / PX);
-    cells = [];
-    // Quiet two-tone palette
-    const palettes = [
-      { base: "#0e1530", hover: "#9ebcff" },
-      { base: "#0a0f24", hover: "#c7d8ff" },
-    ];
-    for (let y = 0; y < ch; y++) {
-      for (let x = 0; x < cw; x++) {
-        if (Math.random() > DENSITY) continue;
-        const p = palettes[Math.floor(Math.random() * palettes.length)];
-        const alpha = 0.22 + Math.random() * 0.32;
-        cells.push({ x: x * PX, y: y * PX, base: p.base, hover: p.hover, alpha });
-      }
-    }
-    drawBase();
-  }
-
-  function drawBase() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    for (const c of cells) {
-      ctx.globalAlpha = c.alpha;
-      ctx.fillStyle = c.base;
-      ctx.fillRect(c.x, c.y, PX, PX);
-    }
-    ctx.globalAlpha = 1;
-    baseImg = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  }
-
-  function repaintRegion(rx, ry) {
-    const pad = HOVER_R + PX * 2;
-    const x = Math.max(0, Math.floor(rx - pad));
-    const y = Math.max(0, Math.floor(ry - pad));
-    const w = Math.min(canvas.width - x, pad * 2);
-    const hh = Math.min(canvas.height - y, pad * 2);
-    if (w <= 0 || hh <= 0) return;
-    ctx.putImageData(baseImg, 0, 0, x, y, w, hh);
-  }
-
-  function drawHover() {
-    if (mx < -1000) return;
-    const r2 = HOVER_R * HOVER_R;
-    const minX = mx - HOVER_R, maxX = mx + HOVER_R;
-    const minY = my - HOVER_R, maxY = my + HOVER_R;
-    for (const c of cells) {
-      if (c.x < minX || c.x > maxX || c.y < minY || c.y > maxY) continue;
-      const dx = c.x - mx, dy = c.y - my;
-      const d2 = dx * dx + dy * dy;
-      if (d2 > r2) continue;
-      const t = 1 - Math.sqrt(d2) / HOVER_R;
-      ctx.globalAlpha = Math.min(1, t * 1.05);
-      ctx.fillStyle = c.hover;
-      ctx.fillRect(c.x, c.y, PX, PX);
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  let dirty = true;
-  function frame() {
-    if (dirty || prev) {
-      // erase last region
-      if (prev) repaintRegion(prev.x, prev.y);
-      drawHover();
-      prev = mx > -1000 ? { x: mx, y: my } : null;
-      dirty = false;
-    }
-    requestAnimationFrame(frame);
-  }
-
-  regen();
-  frame();
-  let resizeT;
-  window.addEventListener("resize", () => {
-    clearTimeout(resizeT);
-    resizeT = setTimeout(() => { regen(); dirty = true; }, 120);
-  });
-  window.addEventListener("mousemove", (e) => {
-    mx = e.clientX; my = e.clientY; dirty = true;
+    raf = requestAnimationFrame(update);
   }, { passive: true });
-  window.addEventListener("touchmove", (e) => {
-    if (e.touches[0]) { mx = e.touches[0].clientX; my = e.touches[0].clientY; dirty = true; }
-  }, { passive: true });
-  window.addEventListener("mouseleave", () => { mx = -9999; my = -9999; dirty = true; });
-}
-
-// Faceted pixel-art crystal — diamond with shaded facets + dithering + sparkles
-function drawPixelCrystal(canvas) {
-  if (!canvas) return;
-  const W = canvas.width, H = canvas.height;
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, W, H);
-  const PX = 4;
-  const cw = Math.floor(W / PX), ch = Math.floor(H / PX);
-  const cx = cw / 2, cy = ch / 2;
-  const rx = cw * 0.36, ry = ch * 0.44;
-
-  // Diamond vertices
-  const T = [cx, cy - ry];
-  const R = [cx + rx, cy + ry * 0.05];
-  const B = [cx, cy + ry];
-  const L = [cx - rx, cy + ry * 0.05];
-  const C = [cx, cy - ry * 0.15]; // upper-shifted center for facet break
-
-  // Facets with base brightness (lit from upper-left)
-  const facets = [
-    { tri: [T, L, C], base: 0.86, name: "TL" }, // upper-left bright
-    { tri: [T, R, C], base: 0.62, name: "TR" }, // upper-right
-    { tri: [B, L, C], base: 0.40, name: "BL" }, // lower-left
-    { tri: [B, R, C], base: 0.22, name: "BR" }, // lower-right (deepest)
-  ];
-
-  // 4x4 Bayer dither matrix
-  const bayer = [
-    [ 0, 8, 2,10],
-    [12, 4,14, 6],
-    [ 3,11, 1, 9],
-    [15, 7,13, 5],
-  ];
-
-  const palette = [
-    { t: 0.92, c: "#ffffff" },
-    { t: 0.78, c: "#dde6ff" },
-    { t: 0.62, c: "#9ebcff" },
-    { t: 0.46, c: "#5e7fd8" },
-    { t: 0.30, c: "#324a98" },
-    { t: 0.16, c: "#172149" },
-    { t: 0.00, c: "#0a0f1e" },
-  ];
-  function pickColor(b) {
-    for (const p of palette) if (b >= p.t) return p.c;
-    return "#04060d";
-  }
-
-  function pointInTri(px, py, tri) {
-    const [a,bv,c] = tri;
-    const d1 = (px-c[0])*(a[1]-c[1]) - (a[0]-c[0])*(py-c[1]);
-    const d2 = (px-a[0])*(bv[1]-a[1]) - (bv[0]-a[0])*(py-a[1]);
-    const d3 = (px-bv[0])*(c[1]-bv[1]) - (c[0]-bv[0])*(py-bv[1]);
-    const hasNeg = d1<0 || d2<0 || d3<0;
-    const hasPos = d1>0 || d2>0 || d3>0;
-    return !(hasNeg && hasPos);
-  }
-
-  for (let y = 0; y < ch; y++) {
-    for (let x = 0; x < cw; x++) {
-      let b = -1;
-      let inside = false;
-      for (const f of facets) {
-        if (pointInTri(x + 0.5, y + 0.5, f.tri)) {
-          inside = true;
-          // gradient inside facet for refraction look
-          const dx = (x - cx) / rx, dy = (y - cy) / ry;
-          const radial = Math.sqrt(dx*dx + dy*dy);
-          // nudge brightness slightly by radial pos so edges glow
-          let local = f.base + (radial - 0.5) * 0.18;
-          // small ordered dither
-          local += (bayer[y % 4][x % 4] / 16 - 0.45) * 0.16;
-          // soft scanline ripple
-          local += Math.sin(y * 0.4 + x * 0.05) * 0.015;
-          b = Math.max(0, Math.min(1, local));
-          break;
-        }
-      }
-      if (!inside) continue;
-      ctx.fillStyle = pickColor(b);
-      ctx.fillRect(x * PX, y * PX, PX, PX);
-    }
-  }
-
-  // Crystal outline (thin pixel border)
-  function drawLine(p1, p2, color) {
-    const steps = Math.ceil(Math.max(Math.abs(p2[0]-p1[0]), Math.abs(p2[1]-p1[1]))) * 2;
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const x = Math.round(p1[0] + (p2[0]-p1[0]) * t);
-      const y = Math.round(p1[1] + (p2[1]-p1[1]) * t);
-      ctx.fillStyle = color;
-      ctx.fillRect(x * PX, y * PX, PX, PX);
-    }
-  }
-  drawLine(T, R, "#dde6ff");
-  drawLine(T, L, "#dde6ff");
-  drawLine(B, R, "#324a98");
-  drawLine(B, L, "#5e7fd8");
-  // inner facet edges
-  drawLine(T, C, "#9ebcff");
-  drawLine(L, C, "#5e7fd8");
-  drawLine(R, C, "#324a98");
-  drawLine(B, C, "#172149");
-
-  // Specular sparkles
-  const sparkles = [
-    [cx - rx * 0.45, cy - ry * 0.55],
-    [cx - rx * 0.18, cy - ry * 0.25],
-    [cx + rx * 0.25, cy - ry * 0.45],
-  ];
-  ctx.fillStyle = "#ffffff";
-  sparkles.forEach(([sx, sy]) => {
-    const x = Math.round(sx), y = Math.round(sy);
-    [[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy]) =>
-      ctx.fillRect((x+dx) * PX, (y+dy) * PX, PX, PX));
-  });
-
-  // A few quiet dust pixels around the crystal
-  for (let i = 0; i < 18; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = ry * (1.1 + Math.random() * 0.4);
-    const x = Math.round(cx + Math.cos(angle) * dist);
-    const y = Math.round(cy + Math.sin(angle) * dist);
-    if (x < 0 || x >= cw || y < 0 || y >= ch) continue;
-    const shade = ["#9ebcff","#c7d8ff"][Math.floor(Math.random()*2)];
-    ctx.globalAlpha = 0.25 + Math.random() * 0.35;
-    ctx.fillStyle = shade;
-    ctx.fillRect(x * PX, y * PX, PX, PX);
-  }
-  ctx.globalAlpha = 1;
+  window.addEventListener("resize", update);
 }
 
 function openAuthModal(initialMode = "login") {
