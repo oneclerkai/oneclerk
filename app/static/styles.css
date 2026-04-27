@@ -3371,3 +3371,223 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 }
 
 
+
+/* ============================================================ */
+/* v14 — single-line catchy title, REAL brand-logo floats,      */
+/* animated auth-modal, drag-anywhere builder, ringing phone,   */
+/* rapid page transitions                                       */
+/* ============================================================ */
+
+/* --- Single-line catchy hero title --- */
+.lp-title.lp-title-one {
+  display: block;
+  white-space: nowrap;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 800;
+  font-size: clamp(22px, 3.4vw, 48px);
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+  margin: 0 auto 14px;
+  max-width: 100%;
+  padding: 0 16px;
+  overflow: visible;
+}
+.lp-title.lp-title-one em {
+  font-style: italic; font-weight: 700; color: #c2410c;
+  white-space: nowrap;
+}
+@media (max-width: 760px) {
+  .lp-title.lp-title-one { white-space: normal; font-size: clamp(22px, 6.4vw, 32px); line-height: 1.15; }
+}
+
+/* Tighten hero so the page feels smaller and notes hug the title */
+.lp-hero-inner { padding: 70px 24px 8px; }
+.lp-notes-row { margin: 18px auto 22px; }
+/* Hide the redundant integrations plate — the corner brand floats already convey this */
+.lp-glass-plate { display: none; }
+@media (max-width: 880px) {
+  .lp-hero-inner { padding: 100px 16px 28px; }
+}
+
+/* --- Real brand floats: drop the white-glass chip; show the actual logo --- */
+.lp-floats .lp-float-brand {
+  background: transparent !important;
+  border: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow:
+    0 22px 38px -16px rgba(15,15,20,0.35),
+    0 4px 10px -2px rgba(15,15,20,0.18) !important;
+  border-radius: 22px;
+  padding: 8px;
+}
+.lp-floats .lp-float-brand::after { display: none; }
+.lp-floats .lp-float-brand svg {
+  width: 76px; height: 76px;
+  filter: drop-shadow(0 6px 10px rgba(15,15,20,0.18));
+  display: block;
+}
+/* Phone "ringing" curves animation (used in landing float + builder phone box) */
+.ph-rings path {
+  transform-origin: 0 100%;
+  animation: phRing 1.6s ease-out infinite;
+}
+.ph-rings path:nth-child(1) { animation-delay: 0s; }
+.ph-rings path:nth-child(2) { animation-delay: .25s; }
+.ph-rings path:nth-child(3) { animation-delay: .5s; }
+@keyframes phRing {
+  0%   { opacity: 0; transform: scale(0.7); }
+  30%  { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+
+/* Brand integration chips on the glass plate */
+.lp-int.lp-int-brand {
+  background: rgba(255,255,255,0.96);
+  padding: 6px 12px 6px 6px;
+  gap: 10px;
+}
+.lp-int-ic-brand {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+}
+.lp-int-ic-brand svg { width: 26px; height: 26px; display: block; }
+
+/* --- Voice tester: tag chip --- */
+.lp-try-lang-tag {
+  display: inline-block;
+  font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: #ffd97a; background: rgba(255,217,122,0.12);
+  border: 1px solid rgba(255,217,122,0.4);
+  padding: 3px 9px; border-radius: 999px;
+  margin-bottom: 6px;
+}
+
+/* --- Animated auth-modal: blobs + grain + pop --- */
+.auth-modal-backdrop-anim {
+  background: radial-gradient(circle at 30% 30%, rgba(40,40,60,0.85), rgba(15,15,20,0.92) 70%);
+  overflow: hidden;
+}
+.auth-modal-backdrop-anim .auth-modal { position: relative; z-index: 5; }
+.auth-bg-grain {
+  position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background-image:
+    radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+    radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 3px 3px, 5px 5px;
+  background-position: 0 0, 1px 2px;
+  opacity: 0.7;
+  mix-blend-mode: overlay;
+  animation: authGrainShift 9s linear infinite;
+}
+@keyframes authGrainShift {
+  0%   { background-position: 0 0, 1px 2px; }
+  100% { background-position: 30px 60px, 60px 90px; }
+}
+.auth-bg-blob {
+  position: absolute; z-index: 2; pointer-events: none;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.55;
+  will-change: transform;
+}
+.auth-bg-blob-a {
+  width: 420px; height: 420px;
+  background: radial-gradient(circle, #ff8a3d, transparent 60%);
+  top: -120px; left: -100px;
+  animation: authBlobA 14s ease-in-out infinite;
+}
+.auth-bg-blob-b {
+  width: 380px; height: 380px;
+  background: radial-gradient(circle, #6366f1, transparent 60%);
+  bottom: -120px; right: -100px;
+  animation: authBlobB 16s ease-in-out infinite;
+}
+.auth-bg-blob-c {
+  width: 280px; height: 280px;
+  background: radial-gradient(circle, #25d366, transparent 60%);
+  top: 30%; left: 55%;
+  animation: authBlobC 12s ease-in-out infinite;
+}
+@keyframes authBlobA {
+  0%,100% { transform: translate(0,0) scale(1); }
+  50%     { transform: translate(80px, 60px) scale(1.15); }
+}
+@keyframes authBlobB {
+  0%,100% { transform: translate(0,0) scale(1); }
+  50%     { transform: translate(-70px,-50px) scale(1.1); }
+}
+@keyframes authBlobC {
+  0%,100% { transform: translate(-50%,-50%) scale(1); }
+  50%     { transform: translate(-30%,-70%) scale(1.2); }
+}
+.auth-modal-pop {
+  animation: authPop 320ms cubic-bezier(.2,1.05,.4,1.05);
+}
+@keyframes authPop {
+  0%   { opacity: 0; transform: translateY(18px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+/* --- Builder: brand icons in box headers --- */
+.agb-box-icon-brand {
+  background: transparent !important;
+  border: none !important;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+}
+.agb-box-icon-brand svg { width: 28px; height: 28px; display: block; }
+
+/* Box draggable everywhere — give a clear "grab" cursor */
+.agb-box { cursor: grab; }
+.agb-box.is-dragging { cursor: grabbing; user-select: none; }
+.agb-box input,
+.agb-box textarea,
+.agb-box select,
+.agb-box button,
+.agb-box label { cursor: auto; }
+.agb-box .agb-handle { cursor: crosshair; }
+
+/* Phone-box ringing curves — animated */
+.agb-phone-rings {
+  position: absolute; top: 8px; right: 12px;
+  width: 40px; height: 24px;
+  pointer-events: none;
+}
+.agb-phone-rings span {
+  position: absolute; right: 0; top: 50%;
+  width: 16px; height: 16px;
+  border: 2px solid #0d6efd;
+  border-radius: 50%;
+  border-color: #0d6efd transparent transparent transparent;
+  transform: translateY(-50%) rotate(45deg);
+  opacity: 0;
+  animation: agbRing 1.6s ease-out infinite;
+}
+.agb-phone-rings span:nth-child(1) { animation-delay: 0s;   width: 10px; height: 10px; }
+.agb-phone-rings span:nth-child(2) { animation-delay: .25s; width: 18px; height: 18px; }
+.agb-phone-rings span:nth-child(3) { animation-delay: .5s;  width: 26px; height: 26px; }
+@keyframes agbRing {
+  0%   { opacity: 0; transform: translateY(-50%) rotate(45deg) scale(0.6); }
+  35%  { opacity: 0.95; }
+  100% { opacity: 0; transform: translateY(-50%) rotate(45deg) scale(1.1); }
+}
+
+/* Builder hint line under inputs */
+.agb-hint {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px; color: rgba(15,15,20,0.5);
+  margin-top: 4px; line-height: 1.35;
+}
+.agb-cal-status.is-linked { color: #16a34a; font-weight: 600; }
+
+/* --- Rapid page transitions --- */
+.page, .landing {
+  animation: pageEnter 220ms cubic-bezier(.22,.95,.35,1.02);
+}
+@keyframes pageEnter {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}

@@ -91,3 +91,12 @@ Configured for Replit autoscale running the same uvicorn command. Push the Publi
 - **Agent builder**: "Create your first agent" auto-creates a default agent and drops into Make.com-style canvas with glassmorphic 3D OneClerk orb (`.agb-orb`) + `+` button popup menu of integrations (whatsapp/phone/calendar/gmail/data uploads).
 - **Onboarding**: replaced background image with pure CSS multi-radial gradient (`.ob-bg`); removed `app/static/img/onboarding_bg.png`.
 - Cache-bust bumped to `v=12` in `index.html`.
+
+## v14 landing/UX overhaul (2026-04-27)
+- **Hero**: single-line catchy title `Your phone never sleeps. Neither does OneClerk.` (`.lp-title-one`), italic-orange tail. Hero padding reduced; integrations plate hidden so the comic notes hug the title.
+- **Brand floats**: replaced lucide chips with REAL inline brand SVGs (`BRAND_SVG.whatsapp/gmail/gcal/ig/phone`) shown as transparent shadowed cards (`.lp-float-brand`). Phone float uses 3 ringing-curve paths (`.ph-rings` + `phRing` keyframes).
+- **Voice tester**: now actually switches language AND tone. `TRY_LANG_MAP` maps each picker option to a BCP-47 code + greeting; `TRY_VOICE_MAP` maps tone to `{rate, pitch, gender, prefer}`. `pickBestVoice()` picks the closest available `speechSynthesis` voice (lang + gender + name preference) with `onvoiceschanged` caching. Selecting any picker fires a live preview; `currentPitch` drives the waveform animation speed.
+- **Auth modal**: textured animated background — grain layer (`.auth-bg-grain`) + 3 colored blobs (`.auth-bg-blob-a/b/c`) with independent ease-in-out keyframes; modal entrance pop (`.auth-modal-pop`).
+- **Agent builder**: brand-logo box headers (`.agb-box-icon-brand`), drag-from-anywhere (mousedown anywhere on `.agb-box`, ignoring inputs/buttons/handles; toggles `is-dragging` cursor), ringing-phone bars on the phone box (`.agb-phone-rings` + `agbRing` keyframes), helper hints (`.agb-hint`), green linked-state for calendar status.
+- **Page transitions**: `.page` and `.landing` get a 220ms `pageEnter` translateY+fade.
+- Cache-bust bumped to `v=14` in `index.html`.

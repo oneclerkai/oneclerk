@@ -57,6 +57,16 @@ function parseRoute() {
 // --- Icon helper ---
 function renderIcons(root) { if (window.lucide) window.lucide.createIcons({ attrs: { class: "icon" }, ...(root ? { context: root } : {}) }); }
 
+// --- Real brand SVGs (no external CDN, embedded inline so they always render) ---
+const BRAND_SVG = {
+  whatsapp: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="16" cy="16" r="16" fill="#25D366"/><path fill="#fff" d="M22.7 18.5c-.3-.2-2-1-2.3-1.1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.3-.2-.3 0-.5.1-.6l.5-.6c.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5l-.7-1.7c-.2-.4-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.4-.2.3-.9.9-.9 2.2 0 1.3 1 2.6 1.1 2.7.1.2 1.9 2.9 4.6 4.1 2.7 1.1 2.7.7 3.2.7.5 0 1.6-.7 1.9-1.3.2-.6.2-1.2.2-1.3-.1-.1-.3-.2-.6-.3z"/><path fill="#fff" d="M16 6C10.5 6 6 10.5 6 16c0 1.8.5 3.5 1.4 5L6 27l6.2-1.4c1.4.8 3 1.2 4.7 1.2H17c5.5 0 10-4.5 10-10S21.5 6 16 6zm0 18.4h-.1c-1.5 0-3-.4-4.3-1.2l-.3-.2-3.6.8.9-3.5-.2-.3c-.8-1.4-1.3-2.9-1.3-4.5 0-4.6 3.7-8.4 8.4-8.4 2.2 0 4.3.9 5.9 2.5 1.6 1.6 2.5 3.7 2.5 5.9-.1 4.7-3.9 8.4-8.4 8.4z"/></svg>`,
+  gmail: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="#4285F4" d="M5 26h4V14L3 9.5V24c0 1.1.9 2 2 2z"/><path fill="#34A853" d="M23 26h4c1.1 0 2-.9 2-2V9.5L23 14z"/><path fill="#FBBC04" d="M23 8v6l6-4.5V7c0-1.6-1.8-2.6-3.2-1.6L23 8z"/><path fill="#EA4335" d="M9 14V8l7 5 7-5v6l-7 5z"/><path fill="#C5221F" d="M3 7v2.5L9 14V8L6.2 5.4C4.8 4.4 3 5.4 3 7z"/></svg>`,
+  gcal: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="5" y="5" width="22" height="22" rx="2" fill="#fff"/><path fill="#1A73E8" d="M5 9h22v3H5z"/><path fill="#EA4335" d="M22 5h3v6h-3z"/><path fill="#FBBC04" d="M7 5h3v6H7z"/><text x="16" y="22.5" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" font-weight="700" fill="#1A73E8">31</text></svg>`,
+  ig: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><radialGradient id="igG" cx=".3" cy="1.05" r="1.1"><stop offset="0%" stop-color="#FED576"/><stop offset="26%" stop-color="#F47133"/><stop offset="61%" stop-color="#BC3081"/><stop offset="100%" stop-color="#4C63D2"/></radialGradient></defs><rect x="4" y="4" width="24" height="24" rx="6" fill="url(#igG)"/><circle cx="16" cy="16" r="5.6" fill="none" stroke="#fff" stroke-width="2"/><circle cx="22.5" cy="9.5" r="1.4" fill="#fff"/></svg>`,
+  phone: `<svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g class="ph-rings" fill="none" stroke="#0d6efd" stroke-width="1.6" stroke-linecap="round"><path d="M22.5 9.5c1.7 1.2 3 2.9 3.6 4.9"/><path d="M24.5 6.5c2.7 1.6 4.7 4.1 5.5 7.1"/><path d="M26.5 3.5c3.6 2 6.2 5.4 7.2 9.4"/></g><path fill="#0d6efd" d="M11.4 14.5c1.4 2.7 3.6 4.9 6.3 6.3l2.1-2.1c.3-.3.7-.4 1-.2 1.2.4 2.5.6 3.8.6.6 0 1 .4 1 1V23c0 .6-.4 1-1 1C13.4 24 8 18.6 8 11.4c0-.6.4-1 1-1h2.9c.6 0 1 .4 1 1 0 1.3.2 2.6.6 3.8.1.4 0 .7-.2 1l-1.9 2.3z"/></svg>`,
+};
+function brandSvg(key) { return BRAND_SVG[key] || ""; }
+
 // --- Auth view ---
 // --- Landing view (white paper-grid + 3D carousel + parabola footer) ---
 
@@ -409,30 +419,18 @@ route("auth", async () => {
         <div class="lp-side-fade lp-side-fade-l"></div>
         <div class="lp-side-fade lp-side-fade-r"></div>
 
-        <!-- 3D glassmorphic floating integration cards (whatsapp / gcal / gmail / flip-back phone) -->
+        <!-- 3D glassmorphic floating integration cards with REAL brand logos -->
         <div class="lp-floats" aria-hidden="true">
-          <div class="lp-float" data-k="whatsapp" title="WhatsApp">
-            <div class="lp-float-ic"><i data-lucide="message-circle" class="icon"></i></div>
-          </div>
-          <div class="lp-float" data-k="gcal" title="Google Calendar">
-            <div class="lp-float-ic"><i data-lucide="calendar" class="icon"></i></div>
-          </div>
-          <div class="lp-float" data-k="gmail" title="Gmail">
-            <div class="lp-float-ic"><i data-lucide="mail" class="icon"></i></div>
-          </div>
-          <div class="lp-float" data-k="phone" title="Phone — flips to backside">
-            <div class="lp-float-ic"><i data-lucide="phone" class="icon"></i></div>
-          </div>
+          <div class="lp-float lp-float-brand" data-k="whatsapp" title="WhatsApp">${brandSvg("whatsapp")}</div>
+          <div class="lp-float lp-float-brand" data-k="gcal" title="Google Calendar">${brandSvg("gcal")}</div>
+          <div class="lp-float lp-float-brand" data-k="gmail" title="Gmail">${brandSvg("gmail")}</div>
+          <div class="lp-float lp-float-brand" data-k="phone" title="Phone — ringing">${brandSvg("phone")}</div>
         </div>
 
         <div class="lp-hero-inner">
           <span class="lp-eyebrow"><span class="pulse"></span><span>VOICE AI · LIVE 24/7</span></span>
-          <h1 class="lp-title">
-            <span class="lp-tline">Your AI receptionist.</span>
-            <span class="lp-tline">Answers every call.</span>
-            <span class="lp-tline">Books appointments.</span>
-            <span class="lp-tline">Texts you the recap.</span>
-            <span class="lp-tline"><em>Automatically.</em></span>
+          <h1 class="lp-title lp-title-one">
+            Your phone never sleeps. <em>Neither does OneClerk.</em>
           </h1>
           <div class="lp-sub" id="lp-sub-rotate">
             <span id="lp-sub-text"></span><span class="caret"></span>
@@ -448,8 +446,8 @@ route("auth", async () => {
           <div class="lp-glass-plate" aria-hidden="true">
             <div class="lp-glass-plate-inner">
               ${HERO_INTEGRATIONS.map(it => `
-                <div class="lp-int" style="left:${it.x}%; top:${it.y}%; transform:translate(-50%,-50%) rotate(${it.tilt}deg) scale(${it.scale})">
-                  <div class="lp-int-ic"><i data-lucide="${it.icon}" class="icon"></i></div>
+                <div class="lp-int lp-int-brand" style="left:${it.x}%; top:${it.y}%; transform:translate(-50%,-50%) rotate(${it.tilt}deg) scale(${it.scale})">
+                  <div class="lp-int-ic-brand">${brandSvg(it.key)}</div>
                   <div class="lp-int-lbl">${it.label}</div>
                 </div>
               `).join("")}
@@ -704,12 +702,65 @@ function initLandingNavScroll(root) {
   });
 }
 
-// Voice-tester: animated waveform driven by a small synthesizer + Web Speech API
+// Voice-tester: animated waveform + Web Speech API with proper language + tone switching
+const TRY_LANG_MAP = {
+  "English (US)":         { code: "en-US", greet: "Hi, this is" },
+  "Hindi (हिंदी)":         { code: "hi-IN", greet: "नमस्ते, यह है" },
+  "Spanish (Español)":    { code: "es-ES", greet: "Hola, le habla" },
+  "French (Français)":    { code: "fr-FR", greet: "Bonjour, ici" },
+  "Mandarin (普通话)":    { code: "zh-CN", greet: "您好,这里是" },
+  "Vietnamese (Tiếng Việt)": { code: "vi-VN", greet: "Xin chào, đây là" },
+  "Arabic (العربية)":     { code: "ar-SA", greet: "مرحبا، هذه" },
+  "Portuguese (Português)": { code: "pt-PT", greet: "Olá, fala" },
+};
+const TRY_VOICE_MAP = {
+  "Maya — warm, mid-30s":      { rate: 0.95, pitch: 1.15, gender: "female" },
+  "Arjun — calm, deep":        { rate: 0.88, pitch: 0.65, gender: "male" },
+  "Sofia — bright, friendly":  { rate: 1.08, pitch: 1.35, gender: "female" },
+  "Daniel — professional":     { rate: 1.00, pitch: 0.90, gender: "male" },
+  "Linh — soft, soothing":     { rate: 0.85, pitch: 1.05, gender: "female" },
+};
+const TRY_LINES = {
+  "Dental clinic front desk": "Hi, this is City Dental. How can I help you today? I can book a cleaning, look up your insurance, or transfer you to Doctor Patel.",
+  "Hair salon receptionist":  "Hello, you've reached Glow Salon, this is Maya. Are you calling to book with your usual stylist, or trying us for the first time?",
+  "Restaurant host":          "Good evening, thanks for calling Lumière. Would you like to book a table for tonight, or hear about our new winter tasting menu?",
+  "HVAC dispatcher":          "Thanks for calling A and T Heating. Is your heat out right now? I can dispatch a tech, or schedule a tune up — which would you like?",
+  "Law firm intake":          "Jensen and Vega Law, this is the intake line. Can you tell me a bit about the matter so I can route you to the right partner?",
+};
+
+// Cache voices once they load (Chrome populates voices asynchronously)
+let _ttsVoices = [];
+function _loadVoices() {
+  if (!window.speechSynthesis) return;
+  _ttsVoices = window.speechSynthesis.getVoices() || [];
+}
+if (window.speechSynthesis) {
+  _loadVoices();
+  window.speechSynthesis.onvoiceschanged = _loadVoices;
+}
+
+function pickBestVoice(langCode, gender) {
+  if (!_ttsVoices.length) _loadVoices();
+  if (!_ttsVoices.length) return null;
+  const base = langCode.split("-")[0].toLowerCase();
+  const exact = _ttsVoices.filter(v => v.lang && v.lang.toLowerCase() === langCode.toLowerCase());
+  const same  = _ttsVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith(base));
+  const pool  = exact.length ? exact : (same.length ? same : _ttsVoices);
+  // Try gender hint by voice name
+  const female = pool.find(v => /female|woman|maya|sofia|linh|aria|samantha|victoria|tessa|fiona|karen|moira|zoe/i.test(v.name));
+  const male   = pool.find(v => /male|man|arjun|daniel|alex|david|fred|tom|oliver|aaron|bruce/i.test(v.name));
+  if (gender === "female" && female) return female;
+  if (gender === "male"   && male)   return male;
+  return pool[0];
+}
+
 function initVoiceTester(root) {
   const canvas = root.querySelector("#lp-try-wave");
   const status = root.querySelector("#lp-try-status");
   const btn    = root.querySelector("#lp-try-talk");
   const lbl    = root.querySelector("#lp-try-talk-label");
+  const langSel  = root.querySelector("#lp-try-lang");
+  const voiceSel = root.querySelector("#lp-try-voice");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   function resize() {
@@ -720,10 +771,9 @@ function initVoiceTester(root) {
   resize();
   window.addEventListener("resize", resize);
 
-  // Idle calm wave + speaking wave
-  let speaking = false, t = 0, raf = null, level = 0.1;
+  let speaking = false, t = 0, raf = null, level = 0.1, currentPitch = 1;
   function frame() {
-    t += 0.04;
+    t += 0.04 * (0.7 + currentPitch * 0.3);
     level += ((speaking ? 0.85 : 0.12) - level) * 0.08;
     const w = canvas.width, h = canvas.height;
     ctx.clearRect(0, 0, w, h);
@@ -738,7 +788,7 @@ function initVoiceTester(root) {
       const phase = i * 0.35 + t;
       const amp = (Math.sin(phase) * 0.35 + Math.sin(phase * 1.7) * 0.35 + Math.sin(phase * 0.7) * 0.30);
       const a = Math.abs(amp) * level;
-      const bh = Math.max(4 * devicePixelRatio, a * h * 0.9);
+      const bh = Math.max(4 * devicePixelRatio, a * h * 0.9 * (0.6 + currentPitch * 0.4));
       const x = i * bw + bw * 0.18;
       const y = (h - bh) / 2;
       ctx.fillRect(x, y, bw * 0.6, bh);
@@ -747,23 +797,25 @@ function initVoiceTester(root) {
   }
   frame();
 
-  // Use browser TTS to make the agent actually speak the demo line.
-  function pickVoice(langPick) {
-    if (!window.speechSynthesis) return null;
-    const voices = window.speechSynthesis.getVoices();
-    const wantedHint = (langPick.match(/\(([^)]+)\)/) || [])[1] || "";
-    const want = (langPick.split(" ")[0] || "").toLowerCase();
-    return voices.find(v => v.lang.toLowerCase().startsWith(want.slice(0,2))) ||
-           voices.find(v => v.name.includes(wantedHint)) ||
-           voices[0];
+  // Live preview when controls change — short ping in the new voice/lang
+  function previewLine(short = true) {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const lang  = langSel.value;
+    const voice = voiceSel.value;
+    const langDef  = TRY_LANG_MAP[lang]  || TRY_LANG_MAP["English (US)"];
+    const voiceDef = TRY_VOICE_MAP[voice] || TRY_VOICE_MAP["Maya — warm, mid-30s"];
+    const u = new SpeechSynthesisUtterance(short ? langDef.greet + " OneClerk." : "");
+    const v = pickBestVoice(langDef.code, voiceDef.gender);
+    if (v) u.voice = v;
+    u.lang  = (v && v.lang) || langDef.code;
+    u.rate  = voiceDef.rate;
+    u.pitch = voiceDef.pitch;
+    currentPitch = voiceDef.pitch;
+    if (short) try { window.speechSynthesis.speak(u); } catch (e) {}
   }
-  const lines = {
-    "Dental clinic front desk":   "Hi, this is City Dental — how can I help you today? I can book a cleaning, look up insurance, or transfer you to Dr. Patel.",
-    "Hair salon receptionist":    "Hello, you've reached Glow Salon, this is Maya. Are you calling to book in with your usual stylist, or trying us for the first time?",
-    "Restaurant host":            "Good evening, thanks for calling Lumière. Would you like to book a table for tonight, or hear about our new winter tasting menu?",
-    "HVAC dispatcher":            "Thanks for calling A&T Heating. Is your heat out right now? I can dispatch a tech, or schedule a tune-up — which would you like?",
-    "Law firm intake":            "Jensen and Vega Law, this is the intake line. Can you tell me a bit about the matter so I can route you to the right partner?",
-  };
+  langSel  && langSel.addEventListener("change",  () => previewLine(true));
+  voiceSel && voiceSel.addEventListener("change", () => previewLine(true));
 
   btn.addEventListener("click", () => {
     if (speaking) {
@@ -773,21 +825,26 @@ function initVoiceTester(root) {
       status.innerHTML = "Stopped. Press <strong>Talk</strong> again to replay.";
       return;
     }
-    const lang = root.querySelector("#lp-try-lang").value;
+    const lang  = langSel.value;
+    const voice = voiceSel.value;
     const agent = root.querySelector("#lp-try-agent").value;
-    const line = lines[agent] || lines["Dental clinic front desk"];
-    status.innerHTML = `<strong>Speaking…</strong> "${escapeHtml(line)}"`;
+    const line  = TRY_LINES[agent] || TRY_LINES["Dental clinic front desk"];
+    const langDef  = TRY_LANG_MAP[lang]  || TRY_LANG_MAP["English (US)"];
+    const voiceDef = TRY_VOICE_MAP[voice] || TRY_VOICE_MAP["Maya — warm, mid-30s"];
+    status.innerHTML = `<strong>Speaking…</strong> <span class="lp-try-lang-tag">${escapeHtml(lang)} · ${escapeHtml(voice.split("—")[0].trim())}</span><br/><em>"${escapeHtml(line)}"</em>`;
     lbl.textContent = "Stop";
     speaking = true;
+    currentPitch = voiceDef.pitch;
     if (window.speechSynthesis) {
       const u = new SpeechSynthesisUtterance(line);
-      const v = pickVoice(lang);
+      const v = pickBestVoice(langDef.code, voiceDef.gender);
       if (v) u.voice = v;
-      u.rate = 1.02; u.pitch = 1.05;
+      u.lang  = (v && v.lang) || langDef.code;
+      u.rate  = voiceDef.rate;
+      u.pitch = voiceDef.pitch;
       u.onend = () => { speaking = false; lbl.textContent = "Talk to the agent"; status.innerHTML = "Done. Want one in <em>your</em> voice? <strong>Get started free →</strong>"; };
       try { window.speechSynthesis.speak(u); } catch (e) { /* noop */ }
     } else {
-      // no Web Speech — just animate for 4s
       setTimeout(() => { speaking = false; lbl.textContent = "Talk to the agent"; status.innerHTML = "Demo finished."; }, 4200);
     }
   });
@@ -905,8 +962,12 @@ function openAuthModal(initialMode = "login") {
   document.querySelectorAll(".auth-modal-backdrop").forEach(n => n.remove());
   let mode = initialMode === "signup" ? "signup" : "login";
   const modal = h(`
-    <div class="auth-modal-backdrop">
-      <div class="auth-modal" role="dialog" aria-modal="true">
+    <div class="auth-modal-backdrop auth-modal-backdrop-anim">
+      <div class="auth-bg-grain" aria-hidden="true"></div>
+      <div class="auth-bg-blob auth-bg-blob-a" aria-hidden="true"></div>
+      <div class="auth-bg-blob auth-bg-blob-b" aria-hidden="true"></div>
+      <div class="auth-bg-blob auth-bg-blob-c" aria-hidden="true"></div>
+      <div class="auth-modal auth-modal-pop" role="dialog" aria-modal="true">
         <button class="x-close" aria-label="Close">×</button>
         <h2 id="m-title">Welcome back</h2>
         <div class="modal-sub" id="m-sub">Sign in to manage your agents and calls.</div>
@@ -941,7 +1002,9 @@ function openAuthModal(initialMode = "login") {
   renderIcons(modal);
 
   const close = () => modal.remove();
-  modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+  modal.addEventListener("click", (e) => {
+    if (!e.target.closest || !e.target.closest(".auth-modal")) close();
+  });
   $(".x-close", modal).addEventListener("click", close);
   document.addEventListener("keydown", function escClose(ev) {
     if (ev.key === "Escape" && document.body.contains(modal)) {
@@ -2136,22 +2199,37 @@ function initBuilderCanvas(stage, layout) {
     return `M ${sx} ${sy} C ${sx + dx} ${sy + 12}, ${gx - dx} ${gy - 12}, ${gx} ${gy}`;
   }
 
+  // Brand-aware icon for the box header — uses real SVG logos where available
+  function boxHeadIcon(kind) {
+    const brandKey = ({ whatsapp: "whatsapp", phone: "phone", calendar: "gcal" })[kind];
+    if (brandKey) return `<div class="agb-box-icon agb-box-icon-brand">${brandSvg(brandKey)}</div>`;
+    const def = defOf(kind);
+    return `<div class="agb-box-icon"><i data-lucide="${def.icon}" class="icon"></i></div>`;
+  }
+
   function renderBoxBody(box) {
     const def = defOf(box.kind);
     let body = "";
     if (box.kind === "phone") {
-      body = `<input class="agb-inline" data-field="number" placeholder="+1 555 0100" value="${escapeHtml(box.data.number || '')}"/>`;
+      body = `
+        <div class="agb-phone-rings" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+        <input class="agb-inline" data-field="number" placeholder="+1 555 0100" value="${escapeHtml(box.data.number || '')}"/>
+        <div class="agb-hint">Forward your business line here.</div>`;
     } else if (box.kind === "whatsapp") {
-      body = `<input class="agb-inline" data-field="number" placeholder="WhatsApp +1 555 0100" value="${escapeHtml(box.data.number || '')}"/>`;
+      body = `
+        <input class="agb-inline" data-field="number" placeholder="WhatsApp +1 555 0100" value="${escapeHtml(box.data.number || '')}"/>
+        <div class="agb-hint">Owner gets a recap text after every call.</div>`;
     } else if (box.kind === "agent") {
       body = `
-        <input class="agb-inline" data-field="name" placeholder="Agent name" value="${escapeHtml(box.data.name || '')}"/>
-        <input class="agb-inline agb-inline-sm" data-field="voice" placeholder="Voice (e.g. Maya)" value="${escapeHtml(box.data.voice || '')}"/>`;
+        <input class="agb-inline" data-field="name" placeholder="Agent name (e.g. Maya)" value="${escapeHtml(box.data.name || '')}"/>
+        <input class="agb-inline agb-inline-sm" data-field="voice" placeholder="Voice (e.g. warm female)" value="${escapeHtml(box.data.voice || '')}"/>`;
     } else if (box.kind === "calendar") {
       const linked = !!box.data.url;
       body = `
-        <input class="agb-inline" data-field="url" placeholder="Calendly / Google Calendar URL" value="${escapeHtml(box.data.url || '')}"/>
-        <div class="agb-cal-status">${linked ? '✓ Linked' : 'Not linked yet'}</div>`;
+        <input class="agb-inline" data-field="url" placeholder="Calendly or Google Calendar URL" value="${escapeHtml(box.data.url || '')}"/>
+        <div class="agb-cal-status ${linked ? 'is-linked' : ''}">${linked ? '✓ Linked' : 'Paste link to connect'}</div>`;
     } else if (box.kind === "text") {
       body = `<textarea class="agb-inline agb-textarea" data-field="content" placeholder="Hours, services, prices, FAQs…">${escapeHtml(box.data.content || '')}</textarea>`;
     } else if (box.kind === "upload") {
@@ -2165,13 +2243,13 @@ function initBuilderCanvas(stage, layout) {
     }
     return `
       <div class="agb-box-head" style="--ax:${def.accent}">
-        <div class="agb-box-icon"><i data-lucide="${def.icon}" class="icon"></i></div>
+        ${boxHeadIcon(box.kind)}
         <div class="agb-box-title">${def.label}</div>
         <button class="agb-box-x" data-act="del" title="Delete">×</button>
       </div>
       <div class="agb-box-body">${body}</div>
-      <div class="agb-handle agb-handle-in"></div>
-      <div class="agb-handle agb-handle-out"></div>
+      <div class="agb-handle agb-handle-in" title="Connect from here"></div>
+      <div class="agb-handle agb-handle-out" title="Drag to connect to another card"></div>
     `;
   }
 
@@ -2239,11 +2317,16 @@ function initBuilderCanvas(stage, layout) {
     Array.from(canvas.querySelectorAll(".agb-box")).forEach(el => {
       const id = el.dataset.id;
       const box = boxById(id);
-      // Drag (from header only)
-      const head = el.querySelector(".agb-box-head");
-      head.addEventListener("mousedown", (ev) => {
-        if (ev.target.classList.contains("agb-box-x")) return;
+      // Drag from ANYWHERE on the box (except inputs/buttons/handles).
+      el.addEventListener("mousedown", (ev) => {
+        const t = ev.target;
+        if (!t) return;
+        if (t.closest(".agb-box-x")) return;                 // delete button
+        if (t.closest(".agb-handle")) return;                // edge-handles handle their own drag
+        if (t.matches("input, textarea, select, button, label, .agb-upload-label")) return;
+        if (t.closest("input, textarea, select, button, label, .agb-upload-label")) return;
         ev.preventDefault();
+        el.classList.add("is-dragging");
         state.dragBox = { id, ox: box.x, oy: box.y, mx: ev.clientX, my: ev.clientY };
       });
       // Field bindings
@@ -2306,6 +2389,10 @@ function initBuilderCanvas(stage, layout) {
       }
       state.dragEdge = null;
       redraw();
+    }
+    if (state.dragBox) {
+      const el = canvas.querySelector(`.agb-box[data-id="${state.dragBox.id}"]`);
+      if (el) el.classList.remove("is-dragging");
     }
     state.dragBox = null;
   }
