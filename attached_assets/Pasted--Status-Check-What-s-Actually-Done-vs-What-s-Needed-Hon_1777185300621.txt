@@ -1,0 +1,567 @@
+## Status Check — What's Actually Done vs What's Needed
+
+---
+
+## Honest Assessment
+
+You have completed roughly **Days 8 through 14** — the backend core is working. This is not Week 3 done, this is Week 2 done. Here is the gap analysis before continuing:
+
+**Working and solid:**
+- FastAPI backend running
+- Voice call loop via Twilio TwiML
+- GPT-4o-mini conversation brain
+- Urgency detection working
+- Database models and agent CRUD
+- JWT auth
+- Dashboard single HTML file
+
+**Critical gaps before this is sellable:**
+- No real booking — agent mentions booking but cannot actually create one
+- Single HTML dashboard is not production quality — no real UX
+- ElevenLabs not connected — Polly voice sounds robotic and kills trust
+- No Stripe — cannot charge anyone
+- Not pushed to GitHub — one Replit crash loses everything
+- No WhatsApp incoming messages handled
+- No call forwarding instructions shown to user after setup
+
+---
+
+## Do This Right Now Before Anything Else
+
+**Push to GitHub immediately.** Everything you built lives only in Replit. One account ban, one accidental delete, one Replit outage and it is gone.
+
+In Replit left sidebar click the Git icon. Initialize repo. Connect to your GitHub account. Push to `oneclerkai/oneclerk`. Do this before reading further.
+
+---
+
+## Days 15 to 21 — Make It Actually Work and Look Premium
+
+---
+
+### Day 15 — ElevenLabs Voice Integration and Real Booking
+
+This is the single highest-impact day. When a business owner hears a warm natural AI voice instead of Polly.Aditi their reaction changes completely.
+
+**Paste into Replit AI or Cursor:**
+
+```
+Update app/services/voice_engine.py for OneClerk.ai.
+
+Replace the Polly.Aditi TwiML voice with ElevenLabs.
+
+The current flow uses <Say voice="Polly.Aditi"> in TwiML.
+Replace this with a flow that:
+
+1. Calls ElevenLabs text-to-speech API to generate audio
+2. Uploads the audio file to a temporary public URL
+3. Uses <Play> instead of <Say> in TwiML to play the audio
+
+ELEVENLABS FUNCTION:
+async def synthesize_to_url(text: str, voice_id: str) -> str:
+- Use elevenlabs SDK or direct API call
+- Model: eleven_turbo_v2_5 (fastest, lowest latency)
+- Voice settings: stability=0.5, similarity_boost=0.75
+- Save audio bytes to a temp file in /tmp/
+- Serve it via a FastAPI endpoint GET /audio/{filename}
+- Return the full URL like https://yourdomain.com/audio/{filename}
+- Clean up files older than 5 minutes in background
+
+ADD ENDPOINT in app/routes/calls.py:
+GET /audio/{filename}
+- Serves audio files from /tmp/
+- Content-Type: audio/mpeg
+- Cache-Control: no-cache
+- Delete file after serving (one-time use)
+
+UPDATE generate_twiml_greeting():
+If ELEVENLABS_API_KEY is set use ElevenLabs audio URL in <Play>
+If not set fall back to <Say voice="Polly.Aditi"> gracefully
+This ensures the app works even without ElevenLabs key
+
+UPDATE generate_twiml_response():
+Same pattern - ElevenLabs if available, Polly fallback
+
+Default voice IDs to use:
+English female: "21m00Tcm4TlvDq8ikWAM" (Rachel - warm and professional)
+English male: "ErXwobaYiN019PkySvjV" (Antoni)
+Hindi: "pFZP5JQG7iQjIQuC4Bku" (Lily - works for Hindi too)
+
+Add ELEVENLABS_VOICE_ID to config.py with default Rachel voice.
+Add ELEVENLABS_API_KEY to config.py.
+Add elevenlabs to requirements if not already there.
+```
+
+**Then paste this for booking:**
+
+```
+Add Google Calendar booking to OneClerk.ai.
+
+Create app/services/booking.py:
+
+This handles appointment booking when the AI detects booking intent.
+
+1. SIMPLE BOOKING (no OAuth for now - use Calendly embed):
+async def create_calendly_link(
+  agent_business_context: dict,
+  caller_phone: str,
+  service_name: str
+) -> str
+- If agent has calendly_url in business_context: return it directly
+- Otherwise return None
+- The AI will say "I'll send you a WhatsApp with the booking link"
+
+2. GOOGLE CALENDAR (for later - stub now):
+async def check_availability(date: str, time: str, agent_id: str) -> bool
+Return True for now (stub)
+
+async def create_booking(details: dict, agent_id: str) -> dict
+Return {"booked": True, "confirmation": "ABC123"} for now (stub)
+
+3. UPDATE ai_brain.py booking detection:
+When booking_detected is True in the response:
+- Extract: service, preferred_date, preferred_time from conversation
+- Call whatsapp.send_booking_link() with Calendly URL or simple message
+- Update call.appointment_booked = True in database
+- Add to response: "I'll send you a WhatsApp message right now with 
+  the booking link. Is there anything else I can help you with?"
+
+4. UPDATE whatsapp.py:
+async def send_booking_link(
+  to_number: str,
+  business_name: str, 
+  agent_name: str,
+  calendly_url: str = None,
+  service: str = None
+) -> bool:
+If calendly_url:
+  message = f"Hi! {agent_name} here from {business_name}.\nBook your {service} appointment here:\n{calendly_url}\n\nSee you soon! 😊"
+Else:
+  message = f"Hi! {agent_name} here from {business_name}.\nThank you for calling about {service}. We'll confirm your appointment shortly.\n\nCall us back if you need anything!"
+Send via Twilio WhatsApp.
+
+Add calendly_url field to agent business_context schema.
+Add it to the agent creation form in index.html.
+```
+
+---
+
+### Day 16 — Rebuild the Frontend Properly
+
+The single HTML file is a prototype. You need a real UI that makes businesses trust you with their phone calls. This is the day that determines whether people pay.
+
+**Paste into Cursor or Codex:**
+
+```
+Completely redesign app/static/index.html for OneClerk.ai.
+
+Keep it as a single HTML file (no build step) but make it
+production-quality premium SaaS design.
+
+DESIGN SYSTEM:
+Background: #0A0F1E (deep navy, not pure black)
+Card background: #111827
+Card border: rgba(255,255,255,0.08)
+Primary accent: #6366F1 (indigo)
+Success: #10B981
+Warning: #F59E0B
+Danger: #EF4444
+Text primary: #F9FAFB
+Text secondary: #9CA3AF
+Font: Inter from Google Fonts
+
+Use Tailwind CDN. Use Lucide icons CDN. Use Chart.js CDN for graphs.
+
+PAGES TO BUILD:
+
+PAGE 1 - LOGIN/SIGNUP:
+Split layout.
+Left: Deep navy gradient, large OneClerk.ai logo, tagline 
+"Never miss a call. Never lose a patient."
+Three rotating testimonial quotes auto-cycling.
+Right: Clean form with glass morphism card effect.
+Login and Signup as tabs, not separate pages.
+Smooth tab transition animation.
+
+PAGE 2 - DASHBOARD HOME:
+Top bar: "Good morning, {name}" + date + "New Agent" button
+Four stat cards in a row:
+  - Calls Today (with sparkline mini chart)
+  - Answer Rate % (circular progress ring)
+  - Bookings Made (calendar icon, green)
+  - Escalations (warning icon, orange if >0)
+Each card: dark card style, subtle glow on hover.
+
+LEFT COLUMN (60%):
+"Live Activity" section - realtime feed
+Each item has animated green pulse dot if < 2 minutes ago.
+Smooth slide-in animation when new items arrive.
+Poll every 8 seconds.
+
+RIGHT COLUMN (40%):
+"Your Agents" with toggle cards.
+Status indicator: pulsing green dot for active, grey for inactive.
+Call count today shown on each card.
+Quick "Test Call" button on each.
+
+CALLS HISTORY PAGE:
+Searchable, filterable table.
+Click row → slide in panel from right (not modal).
+Panel shows full conversation as chat bubbles.
+Caller bubbles: left, grey.
+AI bubbles: right, indigo.
+Summary box at top of panel in accent color.
+"Urgent" badge in red if escalated.
+"Booked" badge in green if appointment made.
+
+AGENTS PAGE:
+Cards grid (2 columns desktop, 1 mobile).
+Each card shows: name, language badge, status toggle,
+calls this month, "last active X ago".
+"Add Agent" card with dashed border and + icon.
+
+NEW AGENT WIZARD:
+Step 1 of 4 with progress dots.
+Step 1: Business info (name, type, hours, address)
+Step 2: Services (dynamic add/remove list)
+Step 3: Agent personality (name, language, voice preview button,
+escalation keywords)  
+Step 4: Connect phone (show Twilio forwarding number, 
+carrier-specific instructions, test button)
+Smooth slide transition between steps.
+LocalStorage saves progress.
+
+SETTINGS PAGE:
+Tabs: Account | Phone | Billing | Notifications
+Clean form sections.
+Plan display with usage bar (calls used/limit).
+
+GLOBAL:
+Sidebar navigation with icons.
+Mobile: bottom tab bar replacing sidebar.
+Every data fetch shows skeleton loading state.
+All errors show toast notifications (top right corner).
+Responsive: works perfectly on mobile browsers.
+Smooth page transitions.
+The dashboard should feel like Linear or Stripe - premium, fast, minimal.
+No purple gradients and glowing boxes - clean and trustworthy.
+```
+
+---
+
+### Day 17 — Stripe Billing
+
+**Paste into Cursor:**
+
+```
+Implement Stripe billing for OneClerk.ai.
+
+Add to requirements.txt: stripe==11.1.0
+
+Create app/routes/billing.py:
+Router prefix: /api/billing
+
+PRICING PLANS:
+starter: $49/month, price_id from env STRIPE_STARTER_PRICE_ID
+growth: $149/month, price_id from env STRIPE_GROWTH_PRICE_ID  
+scale: $399/month, price_id from env STRIPE_SCALE_PRICE_ID
+
+POST /create-checkout
+Protected route.
+Accepts: {plan: "starter" | "growth" | "scale"}
+Creates Stripe Checkout session with:
+  - customer email from current user
+  - success_url: FRONTEND_URL/billing/success
+  - cancel_url: FRONTEND_URL/settings
+  - metadata: {user_id: str(user.id)}
+  - trial_period_days: 0 (they already had free trial)
+Returns: {checkout_url: str}
+
+POST /create-portal
+Protected route.
+Creates Stripe customer portal session for managing subscription.
+Returns: {portal_url: str}
+
+GET /status
+Protected route.
+Returns current subscription status from Stripe.
+{
+  plan: str,
+  status: str (active/past_due/canceled),
+  current_period_end: datetime,
+  cancel_at_period_end: bool,
+  calls_used: int,
+  calls_limit: int
+}
+
+Update app/routes/webhooks.py stripe handler:
+Handle these events:
+- checkout.session.completed: 
+  Update user.subscription_tier from metadata.user_id
+  Update user.stripe_customer_id
+- customer.subscription.updated:
+  Update user.subscription_tier based on plan
+- customer.subscription.deleted:
+  Downgrade user to trial tier
+  Deactivate agents over their limit
+
+Add to config.py:
+STRIPE_SECRET_KEY
+STRIPE_WEBHOOK_SECRET
+STRIPE_STARTER_PRICE_ID
+STRIPE_GROWTH_PRICE_ID
+STRIPE_SCALE_PRICE_ID
+
+Add call limit enforcement in webhooks.py voice/incoming:
+Before processing call check agent.calls_this_month < limit
+Limits: trial=50, starter=200, growth=1000, scale=unlimited
+If over limit: return TwiML saying "This service is temporarily 
+unavailable. Please call back shortly." and notify owner.
+```
+
+---
+
+### Day 18 — Multi-Language and WhatsApp Incoming
+
+**Paste into Cursor:**
+
+```
+Add Hindi language support and WhatsApp incoming handling to OneClerk.ai.
+
+HINDI LANGUAGE SUPPORT in app/services/ai_brain.py:
+
+Add Hindi system prompt template:
+HINDI_SYSTEM_TEMPLATE = """
+आप {business_name} के AI रिसेप्शनिस्ट {agent_name} हैं।
+आप हिंदी और अंग्रेजी दोनों में बात कर सकते हैं।
+{business_context_hindi}
+
+नियम:
+- जवाब 40 शब्दों से कम में दें (voice के लिए)
+- हमेशा विनम्र और पेशेवर रहें
+- अगर appointment चाहिए तो पूछें: "कौन सी date और time आपके लिए सही होगी?"
+- अगर emergency हो तो तुरंत escalate करें
+"""
+
+Update get_ai_response() to use Hindi prompt when agent.language == "hindi"
+
+Update Twilio Gather in voice_engine.py:
+When language is hindi:
+  language="hi-IN" in <Gather>
+  enhanced=True
+
+WHATSAPP INCOMING in app/routes/webhooks.py:
+
+POST /webhooks/whatsapp (already stubbed - implement now):
+Receives Twilio WhatsApp webhook:
+  From: whatsapp:+91XXXXXXXXXX
+  Body: message text
+  
+1. Find agent by matching To number to agent.forwarding_phone
+2. Load last 10 WhatsApp messages for this number from conversation table
+   (filter by caller_number and source="whatsapp")
+3. Send to ai_brain.get_ai_response() with WhatsApp context:
+   system_prompt addition: "This is a WhatsApp conversation. 
+   Responses can be slightly longer than voice (up to 80 words).
+   Use appropriate emojis naturally."
+4. Save both messages to conversation table with source="whatsapp"
+5. Send reply via Twilio WhatsApp API
+6. Return TwiML 200 response
+
+This makes OneClerk handle both calls AND WhatsApp for the same business.
+A patient can call OR WhatsApp and get the same intelligent response.
+
+Add source field to conversation_turns table:
+source: enum (voice, whatsapp) default voice
+Migration: ALTER TABLE conversation_turns ADD COLUMN source VARCHAR DEFAULT 'voice'
+```
+
+---
+
+### Day 19 — Call Forwarding Instructions and Agent Testing
+
+**Paste into Cursor:**
+
+```
+Add complete call forwarding setup flow and live agent testing to OneClerk.ai.
+
+Create app/services/forwarding.py:
+
+def get_forwarding_instructions(
+  twilio_number: str,
+  carrier: str = "generic"
+) -> dict:
+Returns carrier-specific instructions for call forwarding setup.
+
+All carriers use *72{number} for conditional forwarding
+(only forward when busy or no answer - this is the key feature:
+their phone still rings first, OneClerk only answers if they miss it)
+
+Return format:
+{
+  method: "conditional",  # Only answers missed calls
+  activate_code: f"*71{twilio_number}",  # conditional forward
+  deactivate_code: "#71",
+  test_instruction: "Call your number from another phone. 
+    If OneClerk answers after 3 rings, you're set up!",
+  carrier_notes: {
+    iphone: "Go to Settings > Phone > Call Forwarding for visual setup",
+    android: "Dial {code} or use Settings > Calls > Call Forwarding",
+    airtel: "Dial {code} - you'll hear a confirmation tone",
+    jio: "Dial {code} or use MyJio app > Settings > Call Settings",
+    bsnl: "Dial {code} from your BSNL number",
+    vi: "Dial {code} or use Vi app"
+  }
+}
+
+KEY INSIGHT TO COMMUNICATE TO USER:
+Conditional forwarding (*71) means:
+- If they answer: their phone handles it normally
+- If they miss it (busy, no answer, off): OneClerk handles it
+- Customer never knows the difference
+- Business owner keeps their number forever
+
+Add endpoint: GET /agents/{agent_id}/setup-instructions
+Returns forwarding instructions + their Twilio number
+
+CREATE LIVE TEST ENDPOINT:
+POST /agents/{agent_id}/test
+- Creates a real outbound test call to the agent's own Twilio number
+- Uses Twilio to call their escalation_phone
+- When answered: plays "This is a test of your OneClerk agent. 
+  In 3 seconds I'll demonstrate a patient calling your clinic."
+  Then simulates an incoming call scenario
+- Returns {test_call_sid: str, message: "Test call initiated"}
+
+UPDATE index.html settings/phone tab:
+Show the conditional forwarding explanation clearly:
+"OneClerk answers missed calls only - your phone rings first"
+Show *71 code prominently with copy button
+Carrier dropdown changes the displayed instructions
+"Test Now" button triggers the test endpoint and shows 
+"Calling your phone now..." with spinner
+```
+
+---
+
+### Day 20 — Production Hardening
+
+**Paste into Cursor:**
+
+```
+Harden OneClerk.ai for production use.
+
+1. RATE LIMITING - Add to app/main.py:
+Use slowapi library (add to requirements: slowapi==0.1.9)
+Limits:
+  /api/webhooks/voice/* : 100/minute (Twilio calls)
+  /api/auth/signup: 5/hour per IP
+  /api/auth/login: 10/hour per IP
+  All other routes: 60/minute per user
+
+2. TWILIO SIGNATURE VALIDATION - Add to webhooks:
+from twilio.request_validator import RequestValidator
+
+Create dependency validate_twilio_signature():
+  Gets X-Twilio-Signature header
+  Gets full request URL
+  Gets POST body params
+  Validates using TWILIO_AUTH_TOKEN
+  Raises 403 if invalid
+  
+Apply to all /webhooks/voice/* and /webhooks/whatsapp endpoints.
+This prevents anyone from faking calls to your webhook.
+
+3. CALL RECORDING CONSENT:
+Add to greeting TwiML before recording:
+"This call may be recorded for quality purposes."
+Add <Record> tag after greeting with:
+  recordingStatusCallback="/api/webhooks/recording-status"
+  recordingStatusCallbackMethod="POST"
+
+4. ERROR HANDLING in webhooks:
+Every webhook must return valid TwiML even on error.
+Create fallback_twiml() that returns:
+  <Response><Say>We're experiencing technical difficulties. 
+  Please try again shortly.</Say><Hangup/></Response>
+Wrap every webhook handler in try/except that returns fallback_twiml.
+
+5. LOGGING:
+Add structured logging throughout:
+  Call start: log agent_id, caller_number, timestamp
+  Each conversation turn: log length, response time
+  Call end: log duration, outcome, escalated
+  Errors: log with full context but never log sensitive data
+  Never log full phone numbers - log last 4 digits only
+
+6. HEALTH CHECKS:
+Update GET /health to check:
+  - Database: try simple query
+  - Redis: try ping (if Redis configured)
+  - Twilio: check account SID valid (cached 1 hour)
+  Return degraded status if any service is down.
+  Never return 500 - return 200 with status details.
+
+7. CALL LIMITS ENFORCEMENT:
+Check before every call in /webhooks/voice/incoming:
+  Get user subscription tier
+  Check calls_this_month against limit
+  If over limit:
+    Return TwiML: "Thank you for calling. We are temporarily 
+    unavailable. Please try again later."
+    Notify business owner via WhatsApp
+    Do not charge the call against their count
+```
+
+---
+
+### Day 21 — GitHub, Railway Deploy, and First Real Test
+
+**Do these steps manually:**
+
+**Step 1 — Push to GitHub from Replit:**
+Click the Git icon in Replit left sidebar. Stage all. Commit message: `OneClerk MVP - complete`. Push to `oneclerkai/oneclerk` main branch.
+
+**Step 2 — Set up Railway properly:**
+Go to railway.app. New project from GitHub repo. Select `oneclerkai/oneclerk`. Set root directory to wherever your backend is. Add all environment variables from `.env.example`. Add PostgreSQL plugin. Add Redis plugin. Set start command to `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+
+**Step 3 — Get your Twilio number:**
+Go to twilio.com. Buy one phone number in your country. Save the phone number and SID. Add to Railway environment variables.
+
+**Step 4 — Set Twilio webhooks:**
+In Twilio console for your phone number set:
+- Voice webhook: `https://your-railway-url/api/webhooks/voice/incoming` POST
+- Status callback: `https://your-railway-url/api/webhooks/voice/status` POST
+- WhatsApp incoming: `https://your-railway-url/api/webhooks/whatsapp` POST
+
+**Step 5 — Create your own agent and test:**
+Sign up on your own live Railway URL. Create an agent for a fictional dental clinic. Set escalation phone to your personal number. Call your Twilio number. The AI should answer, handle your questions, and send a WhatsApp to your number afterward.
+
+**Step 6 — Fix everything that breaks:**
+Write down every failure. Fix one by one. The goal by end of Day 21 is one complete call that works perfectly start to finish.
+
+---
+
+## Where You Are After Day 21
+
+```
+✅ ElevenLabs voice (natural, warm, not robotic)
+✅ Real booking via Calendly link in WhatsApp
+✅ Premium redesigned dashboard UI
+✅ Stripe billing with three tiers
+✅ Hindi language support
+✅ WhatsApp incoming message handling
+✅ Conditional call forwarding setup flow
+✅ Live agent test calls
+✅ Production security hardening
+✅ Railway deployment live and stable
+✅ GitHub backup of all code
+✅ Full end-to-end call tested with real phone
+```
+
+---
+
+## Days 22 to 28 — Launch Preparation
+
+Tell me when Day 21 is confirmed working and I give you the complete launch week plan including landing page copy, Product Hunt strategy, WhatsApp outreach scripts, demo video structure, and exactly how to get your first 10 paying customers within 7 days.
+
+**The one thing to do right now:** Push to GitHub. Everything else can be fixed but lost code cannot be recovered.

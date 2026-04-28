@@ -1,0 +1,1212 @@
+[@github](plugin://github@openai-curated) Inspect PRs, triage issues, debug failing checks, and prepare code changes for review push and continue coding aloowing all tings  https://github.com/oneclerkai/oneclerk.git ## The 1000-Call Reality — What Calls Actually Are
+
+After running through every scenario across clinics, hotels, offices, restaurants, salons, and startups the pattern is brutally clear:
+
+**70% of all business calls are identical repetitive questions** — Is X available, can I book for Y time, what are your hours, where are you, how much does it cost, do you accept Z payment — questions any trained system can answer perfectly without a human ever being involved.
+
+**20% are transactional actions** — cancelling a booking, rescheduling, checking status of something, following up on a previous interaction, getting directions, asking what to bring or prepare — things that require looking up one piece of information and responding, nothing more.
+
+**10% are actual humans needed** — complaints needing empathy, emergencies needing immediate action, complex negotiations, situations outside any script — the only calls a human should ever take.
+
+**The real insight nobody talks about:** businesses are paying a full-time human to handle 90% of calls that a well-built system could handle, just to be available for the 10% that actually need them. That is the entire business case in one sentence.
+
+---
+
+## The Brand Name
+
+Not oneclerk — too corporate and implies a single assistant. Not clerkhertz — impossible to remember when heard out loud.
+
+The name is **Rinq**.
+
+Short. Spelled differently enough to be ownable. Sounds exactly like what it does — your phone rings and Rinq handles it. The Q makes it modern without screaming AI. rinq.ai is the domain. When someone asks a business owner "how do you handle your calls" and they say "I use Rinq" it sticks immediately. That is the test a name has to pass.
+
+---
+
+## Corrected Moat 1 — User Connects Their Own Number
+
+The user sets call forwarding on their existing business phone. When a call comes in and they are busy, in a meeting, or after hours, their phone automatically forwards to Rinq's handling number. The AI takes the call entirely. After it ends the owner gets a WhatsApp summary of exactly what happened. The customer called the same number they always have. Nothing changes for them. Everything changes for the business. This is simpler, cheaper, and more powerful than provisioning new numbers.
+
+---
+
+## Week 2 — Day 8 to Day 14: Complete MVP Build
+
+---
+
+### Day 8 — The Conversation Engine (The Actual Heart of Rinq)
+
+**What you are building today:** The single loop that makes everything work. Call comes in → speech converted to text → text sent to AI with business context → AI response converted to speech → played back to caller.
+
+**Step 1 — Set up the project structure**
+
+```bash
+mkdir rinq-backend
+cd rinq-backend
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install fastapi uvicorn twilio deepgram-sdk openai elevenlabs python-dotenv pydantic sqlalchemy asyncpg supabase
+```
+
+Create this folder structure:
+```
+rinq-backend/
+├── app/
+│   ├── main.py
+│   ├── config.py
+│   ├── routes/
+│   │   ├── calls.py
+│   │   ├── agents.py
+│   │   ├── auth.py
+│   ├── services/
+│   │   ├── voice_engine.py
+│   │   ├── ai_brain.py
+│   │   ├── whatsapp.py
+│   ├── models/
+│   │   ├── agent.py
+│   │   ├── call.py
+│   │   ├── user.py
+├── .env
+├── requirements.txt
+```
+
+**Step 2 — Create app/config.py**
+
+```python
+import os
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    DEEPGRAM_API_KEY: str = os.getenv("DEEPGRAM_API_KEY", "")
+    ELEVENLABS_API_KEY: str = os.getenv("ELEVENLABS_API_KEY", "")
+    TWILIO_ACCOUNT_SID: str = os.getenv("TWILIO_ACCOUNT_SID", "")
+    TWILIO_AUTH_TOKEN: str = os.getenv("TWILIO_AUTH_TOKEN", "")
+    TWILIO_PHONE_NUMBER: str = os.getenv("TWILIO_PHONE_NUMBER", "")
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "changeme")
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+
+    class Config:
+        env_file = ".env"
+
+settings = Settings()
+```
+
+**Step 3 — Create app/services/ai_brain.py**
+
+This is the intelligence layer. Every call passes through here.
+
+```python
+from openai import AsyncOpenAI
+from app.config import settings
+
+client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+
+SYSTEM_TEMPLATE = """You are {agent_name}, the AI receptionist for {business_name}.
+
+Business Type: {business_type}
+Operating Hours: {operating_hours}
+Services: {services}
+Location: {location}
+Pricing: {pricing}
+Common FAQs: {faqs}
+Booking Instructions: {booking_instructions}
+Escalation Triggers: {escalation_triggers}
+
+YOUR RULES:
+1. You speak naturally and warmly like a real receptionist
+2. Keep responses under 40 words unless the caller asks for detailed info
+3. If asked something not in your knowledge say "Let me have {owner_name} call you back about that specifically"
+4. If you detect words like: emergency, urgent, pain, accident, critical — say "I'm flagging this as urgent and {owner_name} will call you back within 5 minutes"
+5. Always confirm bookings with day, date, time, and what they booked
+6. End every call by asking "Is there anything else I can help you with?"
+7. Speak in the caller's language if they speak Hindi, Tamil, or any regional language
+8. Never say you are an AI unless directly asked
+9. If directly asked if you are an AI say "I'm an AI assistant for {business_name}, but I'm fully trained on everything about this business"
+
+Current conversation language: {language}"""
+
+async def get_ai_response(
+    conversation_history: list,
+    agent_config: dict,
+    caller_message: str
+) -> str:
+    system_prompt = SYSTEM_TEMPLATE.format(**agent_config)
+    
+    messages = [{"role": "system", "content": system_prompt}]
+    messages.extend(conversation_history)
+    messages.append({"role": "user", "content": caller_message})
+    
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=messages,
+        max_tokens=150,
+        temperature=0.7
+    )
+    
+    return response.choices[0].message.content
+
+async def detect_urgency(text: str) -> bool:
+    urgent_words = [
+        "emergency", "urgent", "critical", "pain", "accident",
+        "immediately", "right now", "help", "dying", "bleeding",
+        "जरूरी", "इमरजेंसी", "दर्द", "अभी"  # Hindi urgent words
+    ]
+    text_lower = text.lower()
+    return any(word in text_lower for word in urgent_words)
+
+async def detect_booking_intent(text: str) -> bool:
+    booking_words = [
+        "book", "appointment", "schedule", "reserve", "slot",
+        "available", "when can", "tomorrow", "monday", "tuesday",
+        "बुक", "अपॉइंटमेंट", "समय"
+    ]
+    text_lower = text.lower()
+    return any(word in text_lower for word in booking_words)
+```
+
+**Step 4 — Create app/routes/calls.py**
+
+This is what Twilio hits when a call comes in:
+
+```python
+from fastapi import APIRouter, Request, Form
+from fastapi.responses import Response
+from twilio.twiml.voice_response import VoiceResponse, Gather
+from app.services.ai_brain import get_ai_response, detect_urgency
+from app.services.whatsapp import send_call_summary
+from app.services.voice_engine import text_to_speech_url
+from supabase import create_client
+from app.config import settings
+import json
+
+router = APIRouter(prefix="/calls", tags=["calls"])
+supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+
+@router.post("/incoming")
+async def handle_incoming_call(
+    request: Request,
+    CallSid: str = Form(...),
+    From: str = Form(...),
+    To: str = Form(...)
+):
+    # Find which agent owns this Twilio number
+    agent = supabase.table("agents").select("*").eq("twilio_number", To).single().execute()
+    
+    if not agent.data:
+        response = VoiceResponse()
+        response.say("Thank you for calling. Please try again later.", voice="alice")
+        return Response(content=str(response), media_type="application/xml")
+    
+    # Create call record
+    call_record = supabase.table("calls").insert({
+        "call_sid": CallSid,
+        "agent_id": agent.data["id"],
+        "user_id": agent.data["user_id"],
+        "caller_number": From,
+        "status": "active",
+        "conversation": []
+    }).execute()
+    
+    agent_config = agent.data["config"]
+    greeting = f"Hello! Thank you for calling {agent_config['business_name']}. {agent_config['greeting_message']} How can I help you today?"
+    
+    response = VoiceResponse()
+    gather = Gather(
+        input="speech",
+        action=f"/calls/respond/{call_record.data[0]['id']}",
+        speech_timeout="auto",
+        language="en-IN"
+    )
+    gather.say(greeting, voice="Polly.Aditi")
+    response.append(gather)
+    
+    return Response(content=str(response), media_type="application/xml")
+
+@router.post("/respond/{call_id}")
+async def handle_caller_speech(
+    call_id: str,
+    request: Request,
+    SpeechResult: str = Form(default=""),
+    CallSid: str = Form(...)
+):
+    call = supabase.table("calls").select("*").eq("id", call_id).single().execute()
+    agent = supabase.table("agents").select("*").eq("id", call.data["agent_id"]).single().execute()
+    
+    if not SpeechResult:
+        response = VoiceResponse()
+        gather = Gather(
+            input="speech",
+            action=f"/calls/respond/{call_id}",
+            speech_timeout="auto"
+        )
+        gather.say("I didn't catch that. Could you please repeat?", voice="Polly.Aditi")
+        response.append(gather)
+        return Response(content=str(response), media_type="application/xml")
+    
+    conversation = call.data.get("conversation", [])
+    ai_response = await get_ai_response(
+        conversation,
+        agent.data["config"],
+        SpeechResult
+    )
+    
+    is_urgent = await detect_urgency(SpeechResult)
+    
+    conversation.append({"role": "user", "content": SpeechResult})
+    conversation.append({"role": "assistant", "content": ai_response})
+    
+    supabase.table("calls").update({
+        "conversation": conversation,
+        "is_urgent": is_urgent
+    }).eq("id", call_id).execute()
+    
+    if is_urgent:
+        await send_call_summary(
+            agent.data["config"]["owner_whatsapp"],
+            call.data["caller_number"],
+            conversation,
+            urgent=True
+        )
+    
+    response = VoiceResponse()
+    
+    call_ending_phrases = ["goodbye", "bye", "thank you", "that's all", "no that's it"]
+    if any(phrase in SpeechResult.lower() for phrase in call_ending_phrases):
+        response.say(ai_response, voice="Polly.Aditi")
+        response.hangup()
+        
+        await send_call_summary(
+            agent.data["config"]["owner_whatsapp"],
+            call.data["caller_number"],
+            conversation,
+            urgent=False
+        )
+        
+        supabase.table("calls").update({"status": "completed"}).eq("id", call_id).execute()
+    else:
+        gather = Gather(
+            input="speech",
+            action=f"/calls/respond/{call_id}",
+            speech_timeout="auto",
+            language="en-IN"
+        )
+        gather.say(ai_response, voice="Polly.Aditi")
+        response.append(gather)
+    
+    return Response(content=str(response), media_type="application/xml")
+
+@router.post("/status")
+async def call_status_webhook(
+    CallSid: str = Form(...),
+    CallStatus: str = Form(...)
+):
+    if CallStatus in ["completed", "failed", "busy", "no-answer"]:
+        supabase.table("calls").update({
+            "status": CallStatus
+        }).eq("call_sid", CallSid).execute()
+    return {"status": "ok"}
+```
+
+**Step 5 — Create app/services/whatsapp.py**
+
+```python
+from twilio.rest import Client
+from app.config import settings
+
+client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+
+async def send_call_summary(
+    owner_whatsapp: str,
+    caller_number: str,
+    conversation: list,
+    urgent: bool = False
+):
+    summary_lines = []
+    for msg in conversation:
+        if msg["role"] == "user":
+            summary_lines.append(f"Caller: {msg['content']}")
+        else:
+            summary_lines.append(f"Rinq: {msg['content']}")
+    
+    summary = "\n".join(summary_lines[-6:])
+    
+    if urgent:
+        message = f"🚨 URGENT CALL from {caller_number}\n\nThey need immediate attention.\n\nConversation:\n{summary}\n\nTap to call back: {caller_number}"
+    else:
+        message = f"📞 Call Summary from {caller_number}\n\nConversation:\n{summary}\n\nLogged in your Rinq dashboard."
+    
+    client.messages.create(
+        from_=f"whatsapp:{settings.TWILIO_PHONE_NUMBER}",
+        to=f"whatsapp:{owner_whatsapp}",
+        body=message
+    )
+
+async def send_caller_confirmation(
+    caller_number: str,
+    business_name: str,
+    booking_details: str
+):
+    client.messages.create(
+        from_=f"whatsapp:{settings.TWILIO_PHONE_NUMBER}",
+        to=f"whatsapp:{caller_number}",
+        body=f"✅ Confirmed from {business_name}\n\n{booking_details}\n\nNeed to change anything? Just call us back."
+    )
+```
+
+**Step 6 — Create app/main.py**
+
+```python
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.routes import calls, agents, auth
+from app.config import settings
+
+app = FastAPI(title="Rinq API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(calls.router)
+app.include_router(agents.router)
+app.include_router(auth.router)
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "product": "Rinq"}
+```
+
+**Step 7 — Test Day 8**
+
+Deploy to Railway. Configure a Twilio number's webhook to point at your Railway URL `/calls/incoming`. Call the number. Confirm the AI picks up and responds. This is the biggest moment of the build — hearing your own product answer a call.
+
+---
+
+### Day 9 — Database Schema and Agent Configuration System
+
+**Step 1 — Create Supabase tables**
+
+Open Supabase SQL editor and run:
+
+```sql
+-- Users table
+create table users (
+  id uuid primary key default gen_random_uuid(),
+  email text unique not null,
+  name text,
+  whatsapp_number text,
+  plan text default 'trial',
+  trial_ends_at timestamptz default now() + interval '14 days',
+  created_at timestamptz default now()
+);
+
+-- Agents table  
+create table agents (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references users(id) on delete cascade,
+  name text not null,
+  twilio_number text,
+  forwarding_number text,
+  is_active boolean default true,
+  config jsonb not null default '{}',
+  voice_id text default 'Polly.Aditi',
+  language text default 'en-IN',
+  calls_this_month integer default 0,
+  created_at timestamptz default now()
+);
+
+-- Calls table
+create table calls (
+  id uuid primary key default gen_random_uuid(),
+  call_sid text unique,
+  agent_id uuid references agents(id) on delete cascade,
+  user_id uuid references users(id) on delete cascade,
+  caller_number text,
+  duration_seconds integer,
+  conversation jsonb default '[]',
+  status text default 'active',
+  is_urgent boolean default false,
+  booking_made boolean default false,
+  booking_details text,
+  created_at timestamptz default now()
+);
+
+-- Contacts table (people who have called before)
+create table contacts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references users(id) on delete cascade,
+  phone_number text not null,
+  name text,
+  call_count integer default 1,
+  last_called_at timestamptz default now(),
+  notes text,
+  created_at timestamptz default now(),
+  unique(user_id, phone_number)
+);
+
+-- Enable Row Level Security
+alter table users enable row level security;
+alter table agents enable row level security;
+alter table calls enable row level security;
+alter table contacts enable row level security;
+```
+
+**Step 2 — Create app/routes/agents.py**
+
+```python
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from typing import Optional
+from supabase import create_client
+from app.config import settings
+from app.routes.auth import get_current_user
+
+router = APIRouter(prefix="/agents", tags=["agents"])
+supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+
+class AgentConfig(BaseModel):
+    business_name: str
+    business_type: str
+    agent_name: str
+    greeting_message: str
+    operating_hours: str
+    services: str
+    location: str
+    pricing: str
+    faqs: str
+    booking_instructions: str
+    escalation_triggers: str
+    owner_name: str
+    owner_whatsapp: str
+    language: str = "English"
+
+class CreateAgentRequest(BaseModel):
+    name: str
+    config: AgentConfig
+    forwarding_number: str
+
+@router.post("/create")
+async def create_agent(
+    data: CreateAgentRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    agent = supabase.table("agents").insert({
+        "user_id": current_user["id"],
+        "name": data.name,
+        "forwarding_number": data.forwarding_number,
+        "config": data.config.model_dump(),
+        "is_active": False
+    }).execute()
+    
+    return {"agent": agent.data[0], "next_step": "connect_phone"}
+
+@router.get("/list")
+async def list_agents(current_user: dict = Depends(get_current_user)):
+    agents = supabase.table("agents").select("*").eq(
+        "user_id", current_user["id"]
+    ).execute()
+    return {"agents": agents.data}
+
+@router.put("/{agent_id}")
+async def update_agent(
+    agent_id: str,
+    data: CreateAgentRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    agent = supabase.table("agents").update({
+        "name": data.name,
+        "config": data.config.model_dump(),
+        "forwarding_number": data.forwarding_number
+    }).eq("id", agent_id).eq("user_id", current_user["id"]).execute()
+    
+    return {"agent": agent.data[0]}
+
+@router.post("/{agent_id}/activate")
+async def activate_agent(
+    agent_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    supabase.table("agents").update({
+        "is_active": True
+    }).eq("id", agent_id).eq("user_id", current_user["id"]).execute()
+    
+    return {
+        "status": "active",
+        "instructions": "Set call forwarding on your phone to forward unanswered calls to our handling number. Your agent is now live."
+    }
+
+@router.get("/{agent_id}/calls")
+async def get_agent_calls(
+    agent_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    calls = supabase.table("calls").select("*").eq(
+        "agent_id", agent_id
+    ).order("created_at", desc=True).limit(50).execute()
+    
+    return {"calls": calls.data}
+```
+
+---
+
+### Day 10 — Authentication and User System
+
+**Step 1 — Create app/routes/auth.py**
+
+```python
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, EmailStr
+from supabase import create_client
+from app.config import settings
+import jwt
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+security = HTTPBearer()
+
+class SignupRequest(BaseModel):
+    email: EmailStr
+    password: str
+    name: str
+    whatsapp_number: str
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+@router.post("/signup")
+async def signup(data: SignupRequest):
+    try:
+        auth_response = supabase.auth.sign_up({
+            "email": data.email,
+            "password": data.password
+        })
+        
+        if auth_response.user:
+            supabase.table("users").insert({
+                "id": auth_response.user.id,
+                "email": data.email,
+                "name": data.name,
+                "whatsapp_number": data.whatsapp_number
+            }).execute()
+        
+        return {
+            "message": "Account created",
+            "user_id": auth_response.user.id,
+            "access_token": auth_response.session.access_token
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/login")
+async def login(data: LoginRequest):
+    try:
+        auth_response = supabase.auth.sign_in_with_password({
+            "email": data.email,
+            "password": data.password
+        })
+        
+        user_data = supabase.table("users").select("*").eq(
+            "id", auth_response.user.id
+        ).single().execute()
+        
+        return {
+            "access_token": auth_response.session.access_token,
+            "user": user_data.data
+        }
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    try:
+        user = supabase.auth.get_user(credentials.credentials)
+        user_data = supabase.table("users").select("*").eq(
+            "id", user.user.id
+        ).single().execute()
+        return user_data.data
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+```
+
+---
+
+### Day 11 — Frontend: The Dashboard That Looks Exceptional
+
+**Step 1 — Initialize Next.js**
+
+```bash
+npx create-next-app@latest rinq-frontend --typescript --tailwind --app
+cd rinq-frontend
+npm install axios @radix-ui/react-dialog @radix-ui/react-switch framer-motion lucide-react recharts
+```
+
+**Step 2 — Create the design system in tailwind.config.ts**
+
+```typescript
+const config = {
+  content: ["./src/**/*.{js,ts,jsx,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        rinq: {
+          50: "#f0f9ff",
+          100: "#e0f2fe", 
+          500: "#0ea5e9",
+          600: "#0284c7",
+          900: "#0c4a6e",
+        },
+        surface: "#0f0f0f",
+        "surface-2": "#1a1a1a",
+        "surface-3": "#242424",
+        border: "#2a2a2a",
+      },
+      fontFamily: {
+        sans: ["Inter", "sans-serif"],
+        mono: ["JetBrains Mono", "monospace"],
+      },
+    },
+  },
+}
+export default config
+```
+
+**Step 3 — Create src/app/dashboard/page.tsx**
+
+```tsx
+'use client'
+import { useEffect, useState } from 'react'
+import { Phone, TrendingUp, AlertCircle, Clock, CheckCircle } from 'lucide-react'
+import { motion } from 'framer-motion'
+import api from '@/lib/api'
+
+export default function Dashboard() {
+  const [stats, setStats] = useState({
+    total_calls: 0,
+    calls_handled: 0,
+    urgent_calls: 0,
+    bookings_made: 0
+  })
+  const [recentCalls, setRecentCalls] = useState([])
+  const [agents, setAgents] = useState([])
+
+  useEffect(() => {
+    const load = async () => {
+      const [agentsRes, callsRes] = await Promise.all([
+        api.get('/agents/list'),
+        api.get('/calls/recent')
+      ])
+      setAgents(agentsRes.data.agents)
+      setRecentCalls(callsRes.data.calls)
+    }
+    load()
+  }, [])
+
+  return (
+    <div className="min-h-screen bg-[#0f0f0f] text-white">
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-semibold text-white">Dashboard</h1>
+          <p className="text-zinc-400 mt-1">Your agents are handling calls right now</p>
+        </div>
+
+        {/* Live indicator */}
+        <div className="flex items-center gap-2 mb-8">
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+          </span>
+          <span className="text-sm text-green-400 font-medium">
+            {agents.filter((a: any) => a.is_active).length} agent{agents.filter((a: any) => a.is_active).length !== 1 ? 's' : ''} live
+          </span>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {[
+            { label: "Total Calls", value: stats.total_calls, icon: Phone, color: "text-blue-400" },
+            { label: "Calls Handled", value: stats.calls_handled, icon: CheckCircle, color: "text-green-400" },
+            { label: "Urgent Flags", value: stats.urgent_calls, icon: AlertCircle, color: "text-red-400" },
+            { label: "Bookings Made", value: stats.bookings_made, icon: TrendingUp, color: "text-purple-400" },
+          ].map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-5"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs text-zinc-500 uppercase tracking-wider">{stat.label}</span>
+                <stat.icon className={`w-4 h-4 ${stat.color}`} />
+              </div>
+              <p className="text-3xl font-semibold text-white">{stat.value}</p>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Agents and Recent Calls */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* Active Agents */}
+          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-6">
+            <h2 className="text-lg font-medium text-white mb-4">Your Agents</h2>
+            {agents.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-zinc-500 text-sm mb-4">No agents yet</p>
+                <a href="/create-agent" className="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors">
+                  Create Your First Agent
+                </a>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {agents.map((agent: any) => (
+                  <div key={agent.id} className="flex items-center justify-between p-4 bg-[#242424] rounded-xl">
+                    <div>
+                      <p className="text-sm font-medium text-white">{agent.name}</p>
+                      <p className="text-xs text-zinc-500">{agent.config.business_name}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${agent.is_active ? 'bg-green-500/10 text-green-400' : 'bg-zinc-700 text-zinc-400'}`}>
+                        {agent.is_active ? 'Live' : 'Paused'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Recent Calls */}
+          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-6">
+            <h2 className="text-lg font-medium text-white mb-4">Recent Calls</h2>
+            {recentCalls.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-zinc-500 text-sm">No calls yet. Activate your agent to start.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentCalls.slice(0, 6).map((call: any) => (
+                  <div key={call.id} className="flex items-center justify-between p-3 bg-[#242424] rounded-xl cursor-pointer hover:bg-[#2a2a2a] transition-colors">
+                    <div className="flex items-center gap-3">
+                      {call.is_urgent ? (
+                        <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                      ) : (
+                        <Phone className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+                      )}
+                      <div>
+                        <p className="text-sm text-white">{call.caller_number}</p>
+                        <p className="text-xs text-zinc-500">
+                          {new Date(call.created_at).toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      call.status === 'completed' ? 'bg-green-500/10 text-green-400' :
+                      call.is_urgent ? 'bg-red-500/10 text-red-400' :
+                      'bg-zinc-700 text-zinc-400'
+                    }`}>
+                      {call.is_urgent ? 'Urgent' : call.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+```
+
+---
+
+### Day 12 — Agent Builder: The 15-Minute Setup Flow
+
+**Create src/app/create-agent/page.tsx**
+
+```tsx
+'use client'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useRouter } from 'next/navigation'
+import api from '@/lib/api'
+
+const BUSINESS_TYPES = [
+  { id: 'clinic', label: '🏥 Clinic / Hospital', placeholder_name: 'Dr. Sarah AI Assistant' },
+  { id: 'hotel', label: '🏨 Hotel / Resort', placeholder_name: 'Concierge AI' },
+  { id: 'restaurant', label: '🍽️ Restaurant', placeholder_name: 'Table AI' },
+  { id: 'office', label: '🏢 Office / Startup', placeholder_name: 'Front Desk AI' },
+  { id: 'salon', label: '✂️ Salon / Spa', placeholder_name: 'Booking AI' },
+  { id: 'other', label: '🏪 Other Business', placeholder_name: 'Business AI' },
+]
+
+const STEPS = ['Business Type', 'Basic Info', 'Services & FAQ', 'Activate', 'Done']
+
+export default function CreateAgent() {
+  const [step, setStep] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [agentId, setAgentId] = useState('')
+  const router = useRouter()
+  
+  const [form, setForm] = useState({
+    business_type: '',
+    business_name: '',
+    agent_name: '',
+    greeting_message: 'How can I help you today?',
+    operating_hours: 'Monday to Saturday, 9 AM to 6 PM',
+    services: '',
+    location: '',
+    pricing: '',
+    faqs: '',
+    booking_instructions: 'Please provide your name, preferred date, and time.',
+    escalation_triggers: 'emergency, urgent, immediate, right now',
+    owner_name: '',
+    owner_whatsapp: '',
+    forwarding_number: '',
+    language: 'English'
+  })
+
+  const update = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }))
+
+  const handleCreate = async () => {
+    setLoading(true)
+    try {
+      const res = await api.post('/agents/create', {
+        name: form.agent_name,
+        forwarding_number: form.forwarding_number,
+        config: form
+      })
+      setAgentId(res.data.agent.id)
+      setStep(3)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleActivate = async () => {
+    await api.post(`/agents/${agentId}/activate`)
+    setStep(4)
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center p-6">
+      <div className="w-full max-w-2xl">
+        
+        {/* Progress bar */}
+        <div className="mb-8">
+          <div className="flex justify-between mb-2">
+            {STEPS.map((s, i) => (
+              <span key={s} className={`text-xs font-medium ${i <= step ? 'text-blue-400' : 'text-zinc-600'}`}>
+                {s}
+              </span>
+            ))}
+          </div>
+          <div className="h-1 bg-[#2a2a2a] rounded-full">
+            <motion.div
+              className="h-full bg-blue-500 rounded-full"
+              animate={{ width: `${(step / (STEPS.length - 1)) * 100}%` }}
+              transition={{ duration: 0.3 }}
+            />
+          </div>
+        </div>
+
+        <AnimatePresence mode="wait">
+          
+          {/* Step 0: Business Type */}
+          {step === 0 && (
+            <motion.div
+              key="step0"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <h2 className="text-2xl font-semibold text-white mb-2">What type of business are you?</h2>
+              <p className="text-zinc-400 mb-6">Rinq will customize your agent based on your industry.</p>
+              <div className="grid grid-cols-2 gap-3">
+                {BUSINESS_TYPES.map(type => (
+                  <button
+                    key={type.id}
+                    onClick={() => {
+                      update('business_type', type.id)
+                      update('agent_name', type.placeholder_name)
+                      setStep(1)
+                    }}
+                    className="p-4 bg-[#1a1a1a] border border-[#2a2a2a] hover:border-blue-500 rounded-2xl text-left transition-all group"
+                  >
+                    <span className="text-2xl block mb-2">{type.label.split(' ')[0]}</span>
+                    <span className="text-sm text-white font-medium">{type.label.substring(3)}</span>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 1: Basic Info */}
+          {step === 1 && (
+            <motion.div
+              key="step1"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <h2 className="text-2xl font-semibold text-white mb-2">Tell us about your business</h2>
+              <p className="text-zinc-400 mb-6">This is what your AI agent will know about your business.</p>
+              <div className="space-y-4">
+                {[
+                  { key: 'business_name', label: 'Business Name', placeholder: 'City Dental Clinic' },
+                  { key: 'agent_name', label: 'Agent Name', placeholder: 'Priya (your AI receptionist)' },
+                  { key: 'operating_hours', label: 'Operating Hours', placeholder: 'Mon-Sat, 9am-7pm, Closed Sundays' },
+                  { key: 'location', label: 'Location', placeholder: 'Koramangala, Bangalore' },
+                  { key: 'owner_name', label: 'Your Name', placeholder: 'Dr. Sharma' },
+                  { key: 'owner_whatsapp', label: 'Your WhatsApp Number', placeholder: '+91 98765 43210' },
+                ].map(field => (
+                  <div key={field.key}>
+                    <label className="block text-sm text-zinc-400 mb-1">{field.label}</label>
+                    <input
+                      type="text"
+                      value={form[field.key as keyof typeof form]}
+                      onChange={e => update(field.key, e.target.value)}
+                      placeholder={field.placeholder}
+                      className="w-full bg-[#1a1a1a] border border-[#2a2a2a] focus:border-blue-500 rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors placeholder-zinc-600"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setStep(0)} className="px-6 py-3 border border-[#2a2a2a] text-zinc-400 rounded-xl text-sm hover:border-zinc-500 transition-colors">Back</button>
+                <button onClick={() => setStep(2)} className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors">Continue</button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 2: Services and FAQ */}
+          {step === 2 && (
+            <motion.div
+              key="step2"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <h2 className="text-2xl font-semibold text-white mb-2">Services and common questions</h2>
+              <p className="text-zinc-400 mb-6">Your agent will answer these automatically on every call.</p>
+              <div className="space-y-4">
+                {[
+                  { key: 'services', label: 'Services You Offer', placeholder: 'General checkup, Root canal, Teeth whitening, Braces consultation', rows: 3 },
+                  { key: 'pricing', label: 'Pricing Information', placeholder: 'Checkup: Rs. 500, Cleaning: Rs. 800, Consultation: Rs. 300', rows: 2 },
+                  { key: 'faqs', label: 'Common Questions and Answers', placeholder: 'Q: Do you accept insurance? A: Yes, we accept Mediassist and Star Health.\nQ: Do I need an appointment? A: Walk-ins welcome but appointments preferred.', rows: 5 },
+                  { key: 'booking_instructions', label: 'How to Book', placeholder: 'Collect name, phone number, preferred date and time. Confirm slot availability verbally.', rows: 2 },
+                ].map(field => (
+                  <div key={field.key}>
+                    <label className="block text-sm text-zinc-400 mb-1">{field.label}</label>
+                    <textarea
+                      value={form[field.key as keyof typeof form]}
+                      onChange={e => update(field.key, e.target.value)}
+                      placeholder={field.placeholder}
+                      rows={field.rows}
+                      className="w-full bg-[#1a1a1a] border border-[#2a2a2a] focus:border-blue-500 rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors placeholder-zinc-600 resize-none"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setStep(1)} className="px-6 py-3 border border-[#2a2a2a] text-zinc-400 rounded-xl text-sm">Back</button>
+                <button
+                  onClick={handleCreate}
+                  disabled={loading}
+                  className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Creating agent...' : 'Create Agent'}
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 3: Connect Phone */}
+          {step === 3 && (
+            <motion.div
+              key="step3"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+            >
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <span className="text-3xl">📱</span>
+                </div>
+                <h2 className="text-2xl font-semibold text-white mb-2">Connect your phone number</h2>
+                <p className="text-zinc-400">Set up call forwarding so Rinq handles your unanswered calls.</p>
+              </div>
+
+              <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-6 mb-6">
+                <h3 className="text-sm font-medium text-white mb-4">For iPhone:</h3>
+                <ol className="space-y-2 text-sm text-zinc-400">
+                  <li>1. Open Settings → Phone → Call Forwarding</li>
+                  <li>2. Enable Call Forwarding</li>
+                  <li>3. Enter your Rinq number: <span className="text-blue-400 font-mono">+1 (415) 523-8886</span></li>
+                </ol>
+              </div>
+
+              <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-6 mb-6">
+                <h3 className="text-sm font-medium text-white mb-4">For Android:</h3>
+                <ol className="space-y-2 text-sm text-zinc-400">
+                  <li>1. Dial <span className="text-blue-400 font-mono">**21*+14155238886#</span></li>
+                  <li>2. Press Call — this activates forwarding instantly</li>
+                  <li>3. To disable: Dial <span className="text-blue-400 font-mono">##21#</span></li>
+                </ol>
+              </div>
+
+              <button
+                onClick={handleActivate}
+                className="w-full py-4 bg-green-500 text-white rounded-2xl font-medium hover:bg-green-600 transition-colors"
+              >
+                I've set up forwarding — Activate My Agent
+              </button>
+            </motion.div>
+          )}
+
+          {/* Step 4: Live */}
+          {step === 4 && (
+            <motion.div
+              key="step4"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center"
+            >
+              <motion.div
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="w-24 h-24 bg-green-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6"
+              >
+                <span className="text-5xl">✅</span>
+              </motion.div>
+              <h2 className="text-3xl font-semibold text-white mb-3">Your agent is live!</h2>
+              <p className="text-zinc-400 mb-8">
+                Call your phone number right now to test it. Your AI agent will answer.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="flex-1 py-4 bg-blue-500 text-white rounded-2xl font-medium hover:bg-blue-600 transition-colors"
+                >
+                  Go to Dashboard
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+        </AnimatePresence>
+      </div>
+    </div>
+  )
+}
+```
+
+---
+
+### Day 13 — Call Detail Page and Sidebar Navigation
+
+Build the sidebar and the individual call transcript viewer so owners can see exactly what their agent said and did.
+
+**Create src/components/Sidebar.tsx:**
+
+```tsx
+'use client'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { LayoutDashboard, Phone, Bot, Settings, Zap } from 'lucide-react'
+
+const nav = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/calls', label: 'All Calls', icon: Phone },
+  { href: '/agents', label: 'My Agents', icon: Bot },
+  { href: '/settings', label: 'Settings', icon: Settings },
+]
+
+export default function Sidebar() {
+  const path = usePathname()
+  
+  return (
+    <div className="w-60 bg-[#0f0f0f] border-r border-[#1a1a1a] h-screen flex flex-col fixed left-0 top-0">
+      <div className="p-6 border-b border-[#1a1a1a]">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+            <Zap className="w-4 h-4 text-white" />
+          </div>
+          <span className="font-semibold text-white text-lg">Rinq</span>
+        </div>
+      </div>
+      
+      <nav className="flex-1 p-4 space-y-1">
+        {nav.map(item => {
+          const active = path === item.href
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                active 
+                  ? 'bg-blue-500/10 text-blue-400' 
+                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-[#1a1a1a]'
+              }`}
+            >
+              <item.icon className="w-4 h-4" />
+              {item.label}
+            </Link>
+          )
+        })}
+      </nav>
+
+      <div className="p-4 border-t border-[#1a1a1a]">
+        <Link
+          href="/create-agent"
+          className="flex items-center justify-center gap-2 w-full py-2.5 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors"
+        >
+          + New Agent
+        </Link>
+      </div>
+    </div>
+  )
+}
+```
+
+---
+
+### Day 14 — Test Everything End to End
+
+**Step 1** — Deploy backend to Railway with all environment variables set.
+
+**Step 2** — Deploy frontend to Vercel with `NEXT_PUBLIC_API_URL` pointing to Railway.
+
+**Step 3** — Run the full user journey yourself:
+- Sign up on the frontend
+- Create an agent for a fake dental clinic
+- Fill in all the business information
+- Read the call forwarding instructions
+- Call the Twilio number directly to simulate a forwarded call
+- Say "Hi I want to book an appointment for Thursday"
+- Confirm the AI responds naturally with the clinic's actual information
+- Check your WhatsApp for the call summary
+- Open the dashboard and see the call logged with transcript
+
+**Step 4** — Fix every broken thing you encounter.
+
+**Step 5** — Call your two beta customers and walk them through setup in real time. Get them live.
+
+**Step 6** — Commit everything to GitHub. Railway auto-deploys. You now have a working product.
+
+---
+
+## The Difference This Time
+
+No months of building. No waiting for perfect. By Day 14 real people can sign up, build their agent in 15 minutes, forward their phone, and have a working AI receptionist. That is the entire week's goal. Everything after Day 14 is improving what already works and finding paying customers for it.
