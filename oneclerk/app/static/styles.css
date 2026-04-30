@@ -4339,3 +4339,511 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   .ap-voice-col { border-right: none; border-bottom: 1px solid rgba(255,255,255,.06); }
   .ap-wa-msgs { max-height: 180px; }
 }
+
+/* ============================================================
+   v17 — TABBED SIDE PREVIEW (WhatsApp / Gmail / Calendar)
+   ============================================================ */
+.ap-section-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.ap-side-col, .ap-fp-side {
+  display: flex; flex-direction: column;
+  background: #fff;
+  min-height: 0;
+}
+.ap-fp-side {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.ap-tabs {
+  display: flex;
+  background: #f4f1ea;
+  border-bottom: 1px solid var(--border);
+  padding: 6px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.ap-tab {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  gap: 6px;
+  padding: 8px 8px;
+  border-radius: 9px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: background .15s, color .15s, border-color .15s, transform .12s;
+}
+.ap-tab:hover { background: rgba(15,15,20,0.04); color: var(--text); }
+.ap-tab.is-active {
+  background: #fff;
+  color: var(--text);
+  border-color: var(--border);
+  box-shadow: 0 1px 3px rgba(15,15,20,0.05);
+}
+.ap-tab-ic { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
+.ap-tab-ic svg { width: 18px; height: 18px; display: block; }
+.ap-tab-lbl { white-space: nowrap; }
+
+.ap-pane-wrap { flex: 1; min-height: 0; position: relative; display: flex; }
+.ap-pane {
+  display: none;
+  flex: 1; min-width: 0;
+  flex-direction: column;
+}
+.ap-pane.is-active { display: flex; animation: apPaneIn .25s ease both; }
+@keyframes apPaneIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   v17 — GMAIL window (typing animation, send button)
+   ============================================================ */
+.ap-gm-wrap {
+  display: flex; flex-direction: column;
+  width: 100%; height: 100%; min-height: 300px;
+  background: #fff;
+  font-family: 'Roboto', 'Poppins', sans-serif;
+}
+.ap-gm-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: #f6f8fb;
+  border-bottom: 1px solid #e5e7eb;
+}
+.ap-gm-logo { width: 22px; height: 22px; }
+.ap-gm-logo svg { width: 22px; height: 22px; display: block; }
+.ap-gm-htitle { flex: 1; font-size: 13px; font-weight: 600; color: #202124; }
+.ap-gm-actions { display: flex; gap: 4px; }
+.ap-gm-dot { width: 8px; height: 8px; border-radius: 50%; background: #dadce0; }
+.ap-gm-fields {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f3f4;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.ap-gm-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px;
+  color: #202124;
+  min-height: 22px;
+}
+.ap-gm-lbl {
+  width: 50px;
+  font-size: 11px;
+  color: #5f6368;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.ap-gm-pill {
+  background: #e8f0fe; color: #1967d2;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.ap-gm-from { color: #5f6368; font-size: 11px; }
+.ap-gm-subj { font-weight: 600; }
+.ap-gm-caret {
+  display: inline-block;
+  width: 1px; height: 14px;
+  background: #1a73e8;
+  animation: apGmCaret 1s steps(2) infinite;
+  margin-left: 1px;
+}
+@keyframes apGmCaret { 50% { opacity: 0; } }
+.ap-gm-body {
+  flex: 1; overflow-y: auto;
+  padding: 12px 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #202124;
+  min-height: 0;
+  max-height: 220px;
+}
+.ap-gm-line { min-height: 18px; white-space: pre-wrap; }
+.ap-gm-footer {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px solid #e5e7eb;
+  background: #fafbfc;
+}
+.ap-gm-send {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #1a73e8;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 16px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(26,115,232,0.3);
+  transition: background .2s, transform .2s;
+}
+.ap-gm-send-ic { display: inline-block; transform: translateX(0); transition: transform .35s ease; }
+.ap-gm-send.is-sent {
+  background: #34a853;
+}
+.ap-gm-send.is-sent .ap-gm-send-ic {
+  transform: translateX(40px) rotate(15deg);
+  opacity: 0;
+}
+.ap-gm-status {
+  font-size: 11.5px;
+  color: #34a853;
+  font-weight: 500;
+}
+
+/* ============================================================
+   v17 — CALENDAR window (week strip with bookings)
+   ============================================================ */
+.ap-cal-wrap {
+  display: flex; flex-direction: column;
+  width: 100%; height: 100%; min-height: 300px;
+  background: #fff;
+  font-family: 'Roboto', 'Poppins', sans-serif;
+}
+.ap-cal-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: #f6f8fb;
+  border-bottom: 1px solid #e5e7eb;
+}
+.ap-cal-logo { width: 24px; height: 24px; }
+.ap-cal-logo svg { width: 24px; height: 24px; display: block; }
+.ap-cal-titleblock { flex: 1; min-width: 0; }
+.ap-cal-title { font-size: 13.5px; font-weight: 600; color: #202124; }
+.ap-cal-sub { font-size: 11px; color: #5f6368; margin-top: 1px; }
+.ap-cal-grid {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: #e5e7eb;
+  padding: 1px;
+}
+.ap-cal-day {
+  background: #fff;
+  display: flex; flex-direction: column;
+  padding: 6px 4px 8px;
+  min-height: 130px;
+  position: relative;
+}
+.ap-cal-day.is-today { background: #e8f0fe; }
+.ap-cal-dow {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #5f6368;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+.ap-cal-dnum {
+  font-size: 16px;
+  font-weight: 500;
+  color: #202124;
+  text-align: center;
+  margin: 2px 0 6px;
+}
+.ap-cal-day.is-today .ap-cal-dnum {
+  color: #fff;
+  background: #1a73e8;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 2px auto 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.ap-cal-events { display: flex; flex-direction: column; gap: 3px; padding: 0 2px; }
+.ap-cal-evt {
+  background: var(--evt-c, #4285F4);
+  color: #fff;
+  border-radius: 4px;
+  padding: 3px 5px;
+  font-size: 9.5px;
+  line-height: 1.25;
+  cursor: pointer;
+  animation: apCalEvtIn .35s cubic-bezier(.34,1.56,.64,1) both;
+  box-shadow: 0 1px 2px rgba(15,15,20,0.12);
+  overflow: hidden;
+}
+@keyframes apCalEvtIn {
+  from { opacity: 0; transform: scale(.7); }
+  to { opacity: 1; transform: scale(1); }
+}
+.ap-cal-evt-time { font-weight: 600; opacity: 0.95; }
+.ap-cal-evt-who { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ap-cal-evt-kind { opacity: 0.85; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ap-cal-footer {
+  padding: 8px 14px;
+  border-top: 1px solid #e5e7eb;
+  background: #fafbfc;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11.5px;
+  color: #5f6368;
+}
+.ap-cal-pulse {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #34a853;
+  box-shadow: 0 0 0 3px rgba(52,168,83,0.18);
+  animation: apCalPulse 1.6s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes apCalPulse {
+  0%,100% { box-shadow: 0 0 0 3px rgba(52,168,83,0.18); transform: scale(1); }
+  50% { box-shadow: 0 0 0 6px rgba(52,168,83,0.06); transform: scale(1.15); }
+}
+.ap-cal-foot-text { transition: opacity .25s; }
+
+/* ============================================================
+   v17 — BUILDER POLISH (grip, alignment guides, handle pulse)
+   ============================================================ */
+.agb-box-grip {
+  font-family: monospace;
+  font-size: 12px;
+  color: rgba(15,15,20,0.28);
+  letter-spacing: -2px;
+  margin-right: 4px;
+  user-select: none;
+  transition: color .15s;
+}
+.agb-box-head:hover .agb-box-grip { color: rgba(15,15,20,0.55); }
+
+/* Alignment guides shown while dragging — span entire 1600x1100 canvas. */
+.agb-guide {
+  position: absolute;
+  background: #f59e0b;
+  pointer-events: none;
+  z-index: 998;
+  box-shadow: 0 0 4px rgba(245,158,11,0.55);
+  animation: agbGuideIn .12s ease both;
+}
+.agb-guide-v { top: 0; bottom: 0; width: 1px; }
+.agb-guide-h { left: 0; right: 0; height: 1px; }
+@keyframes agbGuideIn {
+  from { opacity: 0; }
+  to { opacity: 0.85; }
+}
+
+/* Connection handle — bigger, friendlier hit target with inner dot + pulse. */
+.agb-handle {
+  width: 18px; height: 18px;
+  background: #fff;
+  border: 2px solid var(--primary);
+  display: flex; align-items: center; justify-content: center;
+}
+.agb-handle-in  { left: -9px; margin-top: -9px; border-color: rgba(15,15,20,0.35); }
+.agb-handle-out { right: -9px; margin-top: -9px; }
+.agb-handle-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--primary);
+  transition: transform .15s;
+}
+.agb-handle-in .agb-handle-dot { background: rgba(15,15,20,0.45); }
+.agb-handle:hover { transform: scale(1.25); background: var(--primary); }
+.agb-handle:hover .agb-handle-dot { background: #fff; }
+.agb-handle-pulse {
+  position: absolute; inset: -3px;
+  border-radius: 50%;
+  border: 2px solid var(--primary);
+  opacity: 0; pointer-events: none;
+  animation: agbHandlePulse 2.4s ease-out infinite;
+}
+@keyframes agbHandlePulse {
+  0% { transform: scale(1); opacity: 0.55; }
+  70% { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+.agb-box:hover .agb-handle-pulse { animation-play-state: running; }
+
+/* Plus orb — gentle attention pulse when menu is closed and canvas is empty */
+.agb-orb-plus:not(.is-open) {
+  box-shadow: 0 8px 22px -10px rgba(15,15,20,0.5),
+              0 0 0 0 rgba(245,158,11,0.45);
+  animation: agbOrbHint 2.6s ease-out infinite;
+}
+@keyframes agbOrbHint {
+  0%   { box-shadow: 0 8px 22px -10px rgba(15,15,20,0.5), 0 0 0 0   rgba(245,158,11,0.45); }
+  70%  { box-shadow: 0 8px 22px -10px rgba(15,15,20,0.5), 0 0 0 14px rgba(245,158,11,0); }
+  100% { box-shadow: 0 8px 22px -10px rgba(15,15,20,0.5), 0 0 0 0   rgba(245,158,11,0); }
+}
+
+/* ============================================================
+   v17 — COMPREHENSIVE MOBILE RESPONSIVENESS
+   Keep absolute positions intact; just shrink components + text.
+   ============================================================ */
+
+/* ==== Tablet: ≤ 900px ==== */
+@media (max-width: 900px) {
+  /* Landing nav — keep visible, shrink padding/font */
+  .lp-nav { padding: 10px 14px !important; }
+  .lp-brand { font-size: 14px !important; }
+  .lp-links { gap: 14px !important; font-size: 12px !important; }
+  .lp-cta { gap: 8px !important; }
+  .lp-signin, .lp-getstarted { padding: 7px 12px !important; font-size: 12px !important; }
+
+  /* Hero title shrinks but stays in place */
+  .lp-title { font-size: clamp(26px, 5.4vw, 42px) !important; }
+  .lp-sub  { font-size: 14px !important; }
+  .lp-cta-row { gap: 10px !important; }
+  .lp-cta-primary, .lp-cta-secondary { padding: 10px 16px !important; font-size: 13px !important; }
+
+  /* Notes row collapses to 2x2 */
+  .lp-notes-row {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 18px 14px !important;
+    max-width: 640px !important;
+    padding: 0 18px !important;
+  }
+  .lp-note-arr { display: none !important; }
+  .lp-note-3d { padding: 14px 12px 16px !important; }
+  .lp-note .lp-note-title { font-size: 14px !important; }
+  .lp-note .lp-note-body { font-size: 12px !important; }
+
+  /* Glass plate shrinks */
+  .lp-glass-plate { max-width: 92vw !important; height: 180px !important; margin-top: 28px !important; }
+  .lp-int { font-size: 10.5px !important; padding: 6px 9px !important; }
+  .lp-int-ic, .lp-int-ic-brand { width: 22px !important; height: 22px !important; }
+
+  /* Pricing grid collapses to 2-column */
+  .lp-plan-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 14px !important; }
+  .lp-billing { padding-left: 18px !important; padding-right: 18px !important; }
+
+  /* Try-it-live shrinks */
+  .lp-try { padding: 40px 18px !important; }
+  .lp-try-controls { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+}
+
+/* ==== Phone: ≤ 600px ==== */
+@media (max-width: 600px) {
+  /* App container chrome — shrink sidebar paddings, header text */
+  .app-shell { font-size: 14px; }
+  .topbar { padding: 8px 12px !important; }
+  .sidebar { width: 60px !important; }
+  .sidebar .nav-label { display: none !important; }
+  .sidebar .nav-item { justify-content: center !important; padding: 10px 0 !important; }
+  .main-content, .page { padding: 14px !important; }
+
+  /* Stack all 2-col grids to 1-col, but preserve relative positions */
+  .grid-2, .grid-cols-2 { grid-template-columns: 1fr !important; }
+
+  /* Landing nav: hide center links to save space, keep CTA */
+  .lp-nav { padding: 8px 12px !important; }
+  .lp-links { display: none !important; }
+  .lp-brand { font-size: 13px !important; }
+  .lp-signin { padding: 6px 10px !important; font-size: 11.5px !important; }
+  .lp-getstarted { padding: 7px 12px !important; font-size: 11.5px !important; }
+  .lp-getstarted .arr { display: none !important; }
+
+  /* Hero text — keep proportion, shrink */
+  .lp-hero { padding: 24px 14px 12px !important; }
+  .lp-eyebrow { font-size: 10px !important; padding: 4px 10px !important; }
+  .lp-title { font-size: clamp(22px, 7vw, 30px) !important; line-height: 1.1 !important; }
+  .lp-title em { font-style: italic; }
+  .lp-sub  { font-size: 12.5px !important; line-height: 1.45 !important; padding: 0 4px !important; }
+  .lp-cta-row { flex-direction: column !important; align-items: stretch !important; gap: 8px !important; max-width: 280px; margin: 16px auto 0 !important; }
+  .lp-cta-primary, .lp-cta-secondary { padding: 10px 14px !important; font-size: 13px !important; width: 100% !important; justify-content: center !important; }
+
+  /* Notes row → single column, no rotation, tighter */
+  .lp-notes-row {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    max-width: 360px !important;
+    padding: 0 14px !important;
+    margin-top: 18px !important;
+  }
+  .lp-note-3d, .lp-note-3d[data-i="0"], .lp-note-3d[data-i="1"], .lp-note-3d[data-i="2"], .lp-note-3d[data-i="3"] {
+    transform: none !important;
+    padding: 12px 12px 14px !important;
+  }
+  .lp-note .lp-note-title { font-size: 13.5px !important; }
+  .lp-note .lp-note-body  { font-size: 11.5px !important; line-height: 1.45 !important; }
+
+  /* Glass plate: more compact, hide tiny labels */
+  .lp-glass-plate { max-width: 96vw !important; height: 150px !important; margin-top: 22px !important; }
+  .lp-int .lp-int-lbl { display: none !important; }
+  .lp-int { padding: 5px !important; border-radius: 10px !important; }
+  .lp-int-ic, .lp-int-ic-brand { width: 22px !important; height: 22px !important; }
+
+  /* Hide floating brand cards on phone — they overlap content */
+  .lp-floats { display: none !important; }
+  .lp-side-fade { width: 8vw !important; }
+
+  /* Use cases / cases slider header */
+  .lp-cases-head h2, .lp-try-head h2, .lp-billing-head h2, .lp-qna-head h2, .lp-reviews-head h2 {
+    font-size: clamp(20px, 5.6vw, 28px) !important;
+  }
+  .lp-cases-head p, .lp-try-head p, .lp-billing-head p {
+    font-size: 12.5px !important;
+  }
+
+  /* Try-it-live */
+  .lp-try { padding: 28px 12px !important; }
+  .lp-try-card { padding: 18px !important; border-radius: 16px !important; }
+  .lp-try-controls { grid-template-columns: 1fr !important; gap: 8px !important; }
+  .lp-try-stage { padding: 16px 0 !important; }
+  .lp-try-actions { flex-direction: column !important; gap: 10px !important; }
+  .lp-try-talk, .lp-try-secondary { width: 100% !important; justify-content: center !important; padding: 10px 14px !important; font-size: 13px !important; }
+
+  /* Pricing — single col on phone */
+  .lp-plan-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
+  .lp-plan { padding: 18px !important; }
+  .lp-plan-name { font-size: 16px !important; }
+  .lp-plan-price .amt { font-size: 28px !important; }
+
+  /* QnA */
+  .lp-qna { padding: 28px 12px !important; }
+  .lp-qna-item summary { font-size: 13px !important; padding: 12px 14px !important; }
+  .lp-qna-a { font-size: 12px !important; padding: 0 14px 12px !important; }
+
+  /* Footer */
+  .lp-footer { padding: 36px 14px 20px !important; }
+  .lp-footer-links { grid-template-columns: 1fr 1fr !important; gap: 14px !important; }
+
+  /* Reviews track — slow but keep moving */
+  .lp-track { gap: 10px !important; }
+
+  /* ==== Dashboard preview (already collapses to single col at 768px) ==== */
+  .ap-section-header { flex-direction: column; align-items: flex-start !important; gap: 10px !important; padding: 14px 14px 10px !important; }
+  .ap-section-actions { width: 100%; }
+  .ap-section-actions .btn { flex: 1; font-size: 12px !important; }
+  .ap-tab-lbl { display: none; }
+  .ap-tab { padding: 8px 6px !important; }
+  .ap-cal-day { min-height: 96px; }
+  .ap-cal-evt { font-size: 8.5px !important; padding: 2px 4px !important; }
+  .ap-gm-body { max-height: 160px; font-size: 11.5px !important; padding: 10px 12px !important; }
+  .ap-wa-msgs { max-height: 160px; }
+
+  /* ==== Agent builder (canvas) — make orb smaller, palette items tighter ==== */
+  .agb-orb-wrap { top: 8px; gap: 8px; }
+  .agb-orb { width: 60px; height: 60px; }
+  .agb-orb-mark { font-size: 18px; }
+  .agb-orb-plus { width: 38px; height: 38px; }
+  .agb-orb-plus .icon { width: 16px; height: 16px; }
+  .agb-orb-menu { width: min(280px, calc(100vw - 32px)); top: 76px; }
+
+  /* Cards on canvas — slightly smaller text so they fit a phone canvas better */
+  .agb-box-title { font-size: 11.5px; }
+  .agb-box-body { padding: 8px 10px; }
+  .agb-inline { font-size: 11px; padding: 6px 8px; }
+
+  /* Sticky-note edge labels — smaller on phone */
+  .agb-edge-note { width: 110px; padding: 3px 5px; }
+  .agb-edge-input { font-size: 12px; }
+}
+
+/* ==== Tiny phones: ≤ 380px ==== */
+@media (max-width: 380px) {
+  .lp-title { font-size: 20px !important; }
+  .lp-sub  { font-size: 11.5px !important; }
+  .lp-glass-plate { height: 130px !important; }
+  .ap-cal-day { min-height: 80px; padding: 4px 2px 6px; }
+  .ap-cal-dnum { font-size: 13px; }
+  .ap-cal-evt { font-size: 8px !important; }
+}

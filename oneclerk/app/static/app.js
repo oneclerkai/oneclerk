@@ -2564,14 +2564,15 @@ function initBuilderCanvas(stage, layout) {
         </label>`;
     }
     return `
-      <div class="agb-box-head" style="--ax:${def.accent}">
+      <div class="agb-box-head" style="--ax:${def.accent}" title="Drag to move">
         ${boxHeadIcon(box.kind)}
         <div class="agb-box-title">${def.label}</div>
+        <span class="agb-box-grip" aria-hidden="true">⋮⋮</span>
         <button class="agb-box-x" data-act="del" title="Delete">×</button>
       </div>
       <div class="agb-box-body">${body}</div>
-      <div class="agb-handle agb-handle-in" title="Connect from here"></div>
-      <div class="agb-handle agb-handle-out" title="Drag to connect to another card"></div>
+      <div class="agb-handle agb-handle-in" title="Incoming connection"><span class="agb-handle-dot"></span></div>
+      <div class="agb-handle agb-handle-out" title="Drag to connect to another card"><span class="agb-handle-dot"></span><span class="agb-handle-pulse"></span></div>
     `;
   }
 
@@ -2689,6 +2690,18 @@ function initBuilderCanvas(stage, layout) {
     });
   }
 
+  // Helpers — alignment guides while dragging (snap to other boxes' x/y).
+  const ALIGN_SNAP = 8;
+  function clearGuides() {
+    canvas.querySelectorAll(".agb-guide").forEach(g => g.remove());
+  }
+  function drawGuide(orient, px) {
+    const g = document.createElement("div");
+    g.className = `agb-guide agb-guide-${orient}`;
+    if (orient === "v") g.style.left = px + "px"; else g.style.top = px + "px";
+    canvas.appendChild(g);
+  }
+
   // Window-level mouse + touch handlers
   function pointerMove(clientX, clientY) {
     if (state.dragBox) {
@@ -2696,8 +2709,34 @@ function initBuilderCanvas(stage, layout) {
       if (box) {
         const rawX = state.dragBox.ox + (clientX - state.dragBox.mx);
         const rawY = state.dragBox.oy + (clientY - state.dragBox.my);
-        box.x = snapV(Math.max(0, rawX));
-        box.y = snapV(Math.max(0, rawY));
+        let nx = snapV(Math.max(0, rawX));
+        let ny = snapV(Math.max(0, rawY));
+        // Align-to-other-boxes: snap left/center/right, top/center/bottom edges.
+        clearGuides();
+        const targets = layout.boxes.filter(b => b.id !== box.id);
+        const myL = nx, myCx = nx + BOX_W / 2, myR = nx + BOX_W;
+        const myT = ny, myCy = ny + BOX_H / 2, myB = ny + BOX_H;
+        for (const o of targets) {
+          const oL = o.x, oCx = o.x + BOX_W / 2, oR = o.x + BOX_W;
+          const oT = o.y, oCy = o.y + BOX_H / 2, oB = o.y + BOX_H;
+          for (const [m, t, kind] of [[myL,oL,"L"],[myCx,oCx,"Cx"],[myR,oR,"R"]]) {
+            if (Math.abs(m - t) <= ALIGN_SNAP) {
+              if (kind === "L") nx = oL;
+              else if (kind === "Cx") nx = oCx - BOX_W / 2;
+              else if (kind === "R") nx = oR - BOX_W;
+              drawGuide("v", t);
+            }
+          }
+          for (const [m, t, kind] of [[myT,oT,"T"],[myCy,oCy,"Cy"],[myB,oB,"B"]]) {
+            if (Math.abs(m - t) <= ALIGN_SNAP) {
+              if (kind === "T") ny = oT;
+              else if (kind === "Cy") ny = oCy - BOX_H / 2;
+              else if (kind === "B") ny = oB - BOX_H;
+              drawGuide("h", t);
+            }
+          }
+        }
+        box.x = nx; box.y = ny;
         const el = canvas.querySelector(`.agb-box[data-id="${box.id}"]`);
         if (el) { el.style.left = box.x + "px"; el.style.top = box.y + "px"; }
         // Auto-scroll when near canvas-wrap edges
@@ -2733,6 +2772,7 @@ function initBuilderCanvas(stage, layout) {
       const el = canvas.querySelector(`.agb-box[data-id="${state.dragBox.id}"]`);
       if (el) el.classList.remove("is-dragging");
       wrap.classList.remove("is-dragging-active");
+      clearGuides();
     }
     state.dragBox = null;
   }
@@ -3814,7 +3854,7 @@ function mountDashboardPreview(container, agent) {
             <svg viewBox="0 0 48 48" fill="none" width="48" height="48"><circle cx="24" cy="24" r="24" fill="var(--primary)" opacity=".12"/><path d="M24 12c-6.6 0-12 5.4-12 12s5.4 12 12 12 12-5.4 12-12S30.6 12 24 12zm-2 17v-6l5 3-5 3zm0-8v-6l5 3-5 3z" fill="var(--primary)"/></svg>
           </div>
           <div class="ap-empty-title">Build your first AI receptionist</div>
-          <div class="ap-empty-sub">Create an agent and see it answer calls and send WhatsApp summaries — live.</div>
+          <div class="ap-empty-sub">Create an agent and see it answer calls, send WhatsApp summaries, fire off Gmail follow-ups, and drop bookings into your calendar — live.</div>
           <button class="btn btn-primary ap-empty-cta" id="ap-create">Create agent <i data-lucide="arrow-right" class="icon"></i></button>
         </div>
       </div>`;
@@ -3828,24 +3868,240 @@ function mountDashboardPreview(container, agent) {
       <div class="ap-section-header">
         <div>
           <div class="ap-section-title">Agent Preview</div>
-          <div class="ap-section-sub">Live preview of how your agent sounds and responds</div>
+          <div class="ap-section-sub">Watch your agent answer the call and fire off the follow-ups — live</div>
         </div>
-        <div class="flex gap-2">
+        <div class="ap-section-actions">
           <button class="btn btn-ghost btn-sm" id="ap-edit-btn">Edit agent</button>
           <button class="btn btn-primary btn-sm" id="ap-full-btn">Full preview</button>
         </div>
       </div>
       <div class="ap-body">
         <div class="ap-voice-col" id="ap-voice-col"></div>
-        <div class="ap-wa-col" id="ap-wa-col"></div>
+        <div class="ap-side-col">
+          <div class="ap-tabs" role="tablist">
+            <button class="ap-tab is-active" data-pane="wa" role="tab">
+              <span class="ap-tab-ic">${brandSvg("whatsapp")}</span><span class="ap-tab-lbl">WhatsApp</span>
+            </button>
+            <button class="ap-tab" data-pane="gm" role="tab">
+              <span class="ap-tab-ic">${brandSvg("gmail")}</span><span class="ap-tab-lbl">Gmail</span>
+            </button>
+            <button class="ap-tab" data-pane="cal" role="tab">
+              <span class="ap-tab-ic">${brandSvg("gcal")}</span><span class="ap-tab-lbl">Calendar</span>
+            </button>
+          </div>
+          <div class="ap-pane-wrap">
+            <div class="ap-pane is-active" data-pane="wa" id="ap-wa-col"></div>
+            <div class="ap-pane" data-pane="gm" id="ap-gm-col"></div>
+            <div class="ap-pane" data-pane="cal" id="ap-cal-col"></div>
+          </div>
+        </div>
       </div>
     </div>`;
 
   mountVoiceAnimation(container.querySelector("#ap-voice-col"), agent);
   mountWhatsAppWindow(container.querySelector("#ap-wa-col"), agent);
+  mountGmailWindow(container.querySelector("#ap-gm-col"), agent);
+  mountCalendarWindow(container.querySelector("#ap-cal-col"), agent);
+
+  // Tab wiring + auto-rotate
+  const tabs = Array.from(container.querySelectorAll(".ap-tab"));
+  const panes = Array.from(container.querySelectorAll(".ap-pane"));
+  let manuallyChanged = false;
+  function show(pane) {
+    tabs.forEach(t => t.classList.toggle("is-active", t.dataset.pane === pane));
+    panes.forEach(p => p.classList.toggle("is-active", p.dataset.pane === pane));
+  }
+  tabs.forEach(t => t.addEventListener("click", () => {
+    manuallyChanged = true;
+    show(t.dataset.pane);
+  }));
+  // Auto-rotate every 8s until the user picks one
+  const order = ["wa", "gm", "cal"];
+  let idx = 0;
+  const rotate = setInterval(() => {
+    if (manuallyChanged || !document.body.contains(container)) {
+      if (!document.body.contains(container)) clearInterval(rotate);
+      return;
+    }
+    idx = (idx + 1) % order.length;
+    show(order[idx]);
+  }, 8000);
 
   container.querySelector("#ap-edit-btn").addEventListener("click", () => navigate(`#/agents/${agent.id}/edit`));
   container.querySelector("#ap-full-btn").addEventListener("click", () => navigate(`#/agents/${agent.id}/preview`));
+}
+
+// Gmail follow-up window — typing animation that "sends" an email after the call.
+function mountGmailWindow(container, agent) {
+  if (!container) return;
+  const cfg = agent ? (agent.config || {}) : {};
+  const biz = cfg.business_name || agent?.name || "Your Business";
+  const agentName = cfg.agent_name || "AI Receptionist";
+  const callerName = "Priya Shah";
+  const callerEmail = "priya.shah@gmail.com";
+  const subject = `Your appointment with ${biz} — confirmed`;
+  const bodyLines = [
+    `Hi ${callerName.split(" ")[0]},`,
+    ``,
+    `Thanks for calling ${biz}! Just confirming your appointment for tomorrow at 10:00 AM.`,
+    ``,
+    `If anything changes, reply to this email or call us back — ${agentName} will pick up.`,
+    ``,
+    `See you soon!`,
+    `— ${biz}`,
+  ];
+  container.innerHTML = `
+    <div class="ap-gm-wrap">
+      <div class="ap-gm-header">
+        <div class="ap-gm-logo">${brandSvg("gmail")}</div>
+        <div class="ap-gm-htitle">New message</div>
+        <div class="ap-gm-actions">
+          <span class="ap-gm-dot"></span><span class="ap-gm-dot"></span><span class="ap-gm-dot"></span>
+        </div>
+      </div>
+      <div class="ap-gm-fields">
+        <div class="ap-gm-row"><span class="ap-gm-lbl">To</span><span class="ap-gm-pill">${escapeHtml(callerName)} &lt;${escapeHtml(callerEmail)}&gt;</span></div>
+        <div class="ap-gm-row"><span class="ap-gm-lbl">From</span><span class="ap-gm-from">${escapeHtml(biz)} &lt;hello@${biz.toLowerCase().replace(/[^a-z0-9]/g,"")||"yourbiz"}.com&gt;</span></div>
+        <div class="ap-gm-row ap-gm-subj"><span class="ap-gm-lbl">Subject</span><span id="ap-gm-subj-text"></span><span class="ap-gm-caret"></span></div>
+      </div>
+      <div class="ap-gm-body" id="ap-gm-body"></div>
+      <div class="ap-gm-footer">
+        <button class="ap-gm-send" id="ap-gm-send-btn"><span class="ap-gm-send-ic">✈</span><span>Send</span></button>
+        <span class="ap-gm-status" id="ap-gm-status"></span>
+      </div>
+    </div>`;
+
+  const subjEl = container.querySelector("#ap-gm-subj-text");
+  const bodyEl = container.querySelector("#ap-gm-body");
+  const statusEl = container.querySelector("#ap-gm-status");
+  const sendBtn = container.querySelector("#ap-gm-send-btn");
+
+  let cancelled = false;
+  function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+  async function typeInto(el, text, speed = 18) {
+    el.textContent = "";
+    for (const ch of text) {
+      if (cancelled || !document.body.contains(container)) return;
+      el.textContent += ch;
+      await delay(speed);
+    }
+  }
+  async function typeBody() {
+    bodyEl.innerHTML = "";
+    for (const line of bodyLines) {
+      if (cancelled || !document.body.contains(container)) return;
+      const lineEl = document.createElement("div");
+      lineEl.className = "ap-gm-line";
+      bodyEl.appendChild(lineEl);
+      await typeInto(lineEl, line, 12);
+      await delay(120);
+    }
+  }
+  async function loop() {
+    while (!cancelled && document.body.contains(container)) {
+      subjEl.textContent = "";
+      bodyEl.innerHTML = "";
+      statusEl.textContent = "";
+      sendBtn.classList.remove("is-sent");
+      await delay(500);
+      await typeInto(subjEl, subject, 22);
+      await delay(280);
+      await typeBody();
+      await delay(700);
+      sendBtn.classList.add("is-sent");
+      statusEl.textContent = "✓ Sent · just now";
+      await delay(4500);
+    }
+  }
+  loop();
+  // Cleanup observer
+  const obs = new MutationObserver(() => {
+    if (!document.body.contains(container)) { cancelled = true; obs.disconnect(); }
+  });
+  obs.observe(document.body, { childList: true, subtree: true });
+}
+
+// Calendar window — Google Calendar look with new bookings appearing live.
+function mountCalendarWindow(container, agent) {
+  if (!container) return;
+  const cfg = agent ? (agent.config || {}) : {};
+  const biz = cfg.business_name || agent?.name || "Your Business";
+  // Build the next 7 days starting from today
+  const today = new Date();
+  const days = Array.from({length: 7}, (_, i) => {
+    const d = new Date(today); d.setDate(today.getDate() + i);
+    return d;
+  });
+  const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const monthName = today.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
+  const slotDefs = [
+    { day: 1, time: "10:00 AM", who: "Priya Shah", kind: "Cleaning", color: "#4285F4" },
+    { day: 2, time: "2:30 PM",  who: "Marcus Lee", kind: "Consultation", color: "#0F9D58" },
+    { day: 0, time: "4:15 PM",  who: "Aisha Khan", kind: "Follow-up", color: "#DB4437" },
+    { day: 4, time: "11:00 AM", who: "Rahul Verma", kind: "New patient", color: "#F4B400" },
+    { day: 5, time: "9:30 AM",  who: "Emma Cole", kind: "Cleaning", color: "#4285F4" },
+  ];
+
+  container.innerHTML = `
+    <div class="ap-cal-wrap">
+      <div class="ap-cal-header">
+        <div class="ap-cal-logo">${brandSvg("gcal")}</div>
+        <div class="ap-cal-titleblock">
+          <div class="ap-cal-title">${monthName}</div>
+          <div class="ap-cal-sub">${escapeHtml(biz)} · bookings dropping in live</div>
+        </div>
+      </div>
+      <div class="ap-cal-grid" id="ap-cal-grid">
+        ${days.map((d, i) => `
+          <div class="ap-cal-day ${i === 0 ? 'is-today' : ''}" data-i="${i}">
+            <div class="ap-cal-dow">${dayNames[d.getDay()]}</div>
+            <div class="ap-cal-dnum">${d.getDate()}</div>
+            <div class="ap-cal-events" data-d="${i}"></div>
+          </div>`).join("")}
+      </div>
+      <div class="ap-cal-footer">
+        <span class="ap-cal-pulse"></span>
+        <span class="ap-cal-foot-text" id="ap-cal-foot-text">Listening for new bookings…</span>
+      </div>
+    </div>`;
+
+  const footText = container.querySelector("#ap-cal-foot-text");
+  let cancelled = false;
+  function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  function clearEvents() {
+    container.querySelectorAll(".ap-cal-events").forEach(c => c.innerHTML = "");
+  }
+  async function addBooking(slot) {
+    const slotEl = container.querySelector(`.ap-cal-events[data-d="${slot.day}"]`);
+    if (!slotEl) return;
+    const ev = document.createElement("div");
+    ev.className = "ap-cal-evt";
+    ev.style.setProperty("--evt-c", slot.color);
+    ev.innerHTML = `<div class="ap-cal-evt-time">${slot.time}</div><div class="ap-cal-evt-who">${escapeHtml(slot.who)}</div><div class="ap-cal-evt-kind">${escapeHtml(slot.kind)}</div>`;
+    slotEl.appendChild(ev);
+    footText.textContent = `📅 New booking · ${slot.who} · ${slot.time}`;
+    await delay(1800);
+    if (!cancelled) footText.textContent = "Listening for new bookings…";
+  }
+  async function loop() {
+    while (!cancelled && document.body.contains(container)) {
+      clearEvents();
+      await delay(800);
+      for (const slot of slotDefs) {
+        if (cancelled || !document.body.contains(container)) return;
+        await addBooking(slot);
+        await delay(1600);
+      }
+      await delay(2500);
+    }
+  }
+  loop();
+  const obs = new MutationObserver(() => {
+    if (!document.body.contains(container)) { cancelled = true; obs.disconnect(); }
+  });
+  obs.observe(document.body, { childList: true, subtree: true });
 }
 
 route("agentPreview", async (id) => {
@@ -3871,7 +4127,24 @@ route("agentPreview", async (id) => {
       </div>
       <div class="ap-fullpage-body">
         <div class="ap-fp-voice" id="ap-fp-voice"></div>
-        <div class="ap-fp-wa" id="ap-fp-wa"></div>
+        <div class="ap-fp-side">
+          <div class="ap-tabs" role="tablist">
+            <button class="ap-tab is-active" data-pane="wa" role="tab">
+              <span class="ap-tab-ic">${brandSvg("whatsapp")}</span><span class="ap-tab-lbl">WhatsApp</span>
+            </button>
+            <button class="ap-tab" data-pane="gm" role="tab">
+              <span class="ap-tab-ic">${brandSvg("gmail")}</span><span class="ap-tab-lbl">Gmail</span>
+            </button>
+            <button class="ap-tab" data-pane="cal" role="tab">
+              <span class="ap-tab-ic">${brandSvg("gcal")}</span><span class="ap-tab-lbl">Calendar</span>
+            </button>
+          </div>
+          <div class="ap-pane-wrap">
+            <div class="ap-pane is-active" data-pane="wa" id="ap-fp-wa"></div>
+            <div class="ap-pane" data-pane="gm" id="ap-fp-gm"></div>
+            <div class="ap-pane" data-pane="cal" id="ap-fp-cal"></div>
+          </div>
+        </div>
       </div>
       <div class="ap-fullpage-footer">
         <button class="btn" id="ap-fp-edit"><i data-lucide="edit-2" class="icon"></i>Edit Profile</button>
@@ -3882,6 +4155,16 @@ route("agentPreview", async (id) => {
 
     mountVoiceAnimation(preview.querySelector("#ap-fp-voice"), agent);
     mountWhatsAppWindow(preview.querySelector("#ap-fp-wa"), agent);
+    mountGmailWindow(preview.querySelector("#ap-fp-gm"), agent);
+    mountCalendarWindow(preview.querySelector("#ap-fp-cal"), agent);
+
+    // Tab wiring on full page
+    const fpTabs = Array.from(preview.querySelectorAll(".ap-tab"));
+    const fpPanes = Array.from(preview.querySelectorAll(".ap-pane"));
+    fpTabs.forEach(t => t.addEventListener("click", () => {
+      fpTabs.forEach(x => x.classList.toggle("is-active", x === t));
+      fpPanes.forEach(p => p.classList.toggle("is-active", p.dataset.pane === t.dataset.pane));
+    }));
 
     preview.querySelector("#ap-fp-edit").addEventListener("click", () => navigate(`#/agents/${id}/edit`));
     preview.querySelector("#ap-fp-activate").addEventListener("click", async () => {

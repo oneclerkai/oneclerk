@@ -119,3 +119,21 @@ Configured for Replit autoscale running the same uvicorn command. Push the Publi
 - **First-ever builder tutorial**: 5-step coach-mark overlay (welcome orb, click +, drag from anywhere, connect handles, save). Highlights the target with a glowing amber spot, animated pointer arrow, white card with `Step n of 5`, Back / Next, plus a `Skip tour` button shown **only on the first ever build** (gated by `localStorage["oc_seen_builder_tutorial"]`). Esc closes; resize/scroll repositions; auto-opens the orb menu when arriving at the "Add an integration" step.
 - **Auth remembering**: `ACCESS_TOKEN_EXPIRE_MINUTES` bumped to 30 days (was 60 min) so users stay signed in across sessions.
 - Cache-bust bumped to `v=16` in `index.html`.
+
+## v17 — preview tabs, builder polish, full mobile pass (2026-04-30)
+- **Dashboard preview** (`mountDashboardPreview`): the WhatsApp-only side window is now a 3-tab live mini-app (`.ap-tabs`, `.ap-pane-wrap`):
+  - **WhatsApp** — owner summary bubble (existing `mountWhatsAppWindow`).
+  - **Gmail** — `mountGmailWindow` types out a confirmation email (subject + body line-by-line) and animates the **Send** button into a green "✓ Sent · just now" status, then loops.
+  - **Calendar** — `mountCalendarWindow` shows a 7-day Google-Calendar-style strip and drops 5 colored bookings in one by one (`apCalEvtIn` pop), with a live "📅 New booking · …" status pulse.
+  - Tabs auto-rotate every 8s until the user clicks one. Same tabbed component is now used on the full agent preview page, with all three windows mounted and a click-to-switch wiring (no auto-rotate so it doesn't fight the user).
+- **Drag-and-drop polish** (agent builder canvas):
+  - Grip indicator (`.agb-box-grip` ⋮⋮) rendered in every box header so users instantly see it's draggable; header `title="Drag to move"`.
+  - **Alignment guides** (`.agb-guide-v` / `.agb-guide-h`) appear during drag whenever the moving box's L/Cx/R or T/Cy/B edges come within `ALIGN_SNAP=8px` of another box's edge — and the box snaps onto that line. Guides clear on drop.
+  - Connection handles are bigger (18×18 with a `.agb-handle-dot` core), the outgoing handle has a continuous `agbHandlePulse` ring so the affordance is discoverable.
+  - Plus-orb pulses softly (`agbOrbHint`) when its menu is closed so first-time users notice it. Click-toggles open/close (already in place).
+- **Mobile responsiveness pass** (`styles.css` v17 block, ~250 new lines):
+  - **≤900px (tablet)**: nav + hero shrink, comic notes go 2×2 (arrows hidden), glass plate compact, pricing 2-col, try-it-live controls 2-col.
+  - **≤600px (phone)**: sidebar collapses to icon-only 60px; landing nav hides center links; hero title clamps to 22–30px with stacked CTA buttons; comic notes stack to single column with no rotation; floating brand cards hidden; preview tabs hide labels (icon-only); calendar days shrink; agent-builder orb shrinks to 60px and orb menu becomes width-capped to viewport.
+  - **≤380px**: title 20px, calendar tile 80px high.
+  - All rules use `!important` only where needed to override inline absolute positions, and never reposition elements — they only shrink components and text per the request.
+- Cache-bust bumped to `v=20` in `index.html`.
