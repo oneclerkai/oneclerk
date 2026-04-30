@@ -1549,10 +1549,12 @@ route("dashboard", async () => {
       </div>`;
     clWrap.querySelectorAll("[data-hash]").forEach(b => b.addEventListener("click", () => navigate(b.dataset.hash)));
 
-    // Render agent preview card
+    // Render agent preview card — always show live preview (sample mode if no agent).
     const apWrap = $("#ap-wrap", page);
     const previewAgent = agentList.find(a => a.is_active) || agentList[0] || null;
-    mountDashboardPreview(apWrap, previewAgent);
+    let previewData = null;
+    try { previewData = await api("/dashboard/preview"); } catch { previewData = null; }
+    mountDashboardPreview(apWrap, previewAgent, previewData);
 
     const am = $("#agents-mini", page);
     if (!total) {
@@ -2115,11 +2117,19 @@ route("agents", async () => {
 
   if (!agents.length) {
     page.innerHTML = `
-      <div class="agb-empty">
+      <div class="agb-empty agb-empty-rich">
         <div class="agb-empty-card">
-          <i data-lucide="bot" class="icon agb-empty-icon"></i>
-          <h2>No agents yet</h2>
-          <p>Spin up your first AI receptionist. Takes about ten minutes from start to first call.</p>
+          <div class="agb-empty-orb">
+            <div class="agb-empty-orb-glow"></div>
+            <div class="agb-empty-orb-mark">OC</div>
+          </div>
+          <h2>Spin up your first AI receptionist</h2>
+          <p>Drag, drop, connect — phone, WhatsApp, calendar, email. About ten minutes from start to first answered call.</p>
+          <div class="agb-empty-bullets">
+            <div class="agb-empty-bullet"><span class="agb-empty-num">1</span><div><b>Tell us about your business</b><div class="agb-empty-bsub">Hours, services, common questions.</div></div></div>
+            <div class="agb-empty-bullet"><span class="agb-empty-num">2</span><div><b>Plug in your tools</b><div class="agb-empty-bsub">WhatsApp, Google Calendar, Gmail.</div></div></div>
+            <div class="agb-empty-bullet"><span class="agb-empty-num">3</span><div><b>Forward your number</b><div class="agb-empty-bsub">We answer the calls you'd otherwise miss.</div></div></div>
+          </div>
           <button class="btn btn-primary btn-lg" id="c1">
             <i data-lucide="sparkles" class="icon"></i>Create your first agent
           </button>
@@ -2149,16 +2159,61 @@ route("agents", async () => {
 
   let activeIdx = 0;
 
+  async function loadAgentSummary(agentId) {
+    try { return await api(`/agents/${agentId}/summary`); }
+    catch { return null; }
+  }
+
+  function relativeTime(iso) {
+    if (!iso) return "No calls yet";
+    const t = new Date(iso).getTime();
+    if (!t) return "No calls yet";
+    const diff = Math.max(0, Date.now() - t);
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return "Just now";
+    if (m < 60) return `${m} min ago`;
+    const hr = Math.floor(m / 60);
+    if (hr < 24) return `${hr}h ago`;
+    const d = Math.floor(hr / 24);
+    if (d < 30) return `${d}d ago`;
+    return new Date(iso).toLocaleDateString();
+  }
+
   function renderStage() {
     const a = agents[activeIdx];
     const layout = (a.config && a.config.builder_layout) || agbDefaultLayout(a);
+    const cfg = a.config || {};
+    const businessName = cfg.business_name || a.name;
+    const agentName = cfg.agent_name || "AI Receptionist";
+    const language = cfg.language || a.language || "English";
 
     const stage = $("#agb-stage", page);
     stage.innerHTML = `
-      <div class="agb-toolbar agb-toolbar-clean">
+      <div class="agb-summary" id="agb-summary">
+        <div class="agb-summary-left">
+          <div class="agb-summary-avatar">${escapeHtml(agentName.slice(0, 2).toUpperCase())}</div>
+          <div class="agb-summary-meta">
+            <div class="agb-summary-row">
+              <div class="agb-summary-name">${escapeHtml(agentName)}</div>
+              <span class="agb-summary-badge ${a.is_active ? 'is-live' : 'is-paused'}">
+                <span class="agb-summary-dot"></span>${a.is_active ? 'Live' : 'Paused'}
+              </span>
+            </div>
+            <div class="agb-summary-sub">${escapeHtml(businessName)} · ${escapeHtml(language)}${a.twilio_number ? ` · ${escapeHtml(a.twilio_number)}` : ' · No number connected'}</div>
+          </div>
+        </div>
+        <div class="agb-summary-stats" id="agb-summary-stats">
+          <div class="agb-stat"><div class="agb-stat-v" data-k="calls_today">—</div><div class="agb-stat-l">Calls today</div></div>
+          <div class="agb-stat"><div class="agb-stat-v" data-k="calls_total">—</div><div class="agb-stat-l">All-time</div></div>
+          <div class="agb-stat"><div class="agb-stat-v" data-k="bookings">—</div><div class="agb-stat-l">Bookings</div></div>
+          <div class="agb-stat"><div class="agb-stat-v" data-k="urgent">—</div><div class="agb-stat-l">Escalated</div></div>
+          <div class="agb-stat agb-stat-wide"><div class="agb-stat-v" data-k="last">—</div><div class="agb-stat-l">Last call</div></div>
+        </div>
+      </div>
+
+      <div class="agb-toolbar agb-toolbar-clean agb-toolbar-slim">
         <div class="agb-toolbar-left">
-          <span class="badge ${a.is_active ? 'badge-success' : 'badge-muted'}">${a.is_active ? 'Live' : 'Paused'}</span>
-          <span class="agb-meta">${escapeHtml(a.name)}</span>
+          <span class="agb-meta agb-meta-quiet"><i data-lucide="layout-grid" class="icon"></i>Flow builder</span>
         </div>
         <div class="agb-toolbar-right">
           <button class="btn btn-sm" id="agb-toggle">${a.is_active ? 'Pause' : 'Activate'}</button>
@@ -2305,6 +2360,20 @@ route("agents", async () => {
     initBuilderCanvas(stage, layout);
     // First-ever build? Show the friendly tutorial.
     maybeShowBuilderTutorial(stage);
+
+    // Populate the summary stat tiles (async, non-blocking).
+    loadAgentSummary(a.id).then(s => {
+      if (!s) return;
+      const root = $("#agb-summary-stats", stage);
+      if (!root) return;
+      const set = (k, v) => { const el = root.querySelector(`[data-k="${k}"]`); if (el) el.textContent = v; };
+      set("calls_today", String(s.calls_today ?? 0));
+      set("calls_total", String(s.calls_total ?? 0));
+      set("bookings", String(s.bookings ?? 0));
+      set("urgent", String(s.urgent ?? 0));
+      const last = s.last_call_at ? `${relativeTime(s.last_call_at)}${s.last_caller ? ' · ' + s.last_caller : ''}` : "No calls yet";
+      set("last", last);
+    });
   }
 
   // Tab switching
@@ -3772,11 +3841,16 @@ function buildWhatsAppMessages(agent) {
   ];
 }
 
-function mountWhatsAppWindow(container, agent) {
+function mountWhatsAppWindow(container, agent, previewData) {
   const cfg = agent ? (agent.config || {}) : {};
   const biz = cfg.business_name || agent?.name || "Your Business";
   const agentName = cfg.agent_name || "AI";
   const initials = agentName.slice(0, 2).toUpperCase();
+  // Used by the message builder if a real recent caller exists.
+  agent = agent || {};
+  if (previewData && previewData.latest_caller) {
+    agent.__realCaller = previewData.latest_caller;
+  }
   container.innerHTML = `
     <div class="ap-wa-wrap">
       <div class="ap-wa-header">
@@ -3843,37 +3917,57 @@ function mountVoiceAnimation(container, agent) {
     </div>`;
 }
 
-function mountDashboardPreview(container, agent) {
+// SAMPLE preview agent — used on dashboard when no real agent exists yet.
+const SAMPLE_PREVIEW_AGENT = {
+  id: "sample",
+  name: "Sample Receptionist",
+  is_active: false,
+  config: {
+    business_name: "Bright Smile Dental",
+    agent_name: "Maya",
+    voice: "Maya — warm, mid-30s",
+    greeting_message: "Thank you for calling Bright Smile Dental, this is Maya — how can I help?",
+  },
+};
+
+function mountDashboardPreview(container, agent, previewData) {
   if (!container) return;
 
-  if (!agent) {
-    container.innerHTML = `
-      <div class="ap-section ap-section-empty">
-        <div class="ap-empty-inner">
-          <div class="ap-empty-icon">
-            <svg viewBox="0 0 48 48" fill="none" width="48" height="48"><circle cx="24" cy="24" r="24" fill="var(--primary)" opacity=".12"/><path d="M24 12c-6.6 0-12 5.4-12 12s5.4 12 12 12 12-5.4 12-12S30.6 12 24 12zm-2 17v-6l5 3-5 3zm0-8v-6l5 3-5 3z" fill="var(--primary)"/></svg>
-          </div>
-          <div class="ap-empty-title">Build your first AI receptionist</div>
-          <div class="ap-empty-sub">Create an agent and see it answer calls, send WhatsApp summaries, fire off Gmail follow-ups, and drop bookings into your calendar — live.</div>
-          <button class="btn btn-primary ap-empty-cta" id="ap-create">Create agent <i data-lucide="arrow-right" class="icon"></i></button>
-        </div>
-      </div>`;
-    renderIcons(container);
-    container.querySelector("#ap-create").addEventListener("click", () => navigate("#/agents/new"));
-    return;
+  // Always show the live preview. If there's no agent, use sample data so the
+  // user can SEE what they're about to build, with a prominent create CTA.
+  const isSample = !agent;
+  const effectiveAgent = agent || SAMPLE_PREVIEW_AGENT;
+  // Merge real preview data into the agent config so the windows show real names.
+  if (previewData && agent) {
+    effectiveAgent.config = {
+      ...(effectiveAgent.config || {}),
+      business_name: previewData.business_name || effectiveAgent.config?.business_name,
+      agent_name: previewData.agent_name || effectiveAgent.config?.agent_name,
+    };
   }
 
+  const sampleBanner = isSample
+    ? `<div class="ap-sample-banner">
+         <span class="ap-sample-pill">SAMPLE PREVIEW</span>
+         <span class="ap-sample-text">This is what your dashboard will look like once your agent goes live.</span>
+         <button class="btn btn-primary btn-sm ap-sample-cta" id="ap-create-now">Create your agent <i data-lucide="arrow-right" class="icon"></i></button>
+       </div>`
+    : "";
+
+  const headerActions = isSample
+    ? `<button class="btn btn-primary btn-sm" id="ap-create-now-h"><i data-lucide="plus" class="icon"></i>Create agent</button>`
+    : `<button class="btn btn-ghost btn-sm" id="ap-edit-btn">Edit agent</button>
+       <button class="btn btn-primary btn-sm" id="ap-full-btn">Full preview</button>`;
+
   container.innerHTML = `
-    <div class="ap-section">
+    <div class="ap-section ${isSample ? 'ap-section-sample' : ''}">
+      ${sampleBanner}
       <div class="ap-section-header">
         <div>
-          <div class="ap-section-title">Agent Preview</div>
-          <div class="ap-section-sub">Watch your agent answer the call and fire off the follow-ups — live</div>
+          <div class="ap-section-title">${isSample ? 'Live Preview · how your agent will work' : 'Agent Preview'}</div>
+          <div class="ap-section-sub">${isSample ? 'Real call → WhatsApp summary → Gmail follow-up → calendar booking. All on autopilot.' : 'Watch your agent answer the call and fire off the follow-ups — live'}</div>
         </div>
-        <div class="ap-section-actions">
-          <button class="btn btn-ghost btn-sm" id="ap-edit-btn">Edit agent</button>
-          <button class="btn btn-primary btn-sm" id="ap-full-btn">Full preview</button>
-        </div>
+        <div class="ap-section-actions">${headerActions}</div>
       </div>
       <div class="ap-body">
         <div class="ap-voice-col" id="ap-voice-col"></div>
@@ -3897,13 +3991,14 @@ function mountDashboardPreview(container, agent) {
         </div>
       </div>
     </div>`;
+  renderIcons(container);
 
-  mountVoiceAnimation(container.querySelector("#ap-voice-col"), agent);
-  mountWhatsAppWindow(container.querySelector("#ap-wa-col"), agent);
-  mountGmailWindow(container.querySelector("#ap-gm-col"), agent);
-  mountCalendarWindow(container.querySelector("#ap-cal-col"), agent);
+  mountVoiceAnimation(container.querySelector("#ap-voice-col"), effectiveAgent);
+  mountWhatsAppWindow(container.querySelector("#ap-wa-col"), effectiveAgent, previewData);
+  mountGmailWindow(container.querySelector("#ap-gm-col"), effectiveAgent, previewData);
+  mountCalendarWindow(container.querySelector("#ap-cal-col"), effectiveAgent, previewData);
 
-  // Tab wiring + auto-rotate
+  // Tab wiring + auto-rotate (until the user picks one)
   const tabs = Array.from(container.querySelectorAll(".ap-tab"));
   const panes = Array.from(container.querySelectorAll(".ap-pane"));
   let manuallyChanged = false;
@@ -3915,7 +4010,6 @@ function mountDashboardPreview(container, agent) {
     manuallyChanged = true;
     show(t.dataset.pane);
   }));
-  // Auto-rotate every 8s until the user picks one
   const order = ["wa", "gm", "cal"];
   let idx = 0;
   const rotate = setInterval(() => {
@@ -3927,18 +4021,25 @@ function mountDashboardPreview(container, agent) {
     show(order[idx]);
   }, 8000);
 
-  container.querySelector("#ap-edit-btn").addEventListener("click", () => navigate(`#/agents/${agent.id}/edit`));
-  container.querySelector("#ap-full-btn").addEventListener("click", () => navigate(`#/agents/${agent.id}/preview`));
+  // Wire CTAs
+  const createBtns = container.querySelectorAll("#ap-create-now, #ap-create-now-h");
+  createBtns.forEach(btn => btn.addEventListener("click", () => navigate("#/agents/new")));
+  const editBtn = container.querySelector("#ap-edit-btn");
+  if (editBtn) editBtn.addEventListener("click", () => navigate(`#/agents/${agent.id}/edit`));
+  const fullBtn = container.querySelector("#ap-full-btn");
+  if (fullBtn) fullBtn.addEventListener("click", () => navigate(`#/agents/${agent.id}/preview`));
 }
 
 // Gmail follow-up window — typing animation that "sends" an email after the call.
-function mountGmailWindow(container, agent) {
+function mountGmailWindow(container, agent, previewData) {
   if (!container) return;
   const cfg = agent ? (agent.config || {}) : {};
   const biz = cfg.business_name || agent?.name || "Your Business";
   const agentName = cfg.agent_name || "AI Receptionist";
-  const callerName = "Priya Shah";
-  const callerEmail = "priya.shah@gmail.com";
+  const realCaller = previewData && previewData.latest_caller;
+  const callerName = (realCaller && realCaller.name) || "Priya Shah";
+  const slug = (callerName || "guest").toLowerCase().replace(/[^a-z]+/g, ".").replace(/^\.|\.$/g, "") || "guest";
+  const callerEmail = `${slug}@gmail.com`;
   const subject = `Your appointment with ${biz} — confirmed`;
   const bodyLines = [
     `Hi ${callerName.split(" ")[0]},`,
@@ -4022,7 +4123,7 @@ function mountGmailWindow(container, agent) {
 }
 
 // Calendar window — Google Calendar look with new bookings appearing live.
-function mountCalendarWindow(container, agent) {
+function mountCalendarWindow(container, agent, previewData) {
   if (!container) return;
   const cfg = agent ? (agent.config || {}) : {};
   const biz = cfg.business_name || agent?.name || "Your Business";
@@ -4035,13 +4136,22 @@ function mountCalendarWindow(container, agent) {
   const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   const monthName = today.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
-  const slotDefs = [
+  // Use real upcoming bookings from /dashboard/preview when available;
+  // fall back to representative sample data so the animation is never empty.
+  const sampleSlots = [
     { day: 1, time: "10:00 AM", who: "Priya Shah", kind: "Cleaning", color: "#4285F4" },
     { day: 2, time: "2:30 PM",  who: "Marcus Lee", kind: "Consultation", color: "#0F9D58" },
     { day: 0, time: "4:15 PM",  who: "Aisha Khan", kind: "Follow-up", color: "#DB4437" },
     { day: 4, time: "11:00 AM", who: "Rahul Verma", kind: "New patient", color: "#F4B400" },
     { day: 5, time: "9:30 AM",  who: "Emma Cole", kind: "Cleaning", color: "#4285F4" },
   ];
+  const realSlots = (previewData && Array.isArray(previewData.upcoming_bookings) && previewData.upcoming_bookings.length)
+    ? previewData.upcoming_bookings.map(b => ({
+        day: b.day_offset, time: b.time, who: b.who, kind: b.kind, color: b.color,
+      }))
+    : null;
+  const slotDefs = realSlots || sampleSlots;
+  const isReal = !!realSlots;
 
   container.innerHTML = `
     <div class="ap-cal-wrap">
@@ -4062,7 +4172,7 @@ function mountCalendarWindow(container, agent) {
       </div>
       <div class="ap-cal-footer">
         <span class="ap-cal-pulse"></span>
-        <span class="ap-cal-foot-text" id="ap-cal-foot-text">Listening for new bookings…</span>
+        <span class="ap-cal-foot-text" id="ap-cal-foot-text">${isReal ? 'Showing your real bookings · live updates' : 'Listening for new bookings…'}</span>
       </div>
     </div>`;
 
@@ -4081,9 +4191,9 @@ function mountCalendarWindow(container, agent) {
     ev.style.setProperty("--evt-c", slot.color);
     ev.innerHTML = `<div class="ap-cal-evt-time">${slot.time}</div><div class="ap-cal-evt-who">${escapeHtml(slot.who)}</div><div class="ap-cal-evt-kind">${escapeHtml(slot.kind)}</div>`;
     slotEl.appendChild(ev);
-    footText.textContent = `📅 New booking · ${slot.who} · ${slot.time}`;
+    footText.textContent = `📅 ${isReal ? 'Real booking' : 'New booking'} · ${slot.who} · ${slot.time}`;
     await delay(1800);
-    if (!cancelled) footText.textContent = "Listening for new bookings…";
+    if (!cancelled) footText.textContent = isReal ? 'Showing your real bookings · live updates' : 'Listening for new bookings…';
   }
   async function loop() {
     while (!cancelled && document.body.contains(container)) {

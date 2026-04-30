@@ -137,3 +137,21 @@ Configured for Replit autoscale running the same uvicorn command. Push the Publi
   - **≤380px**: title 20px, calendar tile 80px high.
   - All rules use `!important` only where needed to override inline absolute positions, and never reposition elements — they only shrink components and text per the request.
 - Cache-bust bumped to `v=20` in `index.html`.
+
+## v18 — preview always-on (sample mode), real preview data, agents page header card (2026-04-30)
+- **Backend** (`app/api/dashboard.py`):
+  - Added `/dashboard/preview` returning `{has_agent, agent_id, agent_is_active, business_name, agent_name, voice, latest_caller, upcoming_bookings, week_counts}`. Pulls real caller name/summary from the most-recent `Call`, maps booked calls into the next-7-days strip, and counts per-day bookings — used by the live tabbed preview to drop **real** customer names into the WhatsApp/Gmail/Calendar windows when an agent is active.
+  - `/dashboard/stats` extended with `total_minutes` (from `duration_seconds`) and `total_agents` so the dashboard stat cards no longer show 0 for those tiles.
+- **Backend** (`app/api/agents.py`):
+  - Added `/agents/{id}/summary` returning `{calls_total, calls_today, bookings, urgent, minutes_total, last_call_at, last_caller, nodes, edges, twilio_number}`. Powers the new per-agent header card on the agents page. Reads layout node/edge counts from `business_context.builder_layout`.
+- **Frontend** (`app/static/app.js`):
+  - `mountDashboardPreview` rewritten to ALWAYS render the live tabbed preview. When the user has no agent yet, it now renders in **SAMPLE mode** with a `SAMPLE_PREVIEW_AGENT` (Bright Smile Dental / Maya), an orange `SAMPLE PREVIEW` banner across the top with a `Create your agent →` CTA, and a header that reads "Live Preview · how your agent will work". When a real agent exists, the dashboard fetches `/dashboard/preview` and feeds `latest_caller` + `upcoming_bookings` + business/agent name into `mountWhatsAppWindow`, `mountGmailWindow`, `mountCalendarWindow` (all three signatures gained an optional `previewData` arg).
+  - `mountGmailWindow` now derives `callerEmail` from the real caller's name (`firstname.lastname@gmail.com`) when present.
+  - `mountCalendarWindow` uses real `upcoming_bookings` when available (otherwise the existing 5 sample slots) and the footer reads "Showing your real bookings · live updates" / "Real booking · Name · Time" so the user can tell at a glance.
+  - **Agents page** (`route("agents")`):
+    - New per-agent **header summary card** (`.agb-summary`) above the builder canvas: agent avatar + name, `Live`/`Paused` badge with a pulsing dot, business · language · twilio number sub-line, and 5 stat tiles (Calls today / All-time / Bookings / Escalated / Last call with caller name & relative time). Stats fetched async from `/agents/{id}/summary` per active tab; "Last call" uses a small `relativeTime()` helper (`Just now`, `12 min ago`, `3h ago`, `5d ago`, or absolute date).
+    - Toolbar slimmed (removed the duplicate live/paused badge now shown in the summary card) — left side just shows a quiet "Flow builder" hint icon, right side keeps Pause/Activate, Delete, Save.
+    - **Empty state** rebuilt as a richer card (`.agb-empty-rich`): glowing OneClerk orb avatar with pulsing radial glow, headline, subcopy, and a 3-step numbered bullet list (Tell us → Plug in tools → Forward number) before the CTA — much clearer first-time onboarding signal than the previous icon + paragraph.
+- **CSS** (`app/static/styles.css`): added `.ap-sample-banner` (orange gradient + uppercase pill + responsive collapse on ≤600px), `.agb-summary` + `.agb-summary-stats` + `.agb-stat` (responsive: 4-col grid → 4-col on tablet with last-call below → 2-col on phone), `.agb-empty-rich` block (orb + pulsing glow + numbered bullets), and `.agb-toolbar-slim` quiet styling.
+- **NOTE**: discovered a parallel router tree at `app/routes/` that is **not** wired into `main.py` (which loads from `app/api/`). All real backend changes for v18 went into `app/api/`. The `app/routes/` files exist but are dead code — leaving them untouched to avoid scope creep.
+- Cache-bust bumped to `v=21` in `index.html` (both `app.js` and `styles.css`).

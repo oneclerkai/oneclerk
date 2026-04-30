@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, func, desc
 from app.database import get_db
 from app.models.agent import Agent, AgentStatus
+from app.models.call import Call
 from app.dependencies import get_current_user
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
+from datetime import datetime
 import uuid
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -96,6 +98,63 @@ async def _list_agents(current_user: dict, db: AsyncSession):
     result = await db.execute(stmt)
     agents = result.scalars().all()
     return {"agents": [_agent_out(a) for a in agents]}
+
+
+@router.get("/{agent_id}/summary")
+async def agent_summary(
+    agent_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Per-agent header stats for the Agents page header card."""
+    user_id = current_user["sub"]
+    agent = (await db.execute(
+        select(Agent).where(Agent.id == agent_id, Agent.user_id == user_id)
+    )).scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    calls_total = (await db.execute(
+        select(func.count(Call.id)).where(Call.agent_id == agent.id)
+    )).scalar() or 0
+    calls_today = (await db.execute(
+        select(func.count(Call.id)).where(Call.agent_id == agent.id, Call.created_at >= today_start)
+    )).scalar() or 0
+    bookings = (await db.execute(
+        select(func.count(Call.id)).where(Call.agent_id == agent.id, Call.appointment_booked == True)
+    )).scalar() or 0
+    urgent = (await db.execute(
+        select(func.count(Call.id)).where(Call.agent_id == agent.id, Call.escalated == True)
+    )).scalar() or 0
+    minutes = (await db.execute(
+        select(func.coalesce(func.sum(Call.duration_seconds), 0)).where(Call.agent_id == agent.id)
+    )).scalar() or 0
+    last_call = (await db.execute(
+        select(Call).where(Call.agent_id == agent.id).order_by(desc(Call.created_at)).limit(1)
+    )).scalar_one_or_none()
+
+    ctx = agent.business_context or {}
+    layout = ctx.get("builder_layout") or {}
+    nodes = len(layout.get("boxes") or []) if isinstance(layout, dict) else 0
+    edges = len(layout.get("edges") or []) if isinstance(layout, dict) else 0
+
+    return {
+        "agent_id": str(agent.id),
+        "is_active": agent.status == AgentStatus.active,
+        "calls_total": int(calls_total),
+        "calls_today": int(calls_today),
+        "bookings": int(bookings),
+        "urgent": int(urgent),
+        "minutes_total": int(int(minutes) // 60),
+        "last_call_at": last_call.created_at.isoformat() if last_call and last_call.created_at else None,
+        "last_caller": (last_call.caller_name if last_call else None),
+        "nodes": nodes,
+        "edges": edges,
+        "twilio_number": ctx.get("twilio_number", ""),
+        "forwarding_number": ctx.get("forwarding_number", ""),
+    }
 
 
 @router.post("/create")

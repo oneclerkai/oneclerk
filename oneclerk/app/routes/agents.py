@@ -2,7 +2,9 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import desc, select
+from datetime import datetime
+
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -110,6 +112,78 @@ async def list_agents(
         select(Agent).where(Agent.user_id == current_user.id).order_by(desc(Agent.created_at))
     )
     return {"agents": [_agent_dict(a) for a in result.scalars().all()]}
+
+
+@router.get("/{agent_id}/summary")
+async def agent_summary(
+    agent_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Per-agent header stats for the Agents page header card."""
+    agent = await _get_owned_agent(db, current_user, agent_id)
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    calls_total = (
+        await db.execute(select(func.count(Call.id)).where(Call.agent_id == agent.id))
+    ).scalar_one()
+    calls_today = (
+        await db.execute(
+            select(func.count(Call.id)).where(
+                Call.agent_id == agent.id, Call.created_at >= today_start
+            )
+        )
+    ).scalar_one()
+    bookings = (
+        await db.execute(
+            select(func.count(Call.id)).where(
+                Call.agent_id == agent.id, Call.appointment_booked.is_(True)
+            )
+        )
+    ).scalar_one()
+    urgent = (
+        await db.execute(
+            select(func.count(Call.id)).where(
+                Call.agent_id == agent.id, Call.escalated.is_(True)
+            )
+        )
+    ).scalar_one()
+    minutes = (
+        await db.execute(
+            select(func.coalesce(func.sum(Call.duration_seconds), 0)).where(
+                Call.agent_id == agent.id
+            )
+        )
+    ).scalar_one() or 0
+    last_call = (
+        await db.execute(
+            select(Call)
+            .where(Call.agent_id == agent.id)
+            .order_by(desc(Call.created_at))
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+    cfg = agent.config or {}
+    layout = cfg.get("builder_layout") or {}
+    nodes = len(layout.get("boxes") or []) if isinstance(layout, dict) else 0
+    edges = len(layout.get("edges") or []) if isinstance(layout, dict) else 0
+
+    return {
+        "agent_id": str(agent.id),
+        "is_active": bool(agent.is_active),
+        "calls_total": int(calls_total),
+        "calls_today": int(calls_today),
+        "bookings": int(bookings),
+        "urgent": int(urgent),
+        "minutes_total": int(int(minutes) // 60),
+        "last_call_at": last_call.created_at.isoformat() if last_call and last_call.created_at else None,
+        "last_caller": (last_call.caller_name if last_call else None),
+        "nodes": nodes,
+        "edges": edges,
+        "twilio_number": agent.twilio_number,
+        "forwarding_number": agent.forwarding_number,
+    }
 
 
 async def _get_owned_agent(db: AsyncSession, user: User, agent_id: str) -> Agent:
