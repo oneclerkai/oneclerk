@@ -1428,6 +1428,7 @@ route("dashboard", async () => {
   const page = $("#page", wrap);
   page.innerHTML = `
     <div class="grid grid-cols-4 mb-6" id="stats">${skeleton(1)}</div>
+    <div id="ap-wrap" class="mb-5"></div>
     <div class="grid" style="grid-template-columns: 1.7fr 1fr; gap:16px">
       <div class="card p-5">
         <div class="flex items-center justify-between mb-4">
@@ -1460,6 +1461,13 @@ route("dashboard", async () => {
     ].join("");
     renderIcons($("#stats", page));
     renderRecentCalls($("#recent", page), (recent.calls || []).slice(0, 6));
+
+    // Render agent preview card
+    const apWrap = $("#ap-wrap", page);
+    const agentList = agents.agents || [];
+    const previewAgent = agentList.find(a => a.is_active) || agentList[0] || null;
+    mountDashboardPreview(apWrap, previewAgent);
+
     const am = $("#agents-mini", page);
     if (!total) {
       am.innerHTML = `<button class="btn btn-primary" style="width:100%" id="ca">Create your first agent</button>`;
@@ -2943,6 +2951,7 @@ function agentSubtabs(id, active) {
     { k: "edit", label: "Profile", icon: "user", hash: `#/agents/${id}/edit` },
     { k: "flow", label: "Flow", icon: "git-branch", hash: `#/agents/${id}/flow` },
     { k: "connect", label: "Connect", icon: "phone", hash: `#/agents/${id}/setup` },
+    { k: "preview", label: "Preview", icon: "play-circle", hash: `#/agents/${id}/preview` },
   ];
   const wrap = h(`<div class="subtabs">${items.map(i =>
     `<button class="subtab ${active===i.k?'active':''}" data-h="${i.hash}"><i data-lucide="${i.icon}" class="icon"></i>${i.label}</button>`).join("")}</div>`);
@@ -3541,6 +3550,194 @@ route("agentFlow", async (id) => {
   return wrap;
 });
 
+// ============================================================
+// AGENT PREVIEW — voice animation + WhatsApp window
+// ============================================================
+
+function buildWhatsAppMessages(agent) {
+  const cfg = agent ? (agent.config || {}) : {};
+  const biz = cfg.business_name || agent?.name || "Your Business";
+  const agentName = cfg.agent_name || "AI Receptionist";
+  const greeting = cfg.greeting_message || `Hello! Thanks for calling ${biz}. How can I help you today?`;
+  const hours = cfg.operating_hours || "Mon–Sat 9am–6pm";
+  const services = cfg.services || "Please ask about our services.";
+  return [
+    { from: "agent", text: greeting, delay: 400 },
+    { from: "caller", text: "Hi, I'd like to book an appointment.", delay: 1800 },
+    { from: "agent", text: `Of course! We're available ${hours}. What day works best for you?`, delay: 3200 },
+    { from: "caller", text: "How about tomorrow at 10am?", delay: 4800 },
+    { from: "agent", text: `Perfect! I'll book you in for tomorrow at 10am. You'll get a WhatsApp confirmation shortly. Is there anything else?`, delay: 6400 },
+    { from: "caller", text: "That's all, thank you!", delay: 7800 },
+    { from: "agent", text: `Great! Have a wonderful day. If you need anything, ${biz} is always here. Goodbye! 👋`, delay: 9000 },
+  ];
+}
+
+function mountWhatsAppWindow(container, agent) {
+  const cfg = agent ? (agent.config || {}) : {};
+  const biz = cfg.business_name || agent?.name || "Your Business";
+  const agentName = cfg.agent_name || "AI";
+  const initials = agentName.slice(0, 2).toUpperCase();
+  container.innerHTML = `
+    <div class="ap-wa-wrap">
+      <div class="ap-wa-header">
+        <div class="ap-wa-avatar-sm">${initials}</div>
+        <div class="ap-wa-hinfo">
+          <div class="ap-wa-hname">${escapeHtml(agentName)}</div>
+          <div class="ap-wa-hsub">OneClerk AI · ${escapeHtml(biz)}</div>
+        </div>
+        <svg class="ap-wa-icon" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#25D366"/><path d="M16 7.5C11.3 7.5 7.5 11.3 7.5 16c0 1.5.4 2.9 1.1 4.1L7 25l5.1-1.6c1.2.6 2.5 1 3.9 1 4.7 0 8.5-3.8 8.5-8.5S20.7 7.5 16 7.5zm4.9 11.6c-.2.6-1.1 1.1-1.5 1.2-.4.1-.9.1-1.3-.1-.3-.1-.7-.3-1.2-.5-2.1-.9-3.4-3-3.5-3.2-.1-.2-.9-1.2-.9-2.3 0-1.1.6-1.6.8-1.8.2-.2.4-.3.6-.3h.4c.1 0 .3 0 .4.3.2.4.6 1.4.7 1.5.1.1.1.2 0 .3-.1.2-.2.3-.3.4l-.3.4c.4.6 1 1.2 1.5 1.5.5.3 1 .5 1.2.4.2-.1.4-.3.5-.5.1-.1.2-.2.4-.1.2.1 1.1.5 1.3.6.2.1.3.1.3.2.1.1.1.4-.1 1z" fill="#fff"/></svg>
+      </div>
+      <div class="ap-wa-msgs" id="ap-wa-msgs-inner"></div>
+      <div class="ap-wa-footer">
+        <div class="ap-wa-input-row">
+          <span class="ap-wa-input-fake">Type a message</span>
+          <div class="ap-wa-mic"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 15c1.66 0 3-1.34 3-3V6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V6zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-2.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></div>
+        </div>
+      </div>
+    </div>`;
+
+  const msgs = container.querySelector("#ap-wa-msgs-inner");
+  const messages = buildWhatsAppMessages(agent);
+  let idx = 0;
+
+  function addMsg() {
+    if (idx >= messages.length) {
+      // Loop after pause
+      setTimeout(() => { msgs.innerHTML = ""; idx = 0; addMsg(); }, 3000);
+      return;
+    }
+    const m = messages[idx++];
+    const isAgent = m.from === "agent";
+    const bubble = document.createElement("div");
+    bubble.className = `ap-wa-bubble ${isAgent ? "ap-wa-bubble-agent" : "ap-wa-bubble-caller"} ap-wa-bubble-in`;
+    bubble.innerHTML = `<span>${escapeHtml(m.text)}</span><span class="ap-wa-ts">${new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</span>`;
+    msgs.appendChild(bubble);
+    msgs.scrollTop = msgs.scrollHeight;
+    const nextDelay = idx < messages.length ? (messages[idx].delay - m.delay) : 3000;
+    setTimeout(addMsg, Math.min(nextDelay, 2500));
+  }
+  setTimeout(addMsg, 500);
+}
+
+function mountVoiceAnimation(container, agent) {
+  const cfg = agent ? (agent.config || {}) : {};
+  const biz = cfg.business_name || agent?.name || "Your Business";
+  const agentName = cfg.agent_name || "AI Receptionist";
+  const lang = cfg.language || "English";
+  const initials = agentName.slice(0, 2).toUpperCase();
+  const isActive = agent?.is_active;
+
+  container.innerHTML = `
+    <div class="ap-voice-wrap">
+      <div class="ap-voice-glow"></div>
+      <div class="ap-voice-avatar">${initials}</div>
+      <div class="ap-voice-wave" id="ap-wave-bars">
+        ${Array.from({length: 12}, (_, i) => `<span class="ap-bar" style="animation-delay:${i*0.08}s"></span>`).join("")}
+      </div>
+      <div class="ap-voice-name">${escapeHtml(agentName)}</div>
+      <div class="ap-voice-biz">${escapeHtml(biz)}</div>
+      <div class="ap-voice-badge">
+        <span class="ap-voice-dot ${isActive ? 'ap-dot-live' : 'ap-dot-idle'}"></span>
+        ${isActive ? "Live" : "Ready"} · ${escapeHtml(lang)}
+      </div>
+    </div>`;
+}
+
+function mountDashboardPreview(container, agent) {
+  if (!container) return;
+
+  if (!agent) {
+    container.innerHTML = `
+      <div class="ap-section ap-section-empty">
+        <div class="ap-empty-inner">
+          <div class="ap-empty-icon">
+            <svg viewBox="0 0 48 48" fill="none" width="48" height="48"><circle cx="24" cy="24" r="24" fill="var(--primary)" opacity=".12"/><path d="M24 12c-6.6 0-12 5.4-12 12s5.4 12 12 12 12-5.4 12-12S30.6 12 24 12zm-2 17v-6l5 3-5 3zm0-8v-6l5 3-5 3z" fill="var(--primary)"/></svg>
+          </div>
+          <div class="ap-empty-title">Build your first AI receptionist</div>
+          <div class="ap-empty-sub">Create an agent and see it answer calls and send WhatsApp summaries — live.</div>
+          <button class="btn btn-primary ap-empty-cta" id="ap-create">Create agent <i data-lucide="arrow-right" class="icon"></i></button>
+        </div>
+      </div>`;
+    renderIcons(container);
+    container.querySelector("#ap-create").addEventListener("click", () => navigate("#/agents/new"));
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="ap-section">
+      <div class="ap-section-header">
+        <div>
+          <div class="ap-section-title">Agent Preview</div>
+          <div class="ap-section-sub">Live preview of how your agent sounds and responds</div>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-ghost btn-sm" id="ap-edit-btn">Edit agent</button>
+          <button class="btn btn-primary btn-sm" id="ap-full-btn">Full preview</button>
+        </div>
+      </div>
+      <div class="ap-body">
+        <div class="ap-voice-col" id="ap-voice-col"></div>
+        <div class="ap-wa-col" id="ap-wa-col"></div>
+      </div>
+    </div>`;
+
+  mountVoiceAnimation(container.querySelector("#ap-voice-col"), agent);
+  mountWhatsAppWindow(container.querySelector("#ap-wa-col"), agent);
+
+  container.querySelector("#ap-edit-btn").addEventListener("click", () => navigate(`#/agents/${agent.id}/edit`));
+  container.querySelector("#ap-full-btn").addEventListener("click", () => navigate(`#/agents/${agent.id}/preview`));
+}
+
+route("agentPreview", async (id) => {
+  const wrap = shell("agents", "Agent Preview", "See your agent in action — voice and WhatsApp.");
+  const page = $("#page", wrap);
+  page.innerHTML = `<div class="ap-preview-loading">${skeleton(2)}</div>`;
+  try {
+    const { agent } = await api(`/agents/${id}`);
+    if (!agent) throw new Error("Agent not found");
+    page.innerHTML = "";
+    page.appendChild(agentSubtabs(id, "preview"));
+    const preview = document.createElement("div");
+    preview.className = "ap-fullpage";
+    preview.innerHTML = `
+      <div class="ap-fullpage-header">
+        <div class="ap-fullpage-title">${escapeHtml(agent.config?.agent_name || agent.name)}</div>
+        <div class="ap-fullpage-sub">${escapeHtml(agent.config?.business_name || "")} · ${escapeHtml(agent.config?.language || "English")}</div>
+        <div class="ap-fp-badges">
+          <span class="ap-fp-badge ${agent.is_active ? 'ap-fp-live' : ''}">${agent.is_active ? "🟢 Live" : "⚪ Inactive"}</span>
+          ${agent.config?.greeting_message ? `<span class="ap-fp-badge">Custom greeting</span>` : ""}
+          ${agent.config?.calendly_url ? `<span class="ap-fp-badge">📅 Bookings on</span>` : ""}
+        </div>
+      </div>
+      <div class="ap-fullpage-body">
+        <div class="ap-fp-voice" id="ap-fp-voice"></div>
+        <div class="ap-fp-wa" id="ap-fp-wa"></div>
+      </div>
+      <div class="ap-fullpage-footer">
+        <button class="btn" id="ap-fp-edit"><i data-lucide="edit-2" class="icon"></i>Edit Profile</button>
+        <button class="btn btn-primary" id="ap-fp-activate">${agent.is_active ? "Pause agent" : "Activate agent"}</button>
+      </div>`;
+    page.appendChild(preview);
+    renderIcons(page);
+
+    mountVoiceAnimation(preview.querySelector("#ap-fp-voice"), agent);
+    mountWhatsAppWindow(preview.querySelector("#ap-fp-wa"), agent);
+
+    preview.querySelector("#ap-fp-edit").addEventListener("click", () => navigate(`#/agents/${id}/edit`));
+    preview.querySelector("#ap-fp-activate").addEventListener("click", async () => {
+      try {
+        const act = agent.is_active ? "deactivate" : "activate";
+        await api(`/agents/${id}/${act}`, { method: "POST" });
+        toast(agent.is_active ? "Agent paused" : "Agent is now live!", "success");
+        navigate(`#/agents/${id}/preview`);
+      } catch (e) { toast(e.message, "error"); }
+    });
+  } catch (e) {
+    page.innerHTML = `<div class="text-danger p-4">${escapeHtml(e.message)}</div>`;
+  }
+  return wrap;
+});
+
 // --- Render dispatcher ---
 async function render() {
   const root = $("#root");
@@ -3574,6 +3771,7 @@ async function render() {
   else if (r.parts[0] === "agents" && r.parts[2] === "edit") { view = await routes.agentEdit(r.parts[1]); }
   else if (r.parts[0] === "agents" && r.parts[2] === "setup") { view = await routes.agentSetup(r.parts[1]); }
   else if (r.parts[0] === "agents" && r.parts[2] === "flow") { view = await routes.agentFlow(r.parts[1]); }
+  else if (r.parts[0] === "agents" && r.parts[2] === "preview") { view = await routes.agentPreview(r.parts[1]); }
   else if (r.path === "/settings") { view = await routes.settings(); }
   else if (r.path === "/billing") { view = await routes.billing(); }
   else if (r.path === "/billing-success") { view = await routes.billingSuccess(); }

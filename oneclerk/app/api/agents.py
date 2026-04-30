@@ -1,91 +1,273 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete
 from app.database import get_db
 from app.models.agent import Agent, AgentStatus
-from app.schemas.agent import AgentCreate, AgentUpdate, AgentOut
 from app.dependencies import get_current_user
-from typing import List
+from pydantic import BaseModel
+from typing import Optional, Dict, Any, List
 import uuid
 
-router = APIRouter(prefix="/api/agents", tags=["agents"])
+router = APIRouter(prefix="/agents", tags=["agents"])
 
-@router.get("/", response_model=List[AgentOut])
+
+class AgentBody(BaseModel):
+    name: Optional[str] = None
+    twilio_number: Optional[str] = None
+    forwarding_number: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+    system_prompt: Optional[str] = None
+    voice_id: Optional[str] = None
+    language: Optional[str] = None
+    escalation_phone: Optional[str] = None
+    escalation_keywords: Optional[List[str]] = None
+    max_call_duration: Optional[int] = None
+
+    class Config:
+        extra = "allow"
+
+
+class TestChatBody(BaseModel):
+    message: str
+    history: Optional[List[Dict[str, Any]]] = []
+
+
+def _agent_out(a: Agent) -> dict:
+    config = a.business_context or {}
+    return {
+        "id": str(a.id),
+        "user_id": str(a.user_id),
+        "name": a.name,
+        "is_active": a.status == AgentStatus.active,
+        "status": a.status.value if a.status else "inactive",
+        "config": config,
+        "voice_id": a.voice_id,
+        "language": a.language.value if a.language else "auto",
+        "telnyx_phone": a.telnyx_phone,
+        "twilio_number": config.get("twilio_number", ""),
+        "forwarding_number": config.get("forwarding_number", ""),
+        "escalation_phone": a.escalation_phone,
+        "escalation_keywords": a.escalation_keywords or [],
+        "max_call_duration": a.max_call_duration,
+        "calls_this_month": a.calls_this_month,
+        "total_calls": a.total_calls,
+        "total_minutes": a.total_minutes,
+        "created_at": a.created_at.isoformat() if a.created_at else None,
+        "updated_at": a.updated_at.isoformat() if a.updated_at else None,
+    }
+
+
+def _merge_config(agent: Agent, body: AgentBody):
+    if body.name is not None:
+        agent.name = body.name
+    if body.voice_id is not None:
+        agent.voice_id = body.voice_id
+    if body.system_prompt is not None:
+        agent.system_prompt = body.system_prompt
+    if body.escalation_phone is not None:
+        agent.escalation_phone = body.escalation_phone
+    if body.escalation_keywords is not None:
+        agent.escalation_keywords = body.escalation_keywords
+    if body.max_call_duration is not None:
+        agent.max_call_duration = body.max_call_duration
+
+    ctx = dict(agent.business_context or {})
+    if body.config is not None:
+        ctx.update(body.config)
+    if body.twilio_number is not None:
+        ctx["twilio_number"] = body.twilio_number
+    if body.forwarding_number is not None:
+        ctx["forwarding_number"] = body.forwarding_number
+    agent.business_context = ctx
+
+
+@router.get("/list")
+async def list_agents_alias(current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    return await _list_agents(current_user, db)
+
+
+@router.get("/")
 async def list_agents(current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    return await _list_agents(current_user, db)
+
+
+async def _list_agents(current_user: dict, db: AsyncSession):
     stmt = select(Agent).where(Agent.user_id == current_user["sub"])
     result = await db.execute(stmt)
-    return result.scalars().all()
+    agents = result.scalars().all()
+    return {"agents": [_agent_out(a) for a in agents]}
 
-@router.post("/", response_model=AgentOut)
-async def create_agent(agent_in: AgentCreate, current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    new_agent = Agent(
-        **agent_in.model_dump(),
-        user_id=current_user["sub"]
+
+@router.post("/create")
+async def create_agent_alias(
+    body: AgentBody,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await _create_agent(body, current_user, db)
+
+
+@router.post("/")
+async def create_agent(
+    body: AgentBody,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await _create_agent(body, current_user, db)
+
+
+async def _create_agent(body: AgentBody, current_user: dict, db: AsyncSession):
+    agent = Agent(
+        user_id=current_user["sub"],
+        name=body.name or "New Agent",
+        business_context={},
     )
-    db.add(new_agent)
-    await db.commit()
-    await db.refresh(new_agent)
-    return new_agent
-
-@router.get("/{agent_id}", response_model=AgentOut)
-async def get_agent(agent_id: uuid.UUID, current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    stmt = select(Agent).where(Agent.id == agent_id, Agent.user_id == current_user["sub"])
-    result = await db.execute(stmt)
-    agent = result.scalar_one_or_none()
-    if not agent:
-        raise HTTPException(status_code=404, detail="Agent not found")
-    return agent
-
-@router.patch("/{agent_id}", response_model=AgentOut)
-async def update_agent(agent_id: uuid.UUID, agent_in: AgentUpdate, current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    stmt = select(Agent).where(Agent.id == agent_id, Agent.user_id == current_user["sub"])
-    result = await db.execute(stmt)
-    agent = result.scalar_one_or_none()
-    if not agent:
-        raise HTTPException(status_code=404, detail="Agent not found")
-    
-    update_data = agent_in.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(agent, key, value)
-    
+    _merge_config(agent, body)
+    db.add(agent)
     await db.commit()
     await db.refresh(agent)
-    return agent
+    return {"agent": _agent_out(agent)}
+
+
+@router.get("/{agent_id}")
+async def get_agent(
+    agent_id: uuid.UUID,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Agent).where(Agent.id == agent_id, Agent.user_id == current_user["sub"])
+    result = await db.execute(stmt)
+    agent = result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return {"agent": _agent_out(agent)}
+
+
+@router.put("/{agent_id}")
+@router.patch("/{agent_id}")
+async def update_agent(
+    agent_id: uuid.UUID,
+    body: AgentBody,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Agent).where(Agent.id == agent_id, Agent.user_id == current_user["sub"])
+    result = await db.execute(stmt)
+    agent = result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    _merge_config(agent, body)
+    await db.commit()
+    await db.refresh(agent)
+    return {"agent": _agent_out(agent)}
+
 
 @router.delete("/{agent_id}")
-async def delete_agent(agent_id: uuid.UUID, current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def delete_agent(
+    agent_id: uuid.UUID,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     stmt = delete(Agent).where(Agent.id == agent_id, Agent.user_id == current_user["sub"])
     await db.execute(stmt)
     await db.commit()
     return {"status": "deleted"}
 
+
 @router.post("/{agent_id}/activate")
-async def activate_agent(agent_id: uuid.UUID, current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def activate_agent(
+    agent_id: uuid.UUID,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     stmt = update(Agent).where(Agent.id == agent_id, Agent.user_id == current_user["sub"]).values(status=AgentStatus.active)
     await db.execute(stmt)
     await db.commit()
     return {"status": "activated"}
 
+
 @router.post("/{agent_id}/deactivate")
-async def deactivate_agent(agent_id: uuid.UUID, current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def deactivate_agent(
+    agent_id: uuid.UUID,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     stmt = update(Agent).where(Agent.id == agent_id, Agent.user_id == current_user["sub"]).values(status=AgentStatus.inactive)
     await db.execute(stmt)
     await db.commit()
     return {"status": "deactivated"}
 
-@router.post("/{agent_id}/get-number")
-async def get_agent_number(agent_id: uuid.UUID, current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    # In a real app, provision a number via Telnyx
-    return {"phone_number": "+1234567890"}
 
 @router.get("/{agent_id}/setup-instructions")
-async def get_setup_instructions(agent_id: uuid.UUID):
-    return {"instructions": "Forward your calls to +1234567890"}
+async def get_setup_instructions(
+    agent_id: uuid.UUID,
+    carrier: Optional[str] = "telnyx",
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Agent).where(Agent.id == agent_id, Agent.user_id == current_user["sub"])
+    result = await db.execute(stmt)
+    agent = result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    phone = agent.telnyx_phone or "+1 (TBD after activation)"
+    return {
+        "carrier": carrier,
+        "forwarding_number": phone,
+        "steps": [
+            f"Buy a number in {carrier.capitalize()} console",
+            f"Set the voice webhook to: https://<your-domain>/telnyx/voice",
+            f"Add the phone number to this agent in settings",
+            f"Tell customers to call {phone} or set call-forwarding from your existing number",
+        ],
+    }
 
-@router.post("/{agent_id}/test")
-async def test_agent(agent_id: uuid.UUID):
-    return {"status": "test_call_initiated"}
 
-@router.get("/{agent_id}/availability")
-async def get_agent_availability(agent_id: uuid.UUID, date: str):
-    return {"available_slots": ["09:00", "10:00", "11:00"]}
+@router.post("/{agent_id}/test-chat")
+async def test_chat(
+    agent_id: uuid.UUID,
+    body: TestChatBody,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.config import settings
+
+    stmt = select(Agent).where(Agent.id == agent_id, Agent.user_id == current_user["sub"])
+    result = await db.execute(stmt)
+    agent = result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    ctx = agent.business_context or {}
+    biz_name = ctx.get("business_name") or agent.name
+    greeting = ctx.get("greeting_message") or f"Hello! Thanks for calling {biz_name}. How can I help you?"
+
+    if not settings.OPENAI_API_KEY:
+        return {
+            "reply": f"Hi! I'm {ctx.get('agent_name') or 'your AI receptionist'} at {biz_name}. {greeting}",
+            "source": "fallback",
+        }
+
+    try:
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        system = (agent.system_prompt or
+                  f"You are {ctx.get('agent_name') or 'a helpful AI receptionist'} at {biz_name}. "
+                  f"{greeting} Be concise and friendly.")
+        messages = [{"role": "system", "content": system}]
+        for turn in (body.history or []):
+            messages.append({"role": turn.get("role", "user"), "content": turn.get("content", "")})
+        messages.append({"role": "user", "content": body.message})
+        resp = await client.chat.completions.create(
+            model=settings.OPENAI_MODEL,
+            messages=messages,
+            max_tokens=200,
+        )
+        return {"reply": resp.choices[0].message.content, "source": "openai"}
+    except Exception as e:
+        return {"reply": f"I'm your AI receptionist for {biz_name}. How can I help?", "source": "fallback"}
+
+
+@router.post("/{agent_id}/get-number")
+async def get_agent_number(agent_id: uuid.UUID, current_user: dict = Depends(get_current_user)):
+    return {"phone_number": "+1234567890"}
