@@ -1,7 +1,8 @@
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
@@ -11,22 +12,31 @@ from app.api import auth, agents, calls, dashboard, billing, integrations, webho
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("oneclerk")
 
+STATIC_DIR = Path(__file__).parent / "static"
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from app.database import init_models
+    await init_models()
+    yield
+
 app = FastAPI(
     title="OneClerk.ai API",
     description="AI Voice Receptionist Platform Backend",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
-# CORS
+# CORS - allow all origins for Replit proxy compatibility
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL, "http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Routers
+# API Routers
 app.include_router(auth.router)
 app.include_router(agents.router)
 app.include_router(calls.router)
@@ -51,6 +61,20 @@ async def health():
         "database": "configured" if settings.DATABASE_URL else "not configured"
     }
 
+@app.get("/app", response_class=HTMLResponse)
+async def serve_app():
+    index_path = STATIC_DIR / "index.html"
+    if index_path.exists():
+        return HTMLResponse(content=index_path.read_text())
+    return HTMLResponse(content="<h1>OneClerk Dashboard</h1>", status_code=200)
+
+# Mount static files
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
 @app.get("/")
 async def root():
+    index_path = STATIC_DIR / "index.html"
+    if index_path.exists():
+        return HTMLResponse(content=index_path.read_text())
     return {"message": "Welcome to OneClerk.ai API"}
