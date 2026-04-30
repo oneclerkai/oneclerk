@@ -3855,6 +3855,183 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 }
 
 /* ============================================================
+   DRAG-AND-DROP IMPROVEMENTS
+   ============================================================ */
+
+/* Snap-grid dot pattern overlaid during drag */
+.agb-canvas-wrap {
+  --grid-dot: rgba(99,102,241,0.12);
+}
+.agb-canvas-wrap.is-dragging-active {
+  background-image:
+    radial-gradient(circle, var(--grid-dot) 1.5px, transparent 1.5px),
+    radial-gradient(circle, rgba(15,15,20,0.13) 1.1px, transparent 1.6px) !important;
+  background-size: 16px 16px, 22px 22px !important;
+}
+
+/* Drag lift — scale, deeper shadow, accent ring */
+.agb-box.is-dragging {
+  cursor: grabbing !important;
+  user-select: none;
+  transform: scale(1.035) translateY(-2px) !important;
+  box-shadow:
+    0 28px 56px -12px rgba(15,15,20,0.42),
+    0 0 0 2px rgba(245,158,11,0.5),
+    0 0 0 6px rgba(245,158,11,0.12) !important;
+  z-index: 999;
+  transition: box-shadow 80ms, transform 80ms;
+}
+
+/* Flash-highlight animation when user clicks an already-added item */
+@keyframes agbBoxFlash {
+  0%   { box-shadow: 0 0 0 0   rgba(99,102,241,0); }
+  30%  { box-shadow: 0 0 0 8px rgba(99,102,241,0.45); }
+  100% { box-shadow: 0 14px 32px -16px rgba(15,15,20,0.22); }
+}
+.agb-box.is-highlighted {
+  animation: agbBoxFlash 1.4s cubic-bezier(.2,.9,.4,1) forwards;
+  border-color: #6366f1 !important;
+}
+
+/* ============================================================
+   ORB PLUS CHECKMARKS
+   ============================================================ */
+
+/* Orb menu item — already-added state */
+.agb-orb-menu-item.is-added {
+  background: rgba(34,197,94,0.07) !important;
+  border-color: rgba(34,197,94,0.3) !important;
+}
+.agb-orb-menu-item.is-added .agb-orb-menu-label {
+  color: #166534;
+}
+.agb-orb-menu-item.is-added:hover {
+  background: rgba(34,197,94,0.13) !important;
+}
+
+/* Checkmark badge on added items */
+.agb-orb-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  flex-shrink: 0;
+  margin-left: auto;
+  box-shadow: 0 1px 4px rgba(34,197,94,0.35);
+}
+
+/* ============================================================
+   DASHBOARD SETUP CHECKLIST
+   ============================================================ */
+
+.dash-cl-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.dash-cl-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.dash-cl-title { font-weight: 800; font-size: 1rem; }
+.dash-cl-sub   { font-size: .8rem; color: var(--muted); margin-top: 3px; }
+
+/* SVG progress ring */
+.dash-cl-ring-wrap {
+  position: relative;
+  width: 44px; height: 44px;
+  flex-shrink: 0;
+}
+.dash-cl-ring { width: 44px; height: 44px; }
+.dash-cl-ring circle:last-child {
+  transition: stroke-dashoffset 0.6s cubic-bezier(.4,0,.2,1);
+}
+.dash-cl-pct {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+/* Steps list */
+.dash-cl-steps {
+  padding: 4px 0;
+}
+.dash-cl-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--border);
+  transition: background 120ms;
+}
+.dash-cl-step:last-child { border-bottom: none; }
+.dash-cl-step:not(.is-done):hover { background: rgba(15,15,20,0.02); }
+
+.dash-cl-dot {
+  width: 28px; height: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dash-cl-dot svg { width: 22px; height: 22px; }
+
+.dash-cl-num {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dash-cl-info { flex: 1; min-width: 0; }
+.dash-cl-label {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.is-done .dash-cl-label {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: rgba(0,0,0,0.2);
+}
+.dash-cl-hint { font-size: .75rem; color: var(--muted); margin-top: 1px; }
+
+.dash-cl-btn {
+  white-space: nowrap;
+  font-size: .75rem;
+}
+.dash-cl-done-tag {
+  font-size: .7rem;
+  font-weight: 700;
+  color: #16a34a;
+  background: rgba(22,163,74,0.1);
+  border: 1px solid rgba(22,163,74,0.2);
+  border-radius: 20px;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+
+/* ============================================================
    AGENT PREVIEW SECTION
    ============================================================ */
 

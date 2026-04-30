@@ -1435,6 +1435,7 @@ route("dashboard", async () => {
   const page = $("#page", wrap);
   page.innerHTML = `
     <div class="grid grid-cols-4 mb-6" id="stats">${skeleton(1)}</div>
+    <div id="dash-checklist" class="mb-5"></div>
     <div id="ap-wrap" class="mb-5"></div>
     <div class="grid" style="grid-template-columns: 1.7fr 1fr; gap:16px">
       <div class="card p-5">
@@ -1469,9 +1470,87 @@ route("dashboard", async () => {
     renderIcons($("#stats", page));
     renderRecentCalls($("#recent", page), (recent.calls || []).slice(0, 6));
 
+    // Setup checklist
+    const agentList = agents.agents || [];
+    const clWrap = $("#dash-checklist", page);
+    const clSteps = [
+      {
+        id: "account",
+        label: "Account created",
+        sub: "You're in. Welcome to OneClerk.",
+        done: true,
+        cta: null,
+      },
+      {
+        id: "agent",
+        label: "Build your first AI agent",
+        sub: "Give it a name, voice, and personality.",
+        done: agentList.length > 0,
+        cta: { label: "Create agent", hash: "#/agents/new" },
+      },
+      {
+        id: "phone",
+        label: "Connect your phone number",
+        sub: "Forward your business line so the AI picks up.",
+        done: agentList.some(a => {
+          const boxes = a.config?.builder_layout?.boxes || [];
+          return boxes.some(b => b.kind === "phone" && b.data?.number);
+        }),
+        cta: { label: "Open builder", hash: "#/agents" },
+      },
+      {
+        id: "calls",
+        label: "First call answered",
+        sub: "Your AI receptionist is earning its keep.",
+        done: (stats.calls_total ?? 0) > 0,
+        cta: { label: "View calls", hash: "#/calls" },
+      },
+      {
+        id: "live",
+        label: "Agent gone live",
+        sub: "Activate your agent and never miss a call.",
+        done: active > 0,
+        cta: { label: "Activate agent", hash: "#/agents" },
+      },
+    ];
+    const allDone = clSteps.every(s => s.done);
+    const doneCnt = clSteps.filter(s => s.done).length;
+    const pct = Math.round((doneCnt / clSteps.length) * 100);
+
+    clWrap.innerHTML = `
+      <div class="dash-cl-card">
+        <div class="dash-cl-header">
+          <div>
+            <div class="dash-cl-title">${allDone ? "🎉 You're all set!" : "Get started"}</div>
+            <div class="dash-cl-sub">${allDone ? "Your AI receptionist is live and handling calls." : `${doneCnt} of ${clSteps.length} steps complete`}</div>
+          </div>
+          <div class="dash-cl-ring-wrap">
+            <svg class="dash-cl-ring" viewBox="0 0 44 44">
+              <circle cx="22" cy="22" r="18" fill="none" stroke="var(--border)" stroke-width="4"/>
+              <circle cx="22" cy="22" r="18" fill="none" stroke="var(--primary)" stroke-width="4"
+                stroke-dasharray="${2 * Math.PI * 18}" stroke-dashoffset="${2 * Math.PI * 18 * (1 - pct / 100)}"
+                stroke-linecap="round" transform="rotate(-90 22 22)"/>
+            </svg>
+            <span class="dash-cl-pct">${pct}%</span>
+          </div>
+        </div>
+        <div class="dash-cl-steps">
+          ${clSteps.map((s, i) => `
+            <div class="dash-cl-step ${s.done ? 'is-done' : ''}">
+              <div class="dash-cl-dot">${s.done ? `<svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="var(--primary)"/><path d="M4.5 8.5l2.5 2.5 5-5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>` : `<span class="dash-cl-num">${i + 1}</span>`}</div>
+              <div class="dash-cl-info">
+                <div class="dash-cl-label">${s.label}</div>
+                <div class="dash-cl-hint">${s.sub}</div>
+              </div>
+              ${!s.done && s.cta ? `<button class="btn btn-ghost btn-sm dash-cl-btn" data-hash="${s.cta.hash}">${s.cta.label} →</button>` : ""}
+              ${s.done ? `<span class="dash-cl-done-tag">Done</span>` : ""}
+            </div>`).join("")}
+        </div>
+      </div>`;
+    clWrap.querySelectorAll("[data-hash]").forEach(b => b.addEventListener("click", () => navigate(b.dataset.hash)));
+
     // Render agent preview card
     const apWrap = $("#ap-wrap", page);
-    const agentList = agents.agents || [];
     const previewAgent = agentList.find(a => a.is_active) || agentList[0] || null;
     mountDashboardPreview(apWrap, previewAgent);
 
@@ -2105,12 +2184,14 @@ route("agents", async () => {
               <i data-lucide="plus" class="icon"></i>
             </button>
             <div class="agb-orb-menu agb-orb-menu-mini" id="agb-orb-menu" hidden>
-              ${AGB_BOX_DEFS.map(d => `
-                <button class="agb-orb-menu-item agb-orb-menu-item-mini" data-add-kind="${d.kind}" style="--ax:${d.accent}" title="${escapeHtml(d.label)}">
+              ${AGB_BOX_DEFS.map(d => {
+                const added = layout.boxes.some(b => b.kind === d.kind);
+                return `<button class="agb-orb-menu-item agb-orb-menu-item-mini${added ? ' is-added' : ''}" data-add-kind="${d.kind}" style="--ax:${d.accent}" title="${escapeHtml(d.label)}">
                   <span class="agb-orb-menu-ic agb-orb-menu-ic-brand">${brandSvg(d.brand)}</span>
                   <span class="agb-orb-menu-label">${d.label}</span>
-                </button>
-              `).join("")}
+                  ${added ? '<span class="agb-orb-check">✓</span>' : ''}
+                </button>`;
+              }).join("")}
             </div>
           </div>
         </div>
@@ -2120,16 +2201,34 @@ route("agents", async () => {
     // OneClerk orb "+" toggle + add-from-menu actions.
     const orbPlus = $("#agb-orb-plus", stage);
     const orbMenu = $("#agb-orb-menu", stage);
+
+    function refreshOrbMarks() {
+      orbMenu && orbMenu.querySelectorAll("[data-add-kind]").forEach(btn => {
+        const kind = btn.dataset.addKind;
+        const added = layout.boxes.some(b => b.kind === kind);
+        btn.classList.toggle("is-added", added);
+        let chk = btn.querySelector(".agb-orb-check");
+        if (added && !chk) {
+          chk = document.createElement("span");
+          chk.className = "agb-orb-check";
+          chk.textContent = "✓";
+          btn.appendChild(chk);
+        } else if (!added && chk) {
+          chk.remove();
+        }
+      });
+    }
+
     orbPlus && orbPlus.addEventListener("click", (ev) => {
       ev.stopPropagation();
       ev.preventDefault();
       orbMenu.hidden = !orbMenu.hidden;
       orbPlus.classList.toggle("is-open", !orbMenu.hidden);
+      if (!orbMenu.hidden) refreshOrbMarks();
     });
     document.addEventListener("click", function hideMenu(ev) {
       if (!orbMenu) return;
       if (orbMenu.hidden) return;
-      // Use closest() so clicking the inner SVG of the plus button still counts as the plus
       if (orbMenu.contains(ev.target)) return;
       if (ev.target.closest && ev.target.closest("#agb-orb-plus")) return;
       orbMenu.hidden = true;
@@ -2138,15 +2237,33 @@ route("agents", async () => {
     orbMenu && orbMenu.querySelectorAll("[data-add-kind]").forEach(b => b.addEventListener("click", () => {
       const kind = b.dataset.addKind;
       const wrapEl = $("#agb-canvas-wrap", stage);
+
+      // If already in layout → scroll to it + flash instead of adding duplicate
+      const existingBox = layout.boxes.find(box => box.kind === kind);
+      if (existingBox) {
+        orbMenu.hidden = true;
+        orbPlus.classList.remove("is-open");
+        const el = wrapEl.querySelector(`.agb-box[data-id="${existingBox.id}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          el.classList.add("is-highlighted");
+          setTimeout(() => el.classList.remove("is-highlighted"), 1600);
+        }
+        toast(`${AGB_BOX_DEFS.find(d => d.kind === kind)?.label || kind} already on canvas`, "info");
+        return;
+      }
+
+      // Add new box — snap position to grid
       const r = wrapEl.getBoundingClientRect();
       const sx = wrapEl.scrollLeft, sy = wrapEl.scrollTop;
-      // Place the new box near the visible center of the canvas.
-      const x = sx + r.width / 2 - 110 + (Math.random() * 80 - 40);
-      const y = sy + r.height / 2 - 65 + (Math.random() * 80 - 40);
+      const snapV = v => Math.round(v / 16) * 16;
+      const x = snapV(sx + r.width / 2 - 120 + (Math.random() * 80 - 40));
+      const y = snapV(sy + r.height / 2 - 85 + (Math.random() * 80 - 40));
       layout.boxes.push({ id: "b" + Math.random().toString(36).slice(2, 9), kind, x, y, data: {} });
       orbMenu.hidden = true;
-      // Trigger redraw via event by re-mounting the builder
+      orbPlus.classList.remove("is-open");
       initBuilderCanvas(stage, layout);
+      refreshOrbMarks();
     }));
 
     // Wire toolbar actions
@@ -2366,6 +2483,8 @@ function initBuilderCanvas(stage, layout) {
   };
 
   const BOX_W = 240, BOX_H = 170;
+  const SNAP = 16;
+  const snapV = v => Math.round(v / SNAP) * SNAP;
 
   function defOf(kind) { return AGB_BOX_DEFS.find(d => d.kind === kind) || AGB_BOX_DEFS[0]; }
   function boxById(id) { return layout.boxes.find(b => b.id === id); }
@@ -2521,17 +2640,26 @@ function initBuilderCanvas(stage, layout) {
       const id = el.dataset.id;
       const box = boxById(id);
       // Drag from ANYWHERE on the box (except inputs/buttons/handles).
-      el.addEventListener("mousedown", (ev) => {
-        const t = ev.target;
+      function startBoxDrag(t, clientX, clientY) {
         if (!t) return;
-        if (t.closest(".agb-box-x")) return;                 // delete button
-        if (t.closest(".agb-handle")) return;                // edge-handles handle their own drag
+        if (t.closest(".agb-box-x")) return;
+        if (t.closest(".agb-handle")) return;
         if (t.matches("input, textarea, select, button, label, .agb-upload-label")) return;
         if (t.closest("input, textarea, select, button, label, .agb-upload-label")) return;
-        ev.preventDefault();
         el.classList.add("is-dragging");
-        state.dragBox = { id, ox: box.x, oy: box.y, mx: ev.clientX, my: ev.clientY };
+        wrap.classList.add("is-dragging-active");
+        state.dragBox = { id, ox: box.x, oy: box.y, mx: clientX, my: clientY };
+      }
+      el.addEventListener("mousedown", (ev) => {
+        ev.preventDefault();
+        startBoxDrag(ev.target, ev.clientX, ev.clientY);
       });
+      el.addEventListener("touchstart", (ev) => {
+        const touch = ev.touches[0];
+        if (startBoxDrag(touch.target, touch.clientX, touch.clientY) !== undefined) return;
+        // Check if we actually started a drag (target wasn't excluded)
+        if (state.dragBox && state.dragBox.id === id) ev.preventDefault();
+      }, { passive: false });
       // Field bindings
       el.querySelectorAll("[data-field]").forEach(inp => {
         inp.addEventListener("input", (ev) => {
@@ -2561,28 +2689,36 @@ function initBuilderCanvas(stage, layout) {
     });
   }
 
-  // Window-level mouse handlers
-  function onMove(ev) {
+  // Window-level mouse + touch handlers
+  function pointerMove(clientX, clientY) {
     if (state.dragBox) {
       const box = boxById(state.dragBox.id);
       if (box) {
-        box.x = Math.max(0, state.dragBox.ox + (ev.clientX - state.dragBox.mx));
-        box.y = Math.max(0, state.dragBox.oy + (ev.clientY - state.dragBox.my));
+        const rawX = state.dragBox.ox + (clientX - state.dragBox.mx);
+        const rawY = state.dragBox.oy + (clientY - state.dragBox.my);
+        box.x = snapV(Math.max(0, rawX));
+        box.y = snapV(Math.max(0, rawY));
         const el = canvas.querySelector(`.agb-box[data-id="${box.id}"]`);
         if (el) { el.style.left = box.x + "px"; el.style.top = box.y + "px"; }
-        // Redraw only edges + notes for performance
+        // Auto-scroll when near canvas-wrap edges
+        const wr = wrap.getBoundingClientRect();
+        const SCROLL_ZONE = 48, SCROLL_SPEED = 8;
+        if (clientX - wr.left < SCROLL_ZONE) wrap.scrollLeft -= SCROLL_SPEED;
+        if (wr.right - clientX < SCROLL_ZONE) wrap.scrollLeft += SCROLL_SPEED;
+        if (clientY - wr.top < SCROLL_ZONE) wrap.scrollTop -= SCROLL_SPEED;
+        if (wr.bottom - clientY < SCROLL_ZONE) wrap.scrollTop += SCROLL_SPEED;
         redrawEdgesOnly();
       }
     } else if (state.dragEdge) {
       const r = canvas.getBoundingClientRect();
-      state.dragEdge.gx = ev.clientX - r.left;
-      state.dragEdge.gy = ev.clientY - r.top;
+      state.dragEdge.gx = clientX - r.left;
+      state.dragEdge.gy = clientY - r.top;
       redrawEdgesOnly();
     }
   }
-  function onUp(ev) {
+  function pointerUp(clientX, clientY) {
     if (state.dragEdge) {
-      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      const el = document.elementFromPoint(clientX, clientY);
       const target = el && el.closest && el.closest(".agb-box");
       if (target && target.dataset.id !== state.dragEdge.fromId) {
         const toId = target.dataset.id;
@@ -2596,8 +2732,21 @@ function initBuilderCanvas(stage, layout) {
     if (state.dragBox) {
       const el = canvas.querySelector(`.agb-box[data-id="${state.dragBox.id}"]`);
       if (el) el.classList.remove("is-dragging");
+      wrap.classList.remove("is-dragging-active");
     }
     state.dragBox = null;
+  }
+  function onMove(ev)     { pointerMove(ev.clientX, ev.clientY); }
+  function onUp(ev)       { pointerUp(ev.clientX, ev.clientY); }
+  function onTouchMove(ev) {
+    if (!state.dragBox && !state.dragEdge) return;
+    ev.preventDefault();
+    const t = ev.touches[0];
+    pointerMove(t.clientX, t.clientY);
+  }
+  function onTouchEnd(ev) {
+    const t = ev.changedTouches[0];
+    pointerUp(t.clientX, t.clientY);
   }
 
   function redrawEdgesOnly() {
@@ -2644,11 +2793,15 @@ function initBuilderCanvas(stage, layout) {
 
   window.addEventListener("mousemove", onMove);
   window.addEventListener("mouseup", onUp);
+  window.addEventListener("touchmove", onTouchMove, { passive: false });
+  window.addEventListener("touchend", onTouchEnd);
   // Cleanup when stage detaches (best effort)
   const cleanupObserver = new MutationObserver(() => {
     if (!document.body.contains(stage)) {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
       cleanupObserver.disconnect();
     }
   });
