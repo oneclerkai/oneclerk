@@ -21,7 +21,14 @@ async function api(path, { method = "GET", body, auth = true } = {}) {
   if (res.status === 401) { Store.token = null; Store.user = null; location.hash = "#/login"; throw new Error("Please sign in again"); }
   if (!res.ok) {
     let msg = `Request failed (${res.status})`;
-    try { const j = await res.json(); msg = j.detail || msg; } catch {}
+    try {
+      const j = await res.json();
+      if (j.detail) {
+        msg = Array.isArray(j.detail)
+          ? j.detail.map(e => e.msg || JSON.stringify(e)).join(", ")
+          : String(j.detail);
+      }
+    } catch {}
     throw new Error(msg);
   }
   if (res.status === 204) return null;
@@ -1037,8 +1044,8 @@ function openAuthModal(initialMode = "login") {
     e.preventDefault();
     const err = $("#m-err", modal); err.classList.add("hidden");
     const body = mode === "signup"
-      ? { name: $("#m-name", modal).value, email: $("#m-email", modal).value, password: $("#m-password", modal).value }
-      : { email: $("#m-email", modal).value, password: $("#m-password", modal).value };
+      ? { full_name: $("#m-name", modal).value.trim(), email: $("#m-email", modal).value.trim(), password: $("#m-password", modal).value }
+      : { email: $("#m-email", modal).value.trim(), password: $("#m-password", modal).value };
     try {
       const r = await api(`/auth/${mode}`, { method: "POST", body, auth: false });
       Store.token = r.access_token;

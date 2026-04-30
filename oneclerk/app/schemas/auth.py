@@ -4,9 +4,9 @@ import uuid
 
 class UserBase(BaseModel):
     email: EmailStr
-    full_name: str
-    business_name: str
-    business_type: str
+    full_name: Optional[str] = None
+    business_name: Optional[str] = None
+    business_type: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str

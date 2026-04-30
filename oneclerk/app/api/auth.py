@@ -28,9 +28,9 @@ async def signup(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
     new_user = User(
         email=user_in.email,
         password_hash=get_password_hash(user_in.password),
-        full_name=user_in.full_name,
-        business_name=user_in.business_name,
-        business_type=user_in.business_type,
+        full_name=user_in.full_name or None,
+        business_name=user_in.business_name or None,
+        business_type=user_in.business_type or None,
     )
     db.add(new_user)
     await db.commit()
