@@ -1,5 +1,8 @@
 import './globals.css'
 import Providers from './providers';
+import ClientOnly from './client-only';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'OneClerk.ai — Voice AI Receptionist',
@@ -14,9 +17,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Providers>
-          {children}
-        </Providers>
+        <ClientOnly>
+          <Providers>
+            {children}
+          </Providers>
+        </ClientOnly>
       </body>
     </html>
   )
