@@ -8,6 +8,22 @@ const nextConfig = {
         source: '/api/:path*',
         destination: `${backendUrl}/api/:path*`,
       },
+      {
+        source: '/static/:path*',
+        destination: `${backendUrl}/static/:path*`,
+      },
+      {
+        source: '/app',
+        destination: `${backendUrl}/app`,
+      },
+      {
+        source: '/app/:path*',
+        destination: `${backendUrl}/app/:path*`,
+      },
+      {
+        source: '/health',
+        destination: `${backendUrl}/health`,
+      },
     ];
   },
   async headers() {
@@ -15,7 +31,6 @@ const nextConfig = {
       {
         source: '/(.*)',
         headers: [
-          { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
         ],
       },
