@@ -38,3 +38,11 @@ externalPort = 80
 [deployment]
 deploymentTarget = "autoscale"
 run = ["bash", "-c", "cd oneclerk && uvicorn app.main:app --host 0.0.0.0 --port 5000"]
+
+[userenv]
+
+[userenv.shared]
+ENVIRONMENT = "development"
+JWT_SECRET_KEY = "replit-oneclerk-jwt-secret-key-2024"
+OPENAI_MODEL = "gpt-4o-mini"
+ELEVENLABS_MODEL = "eleven_turbo_v2_5"
