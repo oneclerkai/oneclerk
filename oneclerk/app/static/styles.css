@@ -4999,3 +4999,226 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   .ap-cal-dnum { font-size: 13px; }
   .ap-cal-evt { font-size: 8px !important; }
 }
+
+/* ============================================================
+   ENHANCED AUTH BACKGROUND — rich dark gradient + stronger blobs
+   ============================================================ */
+.auth-modal-backdrop {
+  background: radial-gradient(ellipse at 20% 50%, #1a0a2e 0%, #0d0d1a 40%, #090912 100%);
+}
+.auth-modal-backdrop-anim {
+  background:
+    radial-gradient(ellipse at 15% 25%, rgba(120,40,200,0.55) 0%, transparent 50%),
+    radial-gradient(ellipse at 82% 72%, rgba(255,100,40,0.45) 0%, transparent 45%),
+    radial-gradient(ellipse at 55% 8%, rgba(40,80,220,0.4) 0%, transparent 40%),
+    linear-gradient(160deg, #120820 0%, #0d0d18 50%, #0a0c1a 100%);
+  overflow: hidden;
+}
+/* Boost blob opacity and make them larger for richer feel */
+.auth-bg-blob { opacity: 0.75; filter: blur(55px); }
+.auth-bg-blob-a {
+  width: 520px; height: 520px;
+  background: radial-gradient(circle, rgba(180,60,255,0.8), transparent 62%);
+  animation-duration: 10s;
+}
+.auth-bg-blob-b {
+  width: 480px; height: 480px;
+  background: radial-gradient(circle, rgba(255,100,40,0.7), transparent 60%);
+  animation-duration: 13s;
+}
+.auth-bg-blob-c {
+  width: 360px; height: 360px;
+  background: radial-gradient(circle, rgba(40,160,255,0.6), transparent 62%);
+  animation-duration: 9s;
+}
+/* Subtle animated dot grid for motion depth */
+.auth-bg-grain {
+  background-image:
+    radial-gradient(rgba(255,255,255,0.10) 1px, transparent 1px),
+    radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+  background-size: 22px 22px, 11px 11px;
+  background-position: 0 0, 5px 5px;
+  animation: authGrainShift 14s linear infinite;
+  opacity: 1;
+}
+/* Auth modal card — richer glow border */
+.auth-modal-backdrop-anim .auth-modal {
+  border: 1px solid rgba(150,100,255,0.3);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.05),
+    0 40px 100px -20px rgba(0,0,0,0.75),
+    0 0 50px rgba(140,60,255,0.2);
+}
+
+/* ============================================================
+   QNA — non-skippable / important question styles
+   ============================================================ */
+.lp-qna-item.lp-qna-important {
+  border-left: 3px solid #f59e0b;
+}
+.lp-qna-item.lp-qna-important > summary {
+  color: #0d0d0f;
+}
+.lp-qna-required {
+  display: inline-flex; align-items: center;
+  background: rgba(245,158,11,0.14); color: #b45309;
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; padding: 2px 7px; border-radius: 999px;
+  margin-left: 8px; flex-shrink: 0;
+}
+@keyframes qnaFlash {
+  0%,100% { background: inherit; }
+  30%     { background: rgba(245,158,11,0.2); }
+}
+.lp-qna-item.lp-qna-flash { animation: qnaFlash 0.5s ease; }
+
+/* ============================================================
+   AGENT ORB PLUS BUTTON — rotate + scale when open
+   ============================================================ */
+.agb-orb-plus.is-open {
+  background: #dc2626;
+  transform: rotate(45deg) scale(1.1);
+}
+.agb-orb-plus.is-open:hover {
+  background: #b91c1c;
+  transform: rotate(45deg) scale(1.15);
+}
+
+/* ============================================================
+   BUILDER CANVAS BOXES — scrollable content + improved nodes
+   ============================================================ */
+.agb-box-body {
+  overflow-y: auto;
+  max-height: 130px;
+  padding: 10px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15,15,20,0.15) transparent;
+}
+.agb-box-body::-webkit-scrollbar { width: 4px; }
+.agb-box-body::-webkit-scrollbar-track { background: transparent; }
+.agb-box-body::-webkit-scrollbar-thumb { background: rgba(15,15,20,0.2); border-radius: 4px; }
+.agb-box { height: auto !important; min-height: 160px; max-height: 240px; }
+
+/* ============================================================
+   FLOW NODES — enhanced, colorful, modern look
+   ============================================================ */
+.flow-node {
+  background: #fff;
+  border-radius: 14px;
+  border: 1.5px solid rgba(15,15,20,0.12);
+  box-shadow: 0 4px 16px -8px rgba(15,15,20,0.2), 0 1px 0 rgba(255,255,255,0.9) inset;
+  transition: box-shadow 0.15s, transform 0.12s;
+}
+.flow-node:hover {
+  box-shadow: 0 8px 24px -10px rgba(15,15,20,0.28);
+  transform: translateY(-1px);
+}
+.flow-node.selected {
+  box-shadow: 0 0 0 2px #6366f1, 0 8px 24px -10px rgba(99,102,241,0.4);
+}
+.flow-node .fn-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid rgba(15,15,20,0.07);
+  border-radius: 12px 12px 0 0;
+}
+.flow-node.t-greeting .fn-head { background: linear-gradient(135deg, rgba(99,102,241,0.12), transparent); }
+.flow-node.t-ask .fn-head       { background: linear-gradient(135deg, rgba(6,182,212,0.12), transparent); }
+.flow-node.t-branch .fn-head    { background: linear-gradient(135deg, rgba(245,158,11,0.12), transparent); }
+.flow-node.t-book .fn-head      { background: linear-gradient(135deg, rgba(16,185,129,0.12), transparent); }
+.flow-node.t-escalate .fn-head  { background: linear-gradient(135deg, rgba(239,68,68,0.12), transparent); }
+.flow-node.t-whatsapp .fn-head  { background: linear-gradient(135deg, rgba(37,211,102,0.12), transparent); }
+.flow-node .fn-text {
+  padding: 8px 12px 10px;
+  font-size: 11.5px; color: rgba(15,15,20,0.6);
+  line-height: 1.5;
+}
+.flow-node .fn-handle {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  border: 2.5px solid currentColor;
+  background: #fff;
+  transition: transform 0.15s, background 0.15s;
+}
+.flow-node .fn-handle:hover { transform: scale(1.4); background: currentColor; }
+.flow-node .fn-handle.in  { left: -7px; color: rgba(15,15,20,0.35); }
+.flow-node .fn-handle.out { right: -7px; color: #6366f1; }
+
+/* ============================================================
+   DASHBOARD PREVIEW PAGE (Voice Preview)
+   ============================================================ */
+.prev-wrap {
+  max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px;
+}
+.prev-card {
+  background: #0d0d16;
+  border-radius: 20px;
+  padding: 28px 24px 24px;
+  display: flex; flex-direction: column; gap: 20px;
+  box-shadow: 0 20px 60px -20px rgba(0,0,0,0.5);
+}
+.prev-controls {
+  display: flex; flex-wrap: wrap; gap: 14px;
+}
+.prev-field {
+  display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 160px;
+}
+.prev-field span {
+  font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.5);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.prev-field select {
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px; padding: 8px 12px;
+  color: #fff; font-size: 13.5px; font-family: inherit;
+  cursor: pointer; outline: none;
+  transition: border-color 0.15s;
+}
+.prev-field select:focus { border-color: rgba(255,205,92,0.6); }
+.prev-field select option { background: #1a1a2e; color: #fff; }
+.prev-no-agent {
+  display: flex; flex-direction: column; gap: 10px; align-items: flex-start;
+  color: rgba(255,255,255,0.55); font-size: 13.5px;
+}
+.prev-stage {
+  display: flex; flex-direction: column; gap: 12px;
+}
+.prev-wave {
+  width: 100%; height: 96px; border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+}
+.prev-status {
+  font-size: 13px; color: rgba(255,255,255,0.65);
+  text-align: center; min-height: 36px;
+  line-height: 1.5;
+}
+.prev-status strong { color: #ffcd5c; }
+.prev-status em { color: rgba(255,255,255,0.85); }
+.prev-actions {
+  display: flex; align-items: center; gap: 16px;
+}
+.prev-talk-btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: linear-gradient(135deg, #ffcd5c, #f59e0b);
+  color: #0d0d0f; border: none; border-radius: 999px;
+  padding: 12px 26px; font-size: 14px; font-weight: 700;
+  font-family: inherit; cursor: pointer;
+  box-shadow: 0 6px 20px -8px rgba(255,205,92,0.6);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.prev-talk-btn:hover { transform: scale(1.04); box-shadow: 0 10px 28px -8px rgba(255,205,92,0.7); }
+.prev-talk-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.prev-talk-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #0d0d0f; opacity: 0.6;
+  animation: pulse 1.8s infinite;
+}
+.prev-talk-btn:disabled .prev-talk-dot { animation: none; }
+.prev-info-avatar {
+  width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, #ffcd5c, #f59e0b);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 16px; color: #0d0d0f;
+}
+.prev-card .btn-ghost { color: rgba(255,255,255,0.6); border-color: rgba(255,255,255,0.15); }
+.prev-card .btn-ghost:hover { color: #fff; background: rgba(255,255,255,0.08); }

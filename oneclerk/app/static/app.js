@@ -593,8 +593,8 @@ route("auth", async () => {
         </div>
         <div class="lp-qna-list" id="lp-qna-list">
           ${LANDING_QNA.map((qa, i) => `
-            <details class="lp-qna-item" ${i === 0 ? "open" : ""}>
-              <summary><span>${escapeHtml(qa.q)}</span><span class="lp-qna-chev">+</span></summary>
+            <details class="lp-qna-item ${i < 3 ? 'lp-qna-important' : ''}" ${i === 0 ? "open" : ""} ${i < 3 ? 'data-important="true"' : ''}>
+              <summary><span>${escapeHtml(qa.q)}</span>${i < 3 ? '<span class="lp-qna-required">Required</span>' : ''}<span class="lp-qna-chev">+</span></summary>
               <div class="lp-qna-a">${escapeHtml(qa.a)}</div>
             </details>
           `).join("")}
@@ -675,6 +675,7 @@ route("auth", async () => {
     initParabolaWord(root);
     initLandingNavScroll(root);
     initVoiceTester(root);
+    initQnaNonSkippable(root);
     if (window.lucide) lucide.createIcons({ attrs: { class: "icon" } });
   }, 0);
 
@@ -712,6 +713,24 @@ function initLandingNavScroll(root) {
       ev.preventDefault();
       const top = target.getBoundingClientRect().top + window.scrollY - 70;
       window.scrollTo({ top, behavior: "smooth" });
+    });
+  });
+}
+
+// QnA: prevent important questions from being collapsed once opened
+function initQnaNonSkippable(root) {
+  const items = root.querySelectorAll(".lp-qna-item[data-important='true']");
+  items.forEach(item => {
+    // Force open immediately
+    item.open = true;
+    item.querySelector("summary").addEventListener("click", (e) => {
+      if (item.open) {
+        // Prevent closing
+        e.preventDefault();
+        // Flash to indicate it's required
+        item.classList.add("lp-qna-flash");
+        setTimeout(() => item.classList.remove("lp-qna-flash"), 600);
+      }
     });
   });
 }
@@ -830,6 +849,26 @@ function initVoiceTester(root) {
   }
   langSel  && langSel.addEventListener("change",  () => previewLine(true));
   voiceSel && voiceSel.addEventListener("change", () => previewLine(true));
+  const agentTypeSel = root.querySelector("#lp-try-agent");
+  agentTypeSel && agentTypeSel.addEventListener("change", () => {
+    const agent = agentTypeSel.value;
+    const lang  = langSel ? langSel.value : "English (US)";
+    const voice = voiceSel ? voiceSel.value : "Maya — warm, mid-30s";
+    const langDef  = TRY_LANG_MAP[lang]  || TRY_LANG_MAP["English (US)"];
+    const voiceDef = TRY_VOICE_MAP[voice] || TRY_VOICE_MAP["Maya — warm, mid-30s"];
+    const line = TRY_LINES[agent] || TRY_LINES["Dental clinic front desk"];
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(line.split(".")[0] + ".");
+    const v = pickBestVoice(langDef.code, voiceDef.gender);
+    if (v) u.voice = v;
+    u.lang  = (v && v.lang) || langDef.code;
+    u.rate  = voiceDef.rate;
+    u.pitch = voiceDef.pitch;
+    currentPitch = voiceDef.pitch;
+    if (status) status.innerHTML = `<em class="lp-try-lang-tag">${escapeHtml(agent)}</em> · ${escapeHtml(lang)} preview`;
+    try { window.speechSynthesis.speak(u); } catch (e) {}
+  });
 
   btn.addEventListener("click", () => {
     if (speaking) {
@@ -1073,6 +1112,7 @@ function shell(activeKey, title, subtitle, action) {
   const items = [
     { k: "agents", label: "Agents", icon: "bot", hash: "#/agents" },
     { k: "calls", label: "Calls", icon: "phone", hash: "#/calls" },
+    { k: "preview", label: "Preview", icon: "play-circle", hash: "#/preview" },
     { k: "settings", label: "Settings", icon: "settings", hash: "#/settings" },
     { k: "billing", label: "Billing", icon: "credit-card", hash: "#/billing" },
   ];
@@ -2279,6 +2319,14 @@ route("agents", async () => {
       ev.preventDefault();
       orbMenu.hidden = !orbMenu.hidden;
       orbPlus.classList.toggle("is-open", !orbMenu.hidden);
+      // Update icon: + when closed, × when open
+      const orbIcon = orbPlus.querySelector(".icon");
+      if (orbIcon) {
+        orbIcon.setAttribute("data-lucide", orbMenu.hidden ? "plus" : "x");
+        if (window.lucide) window.lucide.createIcons({ attrs: { class: "icon" }, context: orbPlus });
+      }
+      // Update tooltip text
+      orbPlus.title = orbMenu.hidden ? "Add integrations" : "Close menu";
       if (!orbMenu.hidden) refreshOrbMarks();
     });
     document.addEventListener("click", function hideMenu(ev) {
@@ -2287,7 +2335,15 @@ route("agents", async () => {
       if (orbMenu.contains(ev.target)) return;
       if (ev.target.closest && ev.target.closest("#agb-orb-plus")) return;
       orbMenu.hidden = true;
-      if (orbPlus) orbPlus.classList.remove("is-open");
+      if (orbPlus) {
+        orbPlus.classList.remove("is-open");
+        const ic = orbPlus.querySelector(".icon");
+        if (ic) {
+          ic.setAttribute("data-lucide", "plus");
+          if (window.lucide) window.lucide.createIcons({ attrs: { class: "icon" }, context: orbPlus });
+        }
+        orbPlus.title = "Add integrations";
+      }
     });
     orbMenu && orbMenu.querySelectorAll("[data-add-kind]").forEach(b => b.addEventListener("click", () => {
       const kind = b.dataset.addKind;
@@ -2915,6 +2971,50 @@ function initBuilderCanvas(stage, layout) {
     }
   });
   cleanupObserver.observe(document.body, { childList: true, subtree: true });
+
+  // Make the OC orb logo draggable within the canvas-wrap
+  const orbWrapEl = $("#agb-orb-wrap", stage);
+  const orbEl = orbWrapEl && orbWrapEl.querySelector(".agb-orb");
+  if (orbEl && orbWrapEl) {
+    let orbDragging = false, orbDX = 0, orbDY = 0;
+    orbEl.style.cursor = "grab";
+    function startOrbDrag(clientX, clientY) {
+      orbDragging = true;
+      const r = orbWrapEl.getBoundingClientRect();
+      orbDX = clientX - r.left - r.width / 2;
+      orbDY = clientY - r.top - r.height / 2;
+      orbEl.style.cursor = "grabbing";
+    }
+    orbEl.addEventListener("mousedown", (ev) => {
+      if (ev.target.closest(".agb-orb-plus")) return;
+      ev.stopPropagation();
+      startOrbDrag(ev.clientX, ev.clientY);
+    });
+    orbEl.addEventListener("touchstart", (ev) => {
+      if (ev.target.closest(".agb-orb-plus")) return;
+      ev.stopPropagation();
+      const t = ev.touches[0];
+      startOrbDrag(t.clientX, t.clientY);
+    }, { passive: true });
+    function orbMoveHandler(clientX, clientY) {
+      if (!orbDragging) return;
+      const wr = wrap.getBoundingClientRect();
+      const x = clientX - wr.left - orbDX;
+      const y = clientY - wr.top - orbDY;
+      orbWrapEl.style.left = Math.max(40, Math.min(wr.width - 40, x)) + "px";
+      orbWrapEl.style.top = Math.max(40, Math.min(wr.height - 40, y)) + "px";
+      orbWrapEl.style.transform = "none";
+    }
+    window.addEventListener("mousemove", (ev) => orbMoveHandler(ev.clientX, ev.clientY));
+    window.addEventListener("mouseup", () => { orbDragging = false; orbEl.style.cursor = "grab"; });
+    window.addEventListener("touchmove", (ev) => {
+      if (!orbDragging) return;
+      ev.preventDefault();
+      const t = ev.touches[0];
+      orbMoveHandler(t.clientX, t.clientY);
+    }, { passive: false });
+    window.addEventListener("touchend", () => { orbDragging = false; orbEl.style.cursor = "grab"; });
+  }
 
   // Drag from palette to canvas
   stage.querySelectorAll(".agb-pal-item").forEach(item => {
@@ -4291,6 +4391,222 @@ route("agentPreview", async (id) => {
   return wrap;
 });
 
+// ============================================================
+// DASHBOARD VOICE PREVIEW ROUTE
+// Like the landing page "Try it live" but connected to user's agents
+// ============================================================
+function initDashboardVoiceTester(root, agentList) {
+  const canvas = root.querySelector("#prev-wave");
+  const status = root.querySelector("#prev-status");
+  const btn    = root.querySelector("#prev-talk");
+  const lbl    = root.querySelector("#prev-talk-label");
+  const langSel  = root.querySelector("#prev-lang");
+  const voiceSel = root.querySelector("#prev-voice");
+  const agentSel = root.querySelector("#prev-agent");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    canvas.width  = r.width  * devicePixelRatio;
+    canvas.height = r.height * devicePixelRatio;
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  let speaking = false, t = 0, level = 0.1, currentPitch = 1;
+  function frame() {
+    t += 0.04 * (0.7 + currentPitch * 0.3);
+    level += ((speaking ? 0.85 : 0.12) - level) * 0.08;
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    const grd = ctx.createLinearGradient(0, 0, w, 0);
+    grd.addColorStop(0,   "rgba(255,205,92,0.9)");
+    grd.addColorStop(0.5, "rgba(255,138,61,0.95)");
+    grd.addColorStop(1,   "rgba(99,102,241,0.85)");
+    ctx.fillStyle = grd;
+    const bars = 64, bw = w / bars;
+    for (let i = 0; i < bars; i++) {
+      const phase = i * 0.35 + t;
+      const amp = Math.sin(phase) * 0.35 + Math.sin(phase * 1.7) * 0.35 + Math.sin(phase * 0.7) * 0.3;
+      const a  = Math.abs(amp) * level;
+      const bh = Math.max(4 * devicePixelRatio, a * h * 0.9 * (0.6 + currentPitch * 0.4));
+      ctx.fillRect(i * bw + bw * 0.18, (h - bh) / 2, bw * 0.6, bh);
+    }
+    requestAnimationFrame(frame);
+  }
+  frame();
+
+  function getAgentScript() {
+    const agent = agentList.find(a => a.id === (agentSel ? agentSel.value : ""));
+    if (agent) {
+      const biz = agent.config?.business_name || agent.name;
+      const name = agent.config?.agent_name || "your receptionist";
+      return agent.config?.greeting_message
+        || `Thank you for calling ${biz}, this is ${name}. How can I help you today?`;
+    }
+    return "Hello, thank you for calling. How can I help you today?";
+  }
+
+  function previewShort() {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const lang  = langSel  ? langSel.value  : "English (US)";
+    const voice = voiceSel ? voiceSel.value : "Maya — warm, mid-30s";
+    const langDef  = TRY_LANG_MAP[lang]  || TRY_LANG_MAP["English (US)"];
+    const voiceDef = TRY_VOICE_MAP[voice] || TRY_VOICE_MAP["Maya — warm, mid-30s"];
+    const u = new SpeechSynthesisUtterance(langDef.greet + " OneClerk.");
+    const v = pickBestVoice(langDef.code, voiceDef.gender);
+    if (v) u.voice = v;
+    u.lang = (v && v.lang) || langDef.code;
+    u.rate = voiceDef.rate; u.pitch = voiceDef.pitch;
+    currentPitch = voiceDef.pitch;
+    try { window.speechSynthesis.speak(u); } catch (e) {}
+  }
+
+  langSel  && langSel.addEventListener("change",  previewShort);
+  voiceSel && voiceSel.addEventListener("change", previewShort);
+  agentSel && agentSel.addEventListener("change", previewShort);
+
+  btn && btn.addEventListener("click", () => {
+    if (speaking) {
+      window.speechSynthesis && window.speechSynthesis.cancel();
+      speaking = false;
+      if (lbl) lbl.textContent = "Talk to agent";
+      if (status) status.innerHTML = `Stopped. Press <strong>Talk</strong> to replay.`;
+      return;
+    }
+    const lang  = langSel  ? langSel.value  : "English (US)";
+    const voice = voiceSel ? voiceSel.value : "Maya — warm, mid-30s";
+    const langDef  = TRY_LANG_MAP[lang]  || TRY_LANG_MAP["English (US)"];
+    const voiceDef = TRY_VOICE_MAP[voice] || TRY_VOICE_MAP["Maya — warm, mid-30s"];
+    const script = getAgentScript();
+    if (status) status.innerHTML = `<strong>Speaking…</strong> <span class="lp-try-lang-tag">${escapeHtml(lang)} · ${escapeHtml(voice.split("—")[0].trim())}</span><br/><em>"${escapeHtml(script)}"</em>`;
+    if (lbl) lbl.textContent = "Stop";
+    speaking = true;
+    currentPitch = voiceDef.pitch;
+    if (window.speechSynthesis) {
+      const u = new SpeechSynthesisUtterance(script);
+      const v = pickBestVoice(langDef.code, voiceDef.gender);
+      if (v) u.voice = v;
+      u.lang  = (v && v.lang) || langDef.code;
+      u.rate  = voiceDef.rate; u.pitch = voiceDef.pitch;
+      u.onend = () => { speaking = false; if (lbl) lbl.textContent = "Talk to agent"; if (status) status.innerHTML = "Done! Sounds just like your receptionist."; };
+      try { window.speechSynthesis.speak(u); } catch (e) {
+        setTimeout(() => { speaking = false; if (lbl) lbl.textContent = "Talk to agent"; }, 4200);
+      }
+    }
+  });
+}
+
+function updateAgentInfoCard(root, agentList) {
+  const agentSel = root.querySelector("#prev-agent");
+  const infoEl   = root.querySelector("#prev-agent-info");
+  if (!agentSel || !infoEl) return;
+  const agent = agentList.find(a => a.id === agentSel.value);
+  if (!agent) { infoEl.innerHTML = ""; return; }
+  const cfg = agent.config || {};
+  infoEl.innerHTML = `
+    <div class="prev-info-card card p-4 flex gap-4 items-start">
+      <div class="prev-info-avatar">${(cfg.agent_name || agent.name).slice(0,2).toUpperCase()}</div>
+      <div style="min-width:0;flex:1">
+        <div class="font-semibold">${escapeHtml(cfg.agent_name || agent.name)}</div>
+        <div class="text-sm text-muted">${escapeHtml(cfg.business_name || "")}${cfg.language ? " · " + escapeHtml(cfg.language) : ""}</div>
+        ${agent.is_active ? '<span class="badge badge-success mt-2">Live</span>' : '<span class="badge badge-muted mt-2">Paused</span>'}
+        ${cfg.greeting_message ? `<div class="text-xs text-muted mt-2 italic">"${escapeHtml(cfg.greeting_message)}"</div>` : ""}
+      </div>
+      <button class="btn btn-sm btn-ghost" id="prev-goto-agent"><i data-lucide="arrow-right" class="icon"></i>Edit</button>
+    </div>`;
+  renderIcons(infoEl);
+  infoEl.querySelector("#prev-goto-agent")?.addEventListener("click", () => navigate(`#/agents/${agent.id}/edit`));
+}
+
+route("preview", async () => {
+  const wrap = shell("preview", "Voice Preview", "Hear your AI agent speak — pick language, voice, and listen.");
+  const page = $("#page", wrap);
+  page.innerHTML = `<div>${skeleton(3)}</div>`;
+
+  try {
+    const r = await api("/agents/list");
+    const agentList = (r.agents || []);
+
+    page.innerHTML = `
+      <div class="prev-wrap">
+        <div class="prev-card">
+          <div class="prev-controls">
+            ${agentList.length ? `
+            <label class="prev-field">
+              <span>Agent</span>
+              <select id="prev-agent">
+                ${agentList.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join("")}
+              </select>
+            </label>` : `
+            <div class="prev-no-agent">
+              <div class="text-sm text-muted">You have no agents yet.</div>
+              <button class="btn btn-primary btn-sm" id="prev-create">Create an agent →</button>
+            </div>`}
+            <label class="prev-field">
+              <span>Language</span>
+              <select id="prev-lang">
+                <option>English (US)</option>
+                <option>Hindi (हिंदी)</option>
+                <option>Spanish (Español)</option>
+                <option>French (Français)</option>
+                <option>Mandarin (普通话)</option>
+                <option>Vietnamese (Tiếng Việt)</option>
+                <option>Arabic (العربية)</option>
+                <option>Portuguese (Português)</option>
+              </select>
+            </label>
+            <label class="prev-field">
+              <span>Voice</span>
+              <select id="prev-voice">
+                <option>Maya — warm, mid-30s</option>
+                <option>Arjun — calm, deep</option>
+                <option>Sofia — bright, friendly</option>
+                <option>Daniel — professional</option>
+                <option>Linh — soft, soothing</option>
+              </select>
+            </label>
+          </div>
+          <div class="prev-stage">
+            <canvas class="prev-wave" id="prev-wave"></canvas>
+            <div class="prev-status" id="prev-status">
+              ${agentList.length
+                ? `Press <strong>Talk</strong> to hear your agent greet a caller.`
+                : `Create an agent first, then come back to preview it.`}
+            </div>
+          </div>
+          <div class="prev-actions">
+            <button class="prev-talk-btn" id="prev-talk" ${!agentList.length ? "disabled" : ""}>
+              <span class="prev-talk-dot"></span>
+              <span id="prev-talk-label">${agentList.length ? "Talk to agent" : "No agent yet"}</span>
+            </button>
+            ${agentList.length ? `<button class="btn btn-ghost" id="prev-setup">Configure agent →</button>` : ""}
+          </div>
+        </div>
+        <div id="prev-agent-info"></div>
+      </div>`;
+
+    renderIcons(page);
+
+    if (agentList.length) {
+      initDashboardVoiceTester(page, agentList);
+      updateAgentInfoCard(page, agentList);
+      page.querySelector("#prev-agent")?.addEventListener("change", () => updateAgentInfoCard(page, agentList));
+      page.querySelector("#prev-setup")?.addEventListener("click", () => {
+        const sel = page.querySelector("#prev-agent");
+        const id = sel ? sel.value : agentList[0].id;
+        navigate(`#/agents/${id}/edit`);
+      });
+    } else {
+      page.querySelector("#prev-create")?.addEventListener("click", () => navigate("#/agents/new"));
+    }
+  } catch (e) {
+    page.innerHTML = `<div class="text-danger p-4">${escapeHtml(e.message)}</div>`;
+  }
+  return wrap;
+});
+
 // --- Render dispatcher ---
 async function render() {
   const root = $("#root");
@@ -4325,6 +4641,7 @@ async function render() {
   else if (r.parts[0] === "agents" && r.parts[2] === "setup") { view = await routes.agentSetup(r.parts[1]); }
   else if (r.parts[0] === "agents" && r.parts[2] === "flow") { view = await routes.agentFlow(r.parts[1]); }
   else if (r.parts[0] === "agents" && r.parts[2] === "preview") { view = await routes.agentPreview(r.parts[1]); }
+  else if (r.path === "/preview") { view = await routes.preview(); }
   else if (r.path === "/settings") { view = await routes.settings(); }
   else if (r.path === "/billing") { view = await routes.billing(); }
   else if (r.path === "/billing-success") { view = await routes.billingSuccess(); }
