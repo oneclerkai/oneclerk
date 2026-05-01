@@ -4,6 +4,19 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
 
+const BUSINESS_TYPES = [
+  { value: 'clinic',       label: '🏥  Clinic / Medical' },
+  { value: 'dental',       label: '🦷  Dental Practice' },
+  { value: 'salon',        label: '💇  Hair / Beauty Salon' },
+  { value: 'restaurant',   label: '🍽️  Restaurant' },
+  { value: 'hotel',        label: '🏨  Hotel / Hospitality' },
+  { value: 'gym',          label: '💪  Gym / Fitness' },
+  { value: 'legal',        label: '⚖️  Law Firm' },
+  { value: 'real_estate',  label: '🏠  Real Estate' },
+  { value: 'startup',      label: '🚀  Startup / Tech' },
+  { value: 'other',        label: '✨  Other' },
+];
+
 export default function SignupPage() {
   const [formData, setFormData] = useState({
     full_name: '',
@@ -13,97 +26,151 @@ export default function SignupPage() {
     business_type: 'other',
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { signup } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
     try {
       await signup(formData);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to sign up');
+      setError(err.response?.data?.detail || 'Failed to create account. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
+  const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setFormData((prev) => ({ ...prev, [key]: e.target.value }));
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-            Create your account
-          </h2>
+    <div className="auth-root">
+      <div className="auth-grain" aria-hidden="true" />
+      <div className="auth-blob auth-blob-a" aria-hidden="true" />
+      <div className="auth-blob auth-blob-b" aria-hidden="true" />
+      <div className="auth-blob auth-blob-c" aria-hidden="true" />
+      <div className="auth-blob auth-blob-d" aria-hidden="true" />
+
+      <div className="auth-card" style={{ maxWidth: 440 }}>
+        <Link href="/" className="auth-logo">
+          <span className="auth-logo-dot" />
+          OneClerk
+        </Link>
+
+        <div className="auth-badge">
+          <span className="auth-badge-dot" />
+          14-day free trial · No credit card
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4 rounded-md shadow-sm">
-            <input
-              type="text"
-              required
-              className="block w-full rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-              placeholder="Full Name"
-              value={formData.full_name}
-              onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-            />
+
+        <h1 className="auth-heading">Create your account</h1>
+        <p className="auth-sub">Your AI receptionist will be ready in 2 minutes</p>
+
+        {error && <div className="auth-error" style={{ marginBottom: 16 }}>{error}</div>}
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label className="auth-label">Full name</label>
+              <input
+                type="text"
+                required
+                className="auth-field"
+                placeholder="Alex Johnson"
+                value={formData.full_name}
+                onChange={set('full_name')}
+                autoComplete="name"
+              />
+            </div>
+            <div>
+              <label className="auth-label">Business name</label>
+              <input
+                type="text"
+                required
+                className="auth-field"
+                placeholder="City Dental"
+                value={formData.business_name}
+                onChange={set('business_name')}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="auth-label">Email</label>
             <input
               type="email"
               required
-              className="block w-full rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-              placeholder="Email address"
+              className="auth-field"
+              placeholder="you@company.com"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={set('email')}
+              autoComplete="email"
             />
+          </div>
+
+          <div>
+            <label className="auth-label">Password</label>
             <input
               type="password"
               required
-              className="block w-full rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-              placeholder="Password"
+              className="auth-field"
+              placeholder="Min. 8 characters"
               value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              onChange={set('password')}
+              autoComplete="new-password"
+              minLength={8}
             />
-            <input
-              type="text"
-              required
-              className="block w-full rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-              placeholder="Business Name"
-              value={formData.business_name}
-              onChange={(e) => setFormData({ ...formData, business_name: e.target.value })}
-            />
+          </div>
+
+          <div>
+            <label className="auth-label">Business type</label>
             <select
-              className="block w-full rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+              className="auth-field"
               value={formData.business_type}
-              onChange={(e) => setFormData({ ...formData, business_type: e.target.value })}
+              onChange={set('business_type')}
             >
-              <option value="clinic">Clinic</option>
-              <option value="hotel">Hotel</option>
-              <option value="restaurant">Restaurant</option>
-              <option value="salon">Salon</option>
-              <option value="gym">Gym</option>
-              <option value="legal">Legal</option>
-              <option value="dental">Dental</option>
-              <option value="startup">Startup</option>
-              <option value="real_estate">Real Estate</option>
-              <option value="other">Other</option>
+              {BUSINESS_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
             </select>
           </div>
 
-          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-
-          <div>
-            <button
-              type="submit"
-              className="group relative flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-            >
-              Sign up
-            </button>
-          </div>
+          <button
+            type="submit"
+            className="auth-btn"
+            disabled={loading}
+            style={{ marginTop: 6 }}
+          >
+            {loading ? (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 0.8s linear infinite' }}>
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+                Creating account…
+              </>
+            ) : (
+              <>
+                Get started free
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </>
+            )}
+          </button>
         </form>
 
-        <p className="mt-10 text-center text-sm text-gray-500">
+        <p className="auth-footer" style={{ marginTop: 16 }}>
           Already have an account?{' '}
-          <Link href="/login" className="font-semibold leading-6 text-indigo-600 hover:text-indigo-500">
-            Sign in
-          </Link>
+          <Link href="/login" className="auth-link">Sign in →</Link>
+        </p>
+
+        <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--muted)', marginTop: 14 }}>
+          By creating an account you agree to our Terms & Privacy Policy.
         </p>
       </div>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
