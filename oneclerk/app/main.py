@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 from app.config import settings
-from app.api import auth, agents, calls, dashboard, billing, integrations, webhooks
+from app.api import auth, agents, calls, dashboard, billing, integrations, webhooks, preview
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("oneclerk")
@@ -44,6 +44,7 @@ app.include_router(dashboard.router)
 app.include_router(billing.router)
 app.include_router(integrations.router)
 app.include_router(webhooks.router)
+app.include_router(preview.router)
 
 
 @app.get("/api/audio/{filename}")

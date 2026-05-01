@@ -24,6 +24,7 @@ app/
     calls.py             # Twilio webhooks: /calls/incoming, /calls/respond/{id}, /calls/status, /calls/recent, GET /calls/{id}
     dashboard.py         # /dashboard/stats
     webhooks.py          # /webhooks/stripe, /webhooks/whatsapp
+    preview.py           # /preview/speak (OpenAI TTS w/ fallback), /preview/script (agent scripts by language)
   services/
     ai_brain.py          # OpenAI conversation, urgency + booking-intent detection
     whatsapp.py          # Owner summaries + caller confirmations via Twilio WhatsApp

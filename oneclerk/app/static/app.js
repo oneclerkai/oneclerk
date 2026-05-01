@@ -761,6 +761,33 @@ const TRY_LINES = {
   "Law firm intake":          "Jensen and Vega Law, this is the intake line. Can you tell me a bit about the matter so I can route you to the right partner?",
 };
 
+// API TTS helper — tries /preview/speak, returns a cleanup fn or null on failure
+let _currentAudio = null;
+async function tryApiTTS(text, langName, voiceName, agentType, onEnd) {
+  try {
+    if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+    const resp = await fetch("/preview/speak", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, language: langName, voice: voiceName, agent_type: agentType }),
+    });
+    if (!resp.ok) return false;
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    _currentAudio = audio;
+    audio.onended = () => { URL.revokeObjectURL(url); _currentAudio = null; if (onEnd) onEnd(); };
+    audio.onerror = () => { URL.revokeObjectURL(url); _currentAudio = null; if (onEnd) onEnd(); };
+    await audio.play();
+    return true;
+  } catch {
+    return false;
+  }
+}
+function stopApiTTS() {
+  if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+}
+
 // Cache voices once they load (Chrome populates voices asynchronously)
 let _ttsVoices = [];
 function _loadVoices() {
@@ -870,8 +897,9 @@ function initVoiceTester(root) {
     try { window.speechSynthesis.speak(u); } catch (e) {}
   });
 
-  btn.addEventListener("click", () => {
+  btn.addEventListener("click", async () => {
     if (speaking) {
+      stopApiTTS();
       window.speechSynthesis && window.speechSynthesis.cancel();
       speaking = false;
       lbl.textContent = "Talk to the agent";
@@ -888,17 +916,21 @@ function initVoiceTester(root) {
     lbl.textContent = "Stop";
     speaking = true;
     currentPitch = voiceDef.pitch;
-    if (window.speechSynthesis) {
-      const u = new SpeechSynthesisUtterance(line);
-      const v = pickBestVoice(langDef.code, voiceDef.gender);
-      if (v) u.voice = v;
-      u.lang  = (v && v.lang) || langDef.code;
-      u.rate  = voiceDef.rate;
-      u.pitch = voiceDef.pitch;
-      u.onend = () => { speaking = false; lbl.textContent = "Talk to the agent"; status.innerHTML = "Done. Want one in <em>your</em> voice? <strong>Get started free →</strong>"; };
-      try { window.speechSynthesis.speak(u); } catch (e) { /* noop */ }
-    } else {
-      setTimeout(() => { speaking = false; lbl.textContent = "Talk to the agent"; status.innerHTML = "Demo finished."; }, 4200);
+    const done = () => { speaking = false; lbl.textContent = "Talk to the agent"; status.innerHTML = "Done. Want one in <em>your</em> voice? <strong>Get started free →</strong>"; };
+    const apiOk = await tryApiTTS(line, lang, voice, agent, done);
+    if (!apiOk) {
+      if (window.speechSynthesis) {
+        const u = new SpeechSynthesisUtterance(line);
+        const v = pickBestVoice(langDef.code, voiceDef.gender);
+        if (v) u.voice = v;
+        u.lang  = (v && v.lang) || langDef.code;
+        u.rate  = voiceDef.rate;
+        u.pitch = voiceDef.pitch;
+        u.onend = done;
+        try { window.speechSynthesis.speak(u); } catch (e) { setTimeout(done, 4200); }
+      } else {
+        setTimeout(done, 4200);
+      }
     }
   });
 }
@@ -1020,6 +1052,7 @@ function openAuthModal(initialMode = "login") {
       <div class="auth-bg-blob auth-bg-blob-a" aria-hidden="true"></div>
       <div class="auth-bg-blob auth-bg-blob-b" aria-hidden="true"></div>
       <div class="auth-bg-blob auth-bg-blob-c" aria-hidden="true"></div>
+      <div class="auth-bg-blob auth-bg-blob-d" aria-hidden="true"></div>
       <div class="auth-modal auth-modal-pop" role="dialog" aria-modal="true">
         <button class="x-close" aria-label="Close">×</button>
         <h2 id="m-title">Welcome back</h2>
@@ -4467,8 +4500,9 @@ function initDashboardVoiceTester(root, agentList) {
   voiceSel && voiceSel.addEventListener("change", previewShort);
   agentSel && agentSel.addEventListener("change", previewShort);
 
-  btn && btn.addEventListener("click", () => {
+  btn && btn.addEventListener("click", async () => {
     if (speaking) {
+      stopApiTTS();
       window.speechSynthesis && window.speechSynthesis.cancel();
       speaking = false;
       if (lbl) lbl.textContent = "Talk to agent";
@@ -4484,15 +4518,26 @@ function initDashboardVoiceTester(root, agentList) {
     if (lbl) lbl.textContent = "Stop";
     speaking = true;
     currentPitch = voiceDef.pitch;
-    if (window.speechSynthesis) {
-      const u = new SpeechSynthesisUtterance(script);
-      const v = pickBestVoice(langDef.code, voiceDef.gender);
-      if (v) u.voice = v;
-      u.lang  = (v && v.lang) || langDef.code;
-      u.rate  = voiceDef.rate; u.pitch = voiceDef.pitch;
-      u.onend = () => { speaking = false; if (lbl) lbl.textContent = "Talk to agent"; if (status) status.innerHTML = "Done! Sounds just like your receptionist."; };
-      try { window.speechSynthesis.speak(u); } catch (e) {
-        setTimeout(() => { speaking = false; if (lbl) lbl.textContent = "Talk to agent"; }, 4200);
+    const done = () => {
+      speaking = false;
+      if (lbl) lbl.textContent = "Talk to agent";
+      if (status) status.innerHTML = "Done! Sounds just like your receptionist.";
+    };
+    const agentSel = root.querySelector("#prev-agent");
+    const agent = agentList.find(a => a.id === (agentSel ? agentSel.value : ""));
+    const agentType = agent ? (agent.config?.business_type || "") : "";
+    const apiOk = await tryApiTTS(script, lang, voice, agentType, done);
+    if (!apiOk) {
+      if (window.speechSynthesis) {
+        const u = new SpeechSynthesisUtterance(script);
+        const v = pickBestVoice(langDef.code, voiceDef.gender);
+        if (v) u.voice = v;
+        u.lang  = (v && v.lang) || langDef.code;
+        u.rate  = voiceDef.rate; u.pitch = voiceDef.pitch;
+        u.onend = done;
+        try { window.speechSynthesis.speak(u); } catch (e) { setTimeout(done, 4200); }
+      } else {
+        setTimeout(done, 4200);
       }
     }
   });

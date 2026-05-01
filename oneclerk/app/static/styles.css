@@ -1223,21 +1223,25 @@ textarea.field { resize: vertical; min-height: 80px; }
 /* Auth modal (white themed) */
 .auth-modal-backdrop {
   position: fixed; inset: 0; z-index: 80;
-  background: rgba(15,15,20,0.55);
-  backdrop-filter: blur(8px);
+  background: rgba(6,6,10,0.82);
+  backdrop-filter: blur(14px) saturate(0.6);
   display: flex; align-items: center; justify-content: center;
   padding: 24px;
-  animation: fadeIn 200ms ease;
+  animation: authBackdropIn 280ms cubic-bezier(.2,.8,.4,1) both;
 }
+@keyframes authBackdropIn { from { opacity: 0 } to { opacity: 1 } }
 @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
 .auth-modal {
   position: relative;
   width: 100%; max-width: 440px;
-  background: #fff;
-  border: 1px solid rgba(15,15,20,0.08);
-  border-radius: 20px;
-  padding: 32px 28px;
-  box-shadow: 0 30px 80px -20px rgba(15,15,20,0.4);
+  background: linear-gradient(160deg, #ffffff 0%, #f9f9fb 100%);
+  border: 1px solid rgba(255,255,255,0.9);
+  border-radius: 24px;
+  padding: 36px 30px;
+  box-shadow:
+    0 0 0 1px rgba(15,15,20,0.06),
+    0 8px 24px rgba(15,15,20,0.12),
+    0 32px 80px -10px rgba(15,15,20,0.32);
   font-family: 'Poppins', sans-serif;
   color: #0d0d0f;
 }
@@ -3624,67 +3628,82 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 
 /* --- Animated auth-modal: blobs + grain + pop --- */
 .auth-modal-backdrop-anim {
-  background: radial-gradient(circle at 30% 30%, rgba(40,40,60,0.85), rgba(15,15,20,0.92) 70%);
+  background:
+    radial-gradient(ellipse at 20% 15%, rgba(99,102,241,0.25) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 85%, rgba(255,138,61,0.22) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0.0) 0%, transparent 100%),
+    rgba(4,4,8,0.90);
   overflow: hidden;
 }
 .auth-modal-backdrop-anim .auth-modal { position: relative; z-index: 5; }
 .auth-bg-grain {
   position: absolute; inset: 0; pointer-events: none; z-index: 1;
   background-image:
-    radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-    radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
-  background-size: 3px 3px, 5px 5px;
-  background-position: 0 0, 1px 2px;
-  opacity: 0.7;
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+  opacity: 0.55;
   mix-blend-mode: overlay;
-  animation: authGrainShift 9s linear infinite;
+  animation: authGrainShift 7s steps(8) infinite;
 }
 @keyframes authGrainShift {
-  0%   { background-position: 0 0, 1px 2px; }
-  100% { background-position: 30px 60px, 60px 90px; }
+  0%   { background-position: 0 0; }
+  100% { background-position: 200px 200px; }
 }
 .auth-bg-blob {
   position: absolute; z-index: 2; pointer-events: none;
   border-radius: 50%;
-  filter: blur(60px);
-  opacity: 0.55;
+  filter: blur(72px);
+  opacity: 0.7;
   will-change: transform;
 }
 .auth-bg-blob-a {
-  width: 420px; height: 420px;
-  background: radial-gradient(circle, #ff8a3d, transparent 60%);
-  top: -120px; left: -100px;
-  animation: authBlobA 14s ease-in-out infinite;
+  width: 560px; height: 560px;
+  background: radial-gradient(circle, rgba(99,102,241,0.8), transparent 58%);
+  top: -200px; left: -160px;
+  animation: authBlobA 16s ease-in-out infinite;
 }
 .auth-bg-blob-b {
-  width: 380px; height: 380px;
-  background: radial-gradient(circle, #6366f1, transparent 60%);
-  bottom: -120px; right: -100px;
-  animation: authBlobB 16s ease-in-out infinite;
+  width: 480px; height: 480px;
+  background: radial-gradient(circle, rgba(255,138,61,0.75), transparent 58%);
+  bottom: -180px; right: -140px;
+  animation: authBlobB 18s ease-in-out infinite;
 }
 .auth-bg-blob-c {
-  width: 280px; height: 280px;
-  background: radial-gradient(circle, #25d366, transparent 60%);
-  top: 30%; left: 55%;
-  animation: authBlobC 12s ease-in-out infinite;
+  width: 320px; height: 320px;
+  background: radial-gradient(circle, rgba(37,211,102,0.55), transparent 60%);
+  top: 38%; left: 58%;
+  animation: authBlobC 13s ease-in-out infinite;
+}
+.auth-bg-blob-d {
+  width: 260px; height: 260px;
+  background: radial-gradient(circle, rgba(244,63,94,0.5), transparent 60%);
+  top: 60%; left: 8%;
+  animation: authBlobD 11s ease-in-out infinite;
 }
 @keyframes authBlobA {
-  0%,100% { transform: translate(0,0) scale(1); }
-  50%     { transform: translate(80px, 60px) scale(1.15); }
+  0%,100% { transform: translate(0,0) scale(1) rotate(0deg); }
+  33%     { transform: translate(60px, 80px) scale(1.18) rotate(6deg); }
+  66%     { transform: translate(120px, 20px) scale(0.92) rotate(-4deg); }
 }
 @keyframes authBlobB {
   0%,100% { transform: translate(0,0) scale(1); }
-  50%     { transform: translate(-70px,-50px) scale(1.1); }
+  40%     { transform: translate(-80px,-60px) scale(1.12); }
+  70%     { transform: translate(-30px,-110px) scale(0.95); }
 }
 @keyframes authBlobC {
   0%,100% { transform: translate(-50%,-50%) scale(1); }
-  50%     { transform: translate(-30%,-70%) scale(1.2); }
+  50%     { transform: translate(-25%,-75%) scale(1.25); }
+}
+@keyframes authBlobD {
+  0%,100% { transform: translate(0,0) scale(1); }
+  50%     { transform: translate(40px,-50px) scale(1.2); }
 }
 .auth-modal-pop {
-  animation: authPop 320ms cubic-bezier(.2,1.05,.4,1.05);
+  animation: authPop 380ms cubic-bezier(.15,1.05,.3,1);
 }
 @keyframes authPop {
-  0%   { opacity: 0; transform: translateY(18px) scale(0.96); }
+  0%   { opacity: 0; transform: translateY(24px) scale(0.93); }
+  60%  { opacity: 1; transform: translateY(-4px) scale(1.01); }
   100% { opacity: 1; transform: translateY(0)    scale(1); }
 }
 
@@ -3699,14 +3718,75 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 .agb-box-icon-brand svg { width: 28px; height: 28px; display: block; }
 
 /* Box draggable everywhere — give a clear "grab" cursor */
-.agb-box { cursor: grab; }
-.agb-box.is-dragging { cursor: grabbing; user-select: none; }
+.agb-box {
+  cursor: grab;
+  background: #fff;
+  border: 1.5px solid rgba(15,15,20,0.1);
+  border-radius: 16px;
+  box-shadow:
+    0 2px 8px rgba(15,15,20,0.06),
+    0 8px 24px rgba(15,15,20,0.08);
+  transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+.agb-box:hover {
+  border-color: rgba(99,102,241,0.35);
+  box-shadow:
+    0 4px 12px rgba(15,15,20,0.08),
+    0 12px 32px rgba(99,102,241,0.1);
+}
+.agb-box.is-dragging {
+  cursor: grabbing; user-select: none;
+  box-shadow:
+    0 8px 24px rgba(15,15,20,0.14),
+    0 24px 60px rgba(99,102,241,0.15);
+  border-color: rgba(99,102,241,0.45);
+  transform: scale(1.015);
+}
 .agb-box input,
 .agb-box textarea,
 .agb-box select,
 .agb-box button,
 .agb-box label { cursor: auto; }
 .agb-box .agb-handle { cursor: crosshair; }
+
+/* Box body: internal scroll so tall boxes don't overflow layout */
+.agb-box-body {
+  overflow-y: auto;
+  max-height: 360px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15,15,20,0.18) transparent;
+}
+.agb-box-body::-webkit-scrollbar { width: 4px; }
+.agb-box-body::-webkit-scrollbar-track { background: transparent; }
+.agb-box-body::-webkit-scrollbar-thumb { background: rgba(15,15,20,0.2); border-radius: 4px; }
+
+/* Box header improvements */
+.agb-box-header {
+  background: linear-gradient(135deg, rgba(15,15,20,0.03) 0%, transparent 100%);
+  border-bottom: 1px solid rgba(15,15,20,0.07);
+  border-radius: 14px 14px 0 0;
+}
+
+/* Handle (connection dot) — bigger, clearer */
+.agb-handle {
+  width: 14px !important; height: 14px !important;
+  background: #fff !important;
+  border: 2.5px solid #6366f1 !important;
+  border-radius: 50% !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
+  transition: box-shadow 150ms ease, transform 150ms ease !important;
+}
+.agb-handle:hover {
+  box-shadow: 0 0 0 6px rgba(99,102,241,0.2) !important;
+  transform: scale(1.25) !important;
+}
+
+/* Connection line (SVG path) improvement */
+.agb-conn-path {
+  stroke: url(#ocConnGrad) !important;
+  stroke-width: 2.5px !important;
+  filter: drop-shadow(0 1px 3px rgba(99,102,241,0.3));
+}
 
 /* Phone-box ringing curves — animated */
 .agb-phone-rings {
@@ -5151,11 +5231,23 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px;
 }
 .prev-card {
-  background: #0d0d16;
+  background: linear-gradient(160deg, #0f0f1e 0%, #0a0a14 100%);
   border-radius: 20px;
   padding: 28px 24px 24px;
   display: flex; flex-direction: column; gap: 20px;
-  box-shadow: 0 20px 60px -20px rgba(0,0,0,0.5);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.07),
+    0 20px 60px -20px rgba(0,0,0,0.7),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+  position: relative; overflow: hidden;
+}
+.prev-card::before {
+  content: "";
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse at 15% 0%, rgba(99,102,241,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at 85% 100%, rgba(255,205,92,0.08) 0%, transparent 60%);
+  pointer-events: none;
 }
 .prev-controls {
   display: flex; flex-wrap: wrap; gap: 14px;
