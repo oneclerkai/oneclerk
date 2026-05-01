@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 interface User {
   id: string;
@@ -23,17 +23,30 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       setUser: (user) => set({ user }),
       setToken: (token) => {
-        if (token) localStorage.setItem('oneclerk_token', token);
-        else localStorage.removeItem('oneclerk_token');
+        if (typeof window !== 'undefined') {
+          if (token) localStorage.setItem('oneclerk_token', token);
+          else localStorage.removeItem('oneclerk_token');
+        }
         set({ token });
       },
       logout: () => {
-        localStorage.removeItem('oneclerk_token');
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('oneclerk_token');
+        }
         set({ user: null, token: null });
       },
     }),
     {
       name: 'auth-storage',
+      storage: createJSONStorage(() =>
+        typeof window !== 'undefined'
+          ? localStorage
+          : {
+              getItem: () => null,
+              setItem: () => {},
+              removeItem: () => {},
+            }
+      ),
     }
   )
 );

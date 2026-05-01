@@ -1,5 +1,5 @@
 import './globals.css'
-import { Toaster } from 'react-hot-toast';
+import Providers from './providers';
 
 export const metadata = {
   title: 'OneClerk.ai — Voice AI Receptionist',
@@ -14,8 +14,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {children}
-        <Toaster position="top-right" />
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   )

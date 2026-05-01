@@ -11,7 +11,7 @@ export default function AuthCallbackPage() {
   const { setToken, setUser } = useAuthStore();
 
   useEffect(() => {
-    const token = searchParams.get('token');
+    const token = searchParams?.get('token');
     if (token) {
       setToken(token);
       auth.me().then((res) => {
