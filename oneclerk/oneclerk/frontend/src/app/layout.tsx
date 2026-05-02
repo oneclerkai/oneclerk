@@ -7,6 +7,10 @@ export const dynamic = 'force-dynamic';
 export const metadata = {
   title: 'OneClerk.ai — Voice AI Receptionist',
   description: 'AI Voice Receptionist Platform',
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+  },
 }
 
 export default function RootLayout({
