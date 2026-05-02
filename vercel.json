@@ -2,6 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "installCommand": "npm install --prefix oneclerk/oneclerk/frontend --legacy-peer-deps",
-  "buildCommand": "npm run build --prefix oneclerk/oneclerk/frontend",
-  "outputDirectory": "oneclerk/oneclerk/frontend/.next"
+  "buildCommand": "npm run build --prefix oneclerk/oneclerk/frontend"
 }
