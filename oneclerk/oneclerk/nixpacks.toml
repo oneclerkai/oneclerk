@@ -1,0 +1,9 @@
+[phases.setup]
+# Preserve Nixpacks defaults (compiler, libc, PATH) — omitting "..." breaks `pip` on PATH.
+nixPkgs = ["...", "python312", "python312Packages.pip"]
+
+[phases.install]
+cmds = ["python3 -m pip install --upgrade pip", "python3 -m pip install -r requirements.txt"]
+
+[start]
+cmd = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
