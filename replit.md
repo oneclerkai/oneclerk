@@ -21,11 +21,22 @@ Next.js proxies all `/api/*` requests to the FastAPI backend at `http://localhos
 
 ## Key Decisions (Replit migration)
 - `output: 'standalone'` in `next.config.js` for containerized deployment
-- `export const dynamic = 'force-dynamic'` in root layout to prevent SSR pre-rendering issues (this is an auth-protected SPA using localStorage)
-- Zustand v4 (v5 incompatible with Next.js 14.2.5 SSR)
+- `export const dynamic = 'force-dynamic'` in root layout to prevent SSR pre-rendering issues
+- `src/pages/_document.tsx` + `src/pages/_error.tsx` required by Next.js 15 for pages router compatibility (prevents `<Html>` validation error during 404 generation)
+- Zustand v4 (stable, SSR-safe with Next.js 15)
 - `react-hot-toast` loaded with `ssr: false` to avoid SSR context issues
 - `ClientOnly` wrapper prevents hook execution before React hydration
 - PostgreSQL: Replit built-in DB (DATABASE_URL secret auto-set)
+
+## Stack Versions
+| Package | Version |
+|---|---|
+| Next.js | 15.5.15 (pinned via ^15.3.1) |
+| React | 18.3.1 |
+| ESLint | 9.39.4 (pinned via ^9.25.1) |
+| zustand | 4.5.7 |
+| Python | 3.12 |
+| FastAPI | latest |
 
 ## Environment / Secrets
 Non-sensitive config is in `.replit` `[userenv.shared]`. Secrets must be added via the Secrets panel:
@@ -56,11 +67,12 @@ oneclerk/
     schemas/               # Pydantic schemas
     services/              # OpenAI, Telnyx, Deepgram, ElevenLabs, Stripe
     static/                # Legacy static SPA (served at /app)
-  frontend/                # Next.js 14 frontend
+  frontend/                # Next.js 15 frontend
     src/app/               # App Router pages
       (auth)/login, (auth)/signup
       auth/callback
       dashboard/, onboarding/
+    src/pages/             # Pages Router compat files (_document, _error)
     src/hooks/             # useAuth, useAgents, useDashboard, useIntegrations
     src/lib/               # api.ts (axios), store.ts (zustand v4)
     next.config.js         # standalone output + API proxy to :8000
