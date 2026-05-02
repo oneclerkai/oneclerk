@@ -8,15 +8,15 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('account');
 
   return (
-    <div className="p-6 max-w-4xl">
-      <h1 className="text-2xl font-bold mb-8">Settings</h1>
+    <div className="max-w-4xl p-4 sm:p-6">
+      <h1 className="mb-6 text-xl font-bold sm:mb-8 sm:text-2xl">Settings</h1>
 
-      <div className="flex border-b border-gray-200 mb-8">
+      <div className="mb-6 flex flex-wrap gap-1 border-b border-gray-200 sm:mb-8">
         {['Account', 'Phone', 'Billing', 'Notifications'].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab.toLowerCase())}
-            className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+            className={`border-b-2 px-3 py-2 text-sm font-medium transition-colors sm:px-6 sm:py-3 ${
               activeTab === tab.toLowerCase()
                 ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -27,7 +27,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-8">
         {activeTab === 'account' && (
           <div className="space-y-6">
             <div>
@@ -47,7 +47,7 @@ export default function SettingsPage() {
                 readOnly
               />
             </div>
-            <button className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold">
+            <button className="rounded-lg bg-indigo-600 px-6 py-2 text-white font-bold">
               Save Changes
             </button>
           </div>
@@ -55,12 +55,12 @@ export default function SettingsPage() {
 
         {activeTab === 'billing' && (
           <div className="space-y-6">
-            <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-100 flex justify-between items-center">
+            <div className="flex flex-col items-start justify-between gap-3 rounded-lg border border-indigo-100 bg-indigo-50 p-4 sm:flex-row sm:items-center">
               <div>
                 <p className="text-sm font-medium text-indigo-900">Current Plan</p>
                 <p className="text-2xl font-bold text-indigo-700">Trial Plan</p>
               </div>
-              <button className="bg-white text-indigo-600 px-4 py-2 rounded-lg font-bold shadow-sm">
+              <button className="rounded-lg bg-white px-4 py-2 font-bold text-indigo-600 shadow-sm">
                 Upgrade Plan
               </button>
             </div>

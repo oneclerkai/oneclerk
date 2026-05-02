@@ -296,3 +296,32 @@ html, body {
   border-radius: 50%;
   background: #d97706;
 }
+
+@media (max-width: 640px) {
+  .auth-root {
+    padding: 16px 12px;
+    align-items: flex-start;
+  }
+
+  .auth-card {
+    border-radius: 16px;
+    padding: 28px 18px;
+    max-width: 100%;
+  }
+
+  .auth-heading {
+    font-size: 20px;
+  }
+
+  .auth-sub {
+    margin-bottom: 18px;
+  }
+
+  .auth-blob-a,
+  .auth-blob-b,
+  .auth-blob-c,
+  .auth-blob-d {
+    transform: scale(0.72);
+    transform-origin: center;
+  }
+}

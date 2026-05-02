@@ -9,23 +9,23 @@ export default function AgentsPage() {
   if (loading) return <div className="p-8">Loading agents...</div>;
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-8">
+    <div className="p-4 sm:p-6">
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Your AI Agents</h1>
-          <p className="text-gray-500">Manage and monitor your virtual receptionists</p>
+          <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">Your AI Agents</h1>
+          <p className="text-sm text-gray-500 sm:text-base">Manage and monitor your virtual receptionists</p>
         </div>
         <Link
           href="/dashboard/agents/new"
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+          className="inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition-colors hover:bg-indigo-700 sm:w-auto"
         >
           + Create New Agent
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
         {list.map((agent) => (
-          <div key={agent.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+          <div key={agent.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:p-6">
             <div className="flex justify-between items-start mb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center text-xl">
@@ -50,7 +50,7 @@ export default function AgentsPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 py-4 border-y border-gray-50 my-4">
+            <div className="my-4 grid grid-cols-2 gap-3 border-y border-gray-50 py-4 sm:gap-4">
               <div>
                 <p className="text-xs text-gray-400 uppercase font-semibold">Calls this month</p>
                 <p className="text-lg font-bold">{agent.calls_this_month || 0}</p>
@@ -77,7 +77,7 @@ export default function AgentsPage() {
 
         <Link
           href="/dashboard/agents/new"
-          className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center text-gray-400 hover:border-indigo-300 hover:text-indigo-400 transition-all"
+          className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 p-4 text-gray-400 transition-all hover:border-indigo-300 hover:text-indigo-400 sm:p-6"
         >
           <span className="text-4xl mb-2">+</span>
           <span className="font-medium">Add New Receptionist</span>

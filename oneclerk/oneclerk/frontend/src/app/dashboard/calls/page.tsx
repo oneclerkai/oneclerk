@@ -24,16 +24,17 @@ export default function CallsPage() {
   }, []);
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Call History</h1>
+    <div className="p-4 sm:p-6">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl font-bold sm:text-2xl">Call History</h1>
         <div className="flex gap-2">
           {/* Add filters here */}
         </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-left">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
               <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Time</th>
@@ -66,12 +67,13 @@ export default function CallsPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Slide-out Panel for Transcript */}
       {selectedCall && (
-        <div className="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl z-50 transform transition-transform border-l border-gray-200">
-          <div className="p-6 flex flex-col h-full">
+        <div className="fixed inset-y-0 right-0 z-50 w-full bg-white shadow-2xl transition-transform sm:max-w-md sm:border-l sm:border-gray-200">
+          <div className="flex h-full flex-col p-4 sm:p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold">Call Details</h2>
               <button onClick={() => setSelectedCall(null)} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>

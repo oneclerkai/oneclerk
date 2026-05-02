@@ -69,8 +69,8 @@ export default function SignupPage() {
 
         {error && <div className="auth-error" style={{ marginBottom: 16 }}>{error}</div>}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="auth-label">Full name</label>
               <input
@@ -163,7 +163,7 @@ export default function SignupPage() {
           <Link href="/login" className="auth-link">Sign in →</Link>
         </p>
 
-        <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--muted)', marginTop: 14 }}>
+        <p className="mt-3.5 text-center text-[11px]" style={{ color: 'var(--muted)' }}>
           By creating an account you agree to our Terms & Privacy Policy.
         </p>
       </div>

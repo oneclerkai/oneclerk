@@ -12,8 +12,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Dashboard Overview</h1>
+    <div className="space-y-5 p-4 sm:p-6">
+      <h1 className="text-xl font-bold sm:text-2xl">Dashboard Overview</h1>
       
       {/* StatCards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -23,9 +23,9 @@ export default function DashboardPage() {
         <StatCard title="Escalations" value={overview?.escalations || 0} icon="🚨" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
         {/* Live Activity */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6 lg:col-span-2">
           <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
           <div className="space-y-4">
             {recentActivity.length > 0 ? (
@@ -42,7 +42,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Agents Status */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="text-lg font-semibold mb-4">Agents Status</h2>
           <div className="space-y-4">
             {agentsList.map((agent) => (
@@ -74,12 +74,12 @@ export default function DashboardPage() {
 
 function StatCard({ title, value, icon }: { title: string; value: string | number; icon: string }) {
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+    <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
       <div className="flex items-center justify-between mb-2">
         <span className="text-gray-500 text-sm font-medium">{title}</span>
         <span className="text-xl">{icon}</span>
       </div>
-      <div className="text-2xl font-bold">{value}</div>
+      <div className="text-xl font-bold sm:text-2xl">{value}</div>
     </div>
   );
 }
