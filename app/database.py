@@ -74,10 +74,23 @@ _LIGHTWEIGHT_MIGRATIONS: tuple[str, ...] = (
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status VARCHAR",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE NOT NULL",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS business_profile JSONB",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_tier VARCHAR DEFAULT 'trial'",
     "ALTER TABLE conversation_turns ADD COLUMN IF NOT EXISTS source VARCHAR DEFAULT 'voice'",
     "ALTER TABLE conversation_turns ADD COLUMN IF NOT EXISTS caller_number VARCHAR",
     "ALTER TABLE conversation_turns ADD COLUMN IF NOT EXISTS agent_id VARCHAR",
     "ALTER TABLE conversation_turns ALTER COLUMN call_id DROP NOT NULL",
+    "ALTER TABLE agents ADD COLUMN IF NOT EXISTS telnyx_phone VARCHAR",
+    "ALTER TABLE agents ADD COLUMN IF NOT EXISTS telnyx_phone_sid VARCHAR",
+    "ALTER TABLE agents ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'draft'",
+    "ALTER TABLE agents ADD COLUMN IF NOT EXISTS total_calls INTEGER DEFAULT 0 NOT NULL",
+    "ALTER TABLE agents ADD COLUMN IF NOT EXISTS escalation_phone VARCHAR",
+    "ALTER TABLE calls ADD COLUMN IF NOT EXISTS telnyx_call_sid VARCHAR",
+    "ALTER TABLE calls ADD COLUMN IF NOT EXISTS escalated BOOLEAN DEFAULT FALSE NOT NULL",
+    "ALTER TABLE calls ADD COLUMN IF NOT EXISTS escalation_reason TEXT",
+    "ALTER TABLE calls ADD COLUMN IF NOT EXISTS appointment_booked BOOLEAN DEFAULT FALSE NOT NULL",
+    "ALTER TABLE calls ADD COLUMN IF NOT EXISTS summary TEXT",
+    "ALTER TABLE calls ADD COLUMN IF NOT EXISTS started_at TIMESTAMP",
+    "ALTER TABLE calls ADD COLUMN IF NOT EXISTS ended_at TIMESTAMP",
 )
 
 

@@ -13,11 +13,20 @@ class Agent(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid4()))
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    twilio_number: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
-    forwarding_number: Mapped[str | None] = mapped_column(String, nullable=True)
+    twilio_number: Mapped[str] = mapped_column(String, nullable=True, index=True)
+    telnyx_phone: Mapped[str] = mapped_column(String, nullable=True, index=True)
+    telnyx_phone_sid: Mapped[str] = mapped_column(String, nullable=True)
+    forwarding_number: Mapped[str] = mapped_column(String, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
+    status: Mapped[str] = mapped_column(String, default="draft")
     config: Mapped[dict] = mapped_column(JSON, default=dict)
     voice_id: Mapped[str] = mapped_column(String, default="Polly.Aditi")
     language: Mapped[str] = mapped_column(String, default="en-IN")
     calls_this_month: Mapped[int] = mapped_column(Integer, default=0)
+    total_calls: Mapped[int] = mapped_column(Integer, default=0)
+    escalation_phone: Mapped[str] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    @property
+    def business_context(self) -> dict:
+        return self.config or {}

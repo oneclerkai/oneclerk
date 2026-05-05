@@ -18,7 +18,14 @@ async function api(path, { method = "GET", body, auth = true } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (auth && Store.token) headers["Authorization"] = `Bearer ${Store.token}`;
   const res = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
-  if (res.status === 401) { Store.token = null; Store.user = null; location.hash = "#/login"; throw new Error("Please sign in again"); }
+  if (res.status === 401) {
+    Store.token = null;
+    Store.user = null;
+    if (location.hash === "#/login" || location.hash === "#/signup") {
+      location.hash = "#/";
+    }
+    throw new Error("Please sign in again");
+  }
   if (!res.ok) {
     let msg = `Request failed (${res.status})`;
     try { const j = await res.json(); msg = j.detail || msg; } catch {}
@@ -1108,7 +1115,7 @@ function shell(activeKey, title, subtitle, action) {
     </div>`);
   $$(".nav-item[data-hash]", wrap).forEach(b => b.addEventListener("click", () => navigate(b.dataset.hash)));
   $$(".mobile-tabs button", wrap).forEach(b => b.addEventListener("click", () => navigate(b.dataset.hash)));
-  $("#logout", wrap).addEventListener("click", () => { Store.token = null; Store.user = null; navigate("#/login"); });
+  $("#logout", wrap).addEventListener("click", () => { Store.token = null; Store.user = null; navigate("#/"); });
   if (action) $("#topbar-action", wrap).appendChild(action);
   return wrap;
 }
@@ -3546,7 +3553,17 @@ async function render() {
   const root = $("#root");
   root.innerHTML = "";
 
-  if (!Store.token) { root.appendChild(await routes.auth()); renderIcons(); return; }
+  const r = parseRoute();
+
+  // Public visitors always see the landing page first.
+  if (!Store.token) {
+    if (r.path === "/login" || r.path === "/signup") {
+      location.hash = "#/";
+    }
+    root.appendChild(await routes.auth());
+    renderIcons();
+    return;
+  }
 
   // Force onboarding for users who signed up but never finished it.
   // Always re-fetch /auth/me on a fresh page load so we have authoritative state.
@@ -3558,7 +3575,6 @@ async function render() {
     } catch { /* token invalid; api() already clears */ }
   }
 
-  const r = parseRoute();
   if (Store.user && Store.user.onboarding_completed === false && r.path !== "/onboarding") {
     location.hash = "#/onboarding";
     return; // hashchange will re-trigger render()

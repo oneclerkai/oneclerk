@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
+import asyncio
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -10,6 +11,10 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import init_models
 from app.routes import agents, auth, billing, calls, dashboard, webhooks
+from app.startup_check import check_all_services
+from app.services.redis_client import ping_redis
+from app.services.synthesis import cleanup_audio_files
+from app.services.synthesis import AUDIO_DIR, delete_file_later
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("oneclerk")
@@ -17,6 +22,10 @@ logger = logging.getLogger("oneclerk")
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    check_all_services()
+    settings.validate_startup()
+    settings.log_service_checklist()
+
     if settings.DATABASE_URL:
         try:
             await init_models()
@@ -24,8 +33,25 @@ async def lifespan(_: FastAPI):
         except Exception:  # pragma: no cover
             logger.exception("Failed to initialize database tables")
     else:
-        logger.warning("DATABASE_URL is not set — DB-backed routes will return 500.")
-    yield
+        logger.warning("DATABASE_URL is not set; DB-backed routes will return 500.")
+
+    cleanup_task = asyncio.create_task(_audio_cleanup_loop())
+    if settings.REDIS_URL:
+        logger.info("Redis reachable=%s", "yes" if await ping_redis() else "no")
+
+    try:
+        yield
+    finally:
+        cleanup_task.cancel()
+
+
+async def _audio_cleanup_loop() -> None:
+    while True:
+        try:
+            await cleanup_audio_files()
+        except Exception:
+            logger.exception("Audio cleanup failed")
+        await asyncio.sleep(1800)
 
 
 app = FastAPI(
@@ -35,7 +61,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-allowed_origins = ["*"] if not settings.FRONTEND_URL else [settings.FRONTEND_URL, "*"]
+allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+if settings.FRONTEND_URL:
+    allowed_origins.append(settings.FRONTEND_URL)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -50,6 +78,11 @@ app.include_router(calls.router)
 app.include_router(dashboard.router)
 app.include_router(billing.router)
 app.include_router(webhooks.router)
+app.include_router(auth.router, prefix="/api")
+app.include_router(agents.router, prefix="/api")
+app.include_router(calls.router, prefix="/api")
+app.include_router(dashboard.router, prefix="/api")
+app.include_router(billing.router, prefix="/api")
 
 _STATIC_DIR = Path(__file__).parent / "static"
 _HAS_STATIC = _STATIC_DIR.exists()
@@ -59,14 +92,13 @@ if _HAS_STATIC:
 
 @app.get("/", include_in_schema=False)
 async def root():
-    """Serve the SPA at the root URL. Falls back to API info when no UI bundle."""
     if _HAS_STATIC:
         return FileResponse(_STATIC_DIR / "index.html")
     return {
         "product": "OneClerk",
         "tagline": "Your phone rings. OneClerk handles it.",
         "version": "1.0.0",
-        "environment": settings.ENVIRONMENT or "development",
+        "environment": settings.ENVIRONMENT,
         "docs": "/docs",
         "health": "/health",
     }
@@ -74,7 +106,6 @@ async def root():
 
 @app.get("/app", include_in_schema=False)
 async def dashboard_app():
-    """Legacy alias — keeps old /app links working."""
     if _HAS_STATIC:
         return FileResponse(_STATIC_DIR / "index.html")
     return {"detail": "frontend not bundled"}
@@ -91,7 +122,7 @@ async def api_info() -> dict:
         "product": "OneClerk",
         "tagline": "Your phone rings. OneClerk handles it.",
         "version": "1.0.0",
-        "environment": settings.ENVIRONMENT or "development",
+        "environment": settings.ENVIRONMENT,
         "docs": "/docs",
         "health": "/health",
     }
@@ -102,11 +133,19 @@ async def health() -> dict:
     return {
         "status": "ok",
         "product": "OneClerk",
-        "database_configured": bool(settings.DATABASE_URL),
-        "openai_configured": bool(settings.OPENAI_API_KEY),
-        "twilio_configured": bool(
-            settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN
-        ),
-        "elevenlabs_configured": bool(settings.ELEVENLABS_API_KEY),
-        "stripe_configured": bool(settings.STRIPE_SECRET_KEY),
+        "services": settings.service_checklist(),
     }
+
+
+@app.get("/api/audio/{filename}", include_in_schema=False)
+async def serve_audio(filename: str) -> FileResponse:
+    safe = Path(filename).name
+    path = AUDIO_DIR / safe
+    if not path.exists() or not safe.endswith(".mp3"):
+        raise HTTPException(404, "audio not found")
+    asyncio.create_task(delete_file_later(safe, delay_seconds=1800))
+    return FileResponse(
+        path,
+        media_type="audio/mpeg",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )

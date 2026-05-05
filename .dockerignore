@@ -1,0 +1,10 @@
+.git
+.gitignore
+__pycache__
+app/**/__pycache__
+frontend/node_modules
+attached_assets
+*.pyc
+*.pyo
+*.pyd
+backend/.env

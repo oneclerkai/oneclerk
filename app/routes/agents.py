@@ -11,6 +11,12 @@ from app.models import Agent, Call, User
 from app.routes.auth import get_current_user
 from app.services.ai_brain import get_ai_response
 from app.services.forwarding import get_forwarding_instructions
+from app.services.telnyx_handler import get_or_create_phone_number
+
+try:
+    import telnyx
+except ImportError:  # pragma: no cover
+    telnyx = None  # type: ignore[assignment]
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -52,11 +58,11 @@ class TestChatRequest(BaseModel):
 def _connection_status(agent: Agent) -> dict:
     cfg = agent.config or {}
     return {
-        "phone": bool(agent.twilio_number),
+        "phone": bool(agent.telnyx_phone or agent.twilio_number),
         "whatsapp": bool(cfg.get("owner_whatsapp")),
         "ai_brain": bool(settings.OPENAI_API_KEY),
         "voice": bool(settings.ELEVENLABS_API_KEY),
-        "twilio": bool(settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN),
+        "telnyx": bool(settings.TELNYX_API_KEY and settings.TELNYX_PUBLIC_KEY),
         "booking": bool(cfg.get("calendly_url")),
         "flow_configured": bool((cfg.get("flow") or {}).get("nodes")),
     }
@@ -68,12 +74,16 @@ def _agent_dict(agent: Agent) -> dict:
         "user_id": agent.user_id,
         "name": agent.name,
         "twilio_number": agent.twilio_number,
+        "telnyx_phone": agent.telnyx_phone,
+        "telnyx_phone_sid": agent.telnyx_phone_sid,
         "forwarding_number": agent.forwarding_number,
         "is_active": agent.is_active,
+        "status": agent.status,
         "config": agent.config or {},
         "voice_id": agent.voice_id,
         "language": agent.language,
         "calls_this_month": agent.calls_this_month,
+        "total_calls": agent.total_calls,
         "created_at": agent.created_at.isoformat() if agent.created_at else None,
         "connection_status": _connection_status(agent),
     }
@@ -91,9 +101,10 @@ async def create_agent(
         forwarding_number=data.forwarding_number,
         twilio_number=data.twilio_number,
         config=data.config.model_dump(),
-        voice_id=data.voice_id or "Polly.Aditi",
-        language=data.language or "en-IN",
+        voice_id=data.voice_id or settings.VOICE_EN_FEMALE,
+        language=data.language or "english",
         is_active=False,
+        status="draft",
     )
     db.add(agent)
     await db.commit()
@@ -153,6 +164,7 @@ async def activate_agent(
 ) -> dict:
     agent = await _get_owned_agent(db, current_user, agent_id)
     agent.is_active = True
+    agent.status = "active"
     await db.commit()
     return {
         "status": "active",
@@ -171,6 +183,7 @@ async def deactivate_agent(
 ) -> dict:
     agent = await _get_owned_agent(db, current_user, agent_id)
     agent.is_active = False
+    agent.status = "paused"
     await db.commit()
     return {"status": "paused"}
 
@@ -182,6 +195,12 @@ async def delete_agent(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     agent = await _get_owned_agent(db, current_user, agent_id)
+    if agent.telnyx_phone_sid and telnyx is not None and settings.TELNYX_API_KEY:
+        telnyx.api_key = settings.TELNYX_API_KEY
+        try:
+            telnyx.PhoneNumber.delete(agent.telnyx_phone_sid)
+        except Exception:
+            pass
     await db.delete(agent)
     await db.commit()
     return None
@@ -195,9 +214,9 @@ async def setup_instructions(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     agent = await _get_owned_agent(db, current_user, agent_id)
-    if not agent.twilio_number:
-        raise HTTPException(400, "Set a Twilio number on this agent first.")
-    return get_forwarding_instructions(agent.twilio_number, carrier=carrier)
+    if not (agent.telnyx_phone or agent.twilio_number):
+        raise HTTPException(400, "Set a Telnyx phone number on this agent first.")
+    return get_forwarding_instructions(agent.telnyx_phone or agent.twilio_number, carrier=carrier)
 
 
 @router.get("/{agent_id}")
@@ -222,12 +241,12 @@ async def test_chat(
     """
     agent = await _get_owned_agent(db, current_user, agent_id)
     reply = await get_ai_response(
+        user_message=data.message,
         conversation_history=data.history,
-        agent_config=agent.config or {},
-        caller_message=data.message,
-        channel="voice",
+        agent=agent,
+        call_context={"channel": "voice"},
     )
-    return {"reply": reply}
+    return {"reply": reply.get("response", "")}
 
 
 @router.get("/{agent_id}/calls")
@@ -255,3 +274,51 @@ async def get_agent_calls(
         for c in result.scalars().all()
     ]
     return {"calls": calls}
+
+
+@router.post("/{agent_id}/get-telnyx-number")
+async def provision_telnyx_number(
+    agent_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    agent = await _get_owned_agent(db, current_user, agent_id)
+    tier_limits = {"trial": 1, "starter": 1, "growth": 3, "scale": 10}
+    plan = current_user.subscription_tier or current_user.plan or "trial"
+    limit = tier_limits.get(plan, 1)
+    existing_agents_with_numbers = (
+        await db.execute(
+            select(Agent).where(Agent.user_id == current_user.id, Agent.telnyx_phone.is_not(None))
+        )
+    ).scalars().all()
+    if len(existing_agents_with_numbers) >= limit:
+        raise HTTPException(400, f"Your {plan} plan allows {limit} phone number(s). Upgrade for more.")
+    purchased = await get_or_create_phone_number("US")
+    if not purchased:
+        raise HTTPException(503, "No phone numbers available right now. Try again in a few minutes.")
+    agent.telnyx_phone = purchased.get("number")
+    agent.telnyx_phone_sid = purchased.get("phone_number_id")
+    agent.twilio_number = purchased.get("number")
+    await db.commit()
+    return {
+        "telnyx_number": purchased["number"],
+        "instructions": get_forwarding_instructions(purchased["number"]),
+        "message": "Your OneClerk number is ready. Follow the instructions to activate call forwarding.",
+    }
+
+
+@router.delete("/{agent_id}/release-number")
+async def release_number(
+    agent_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    agent = await _get_owned_agent(db, current_user, agent_id)
+    if agent.telnyx_phone_sid and telnyx is not None and settings.TELNYX_API_KEY:
+        telnyx.api_key = settings.TELNYX_API_KEY
+        telnyx.PhoneNumber.delete(agent.telnyx_phone_sid)
+    agent.telnyx_phone = None
+    agent.telnyx_phone_sid = None
+    agent.twilio_number = None
+    await db.commit()
+    return {"released": True}
