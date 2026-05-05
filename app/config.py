@@ -45,6 +45,7 @@ class Settings(BaseSettings):
 
     ELEVENLABS_API_KEY: str | None = None
     ELEVENLABS_MODEL: str = "eleven_turbo_v2_5"
+    ELEVENLABS_VOICE_ID: str = "21m00Tcm4TlvDq8ikWAM"
     VOICE_EN_FEMALE: str = "21m00Tcm4TlvDq8ikWAM"
     VOICE_EN_MALE: str = "ErXwobaYiN019PkySvjV"
     VOICE_HI_FEMALE: str = "pFZP5JQG7iQjIQuC4Bku"
