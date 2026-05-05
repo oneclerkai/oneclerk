@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     BACKEND_URL: str = "http://localhost:5000"
 
     DATABASE_URL: str | None = None
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_URL: str | None = None
 
     JWT_SECRET_KEY: str = "change-me-in-production"
     JWT_ALGORITHM: str = "HS256"
@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     STARTUP_REQUIRED_KEYS: tuple[str, ...] = Field(
         default=(
             "SECRET_KEY",
+            "DATABASE_URL",
+            "REDIS_URL",
             "JWT_SECRET_KEY",
             "OPENAI_API_KEY",
             "TELNYX_API_KEY",

@@ -8,15 +8,15 @@ from app.config import settings
 def check_all_services() -> None:
     required = [
         ("DATABASE_URL", settings.DATABASE_URL, "PostgreSQL database"),
+        ("REDIS_URL", settings.REDIS_URL, "Redis caching"),
         ("OPENAI_API_KEY", settings.OPENAI_API_KEY, "OpenAI GPT"),
         ("TELNYX_API_KEY", settings.TELNYX_API_KEY, "Telnyx voice calls"),
         ("ELEVENLABS_API_KEY", settings.ELEVENLABS_API_KEY, "ElevenLabs TTS"),
         ("JWT_SECRET_KEY", settings.JWT_SECRET_KEY, "JWT authentication"),
-        ("STRIPE_SECRET_KEY", settings.STRIPE_SECRET_KEY, "Stripe billing"),
     ]
     optional = [
         ("DEEPGRAM_API_KEY", settings.DEEPGRAM_API_KEY, "Deepgram STT"),
-        ("REDIS_URL", settings.REDIS_URL, "Redis caching"),
+        ("STRIPE_SECRET_KEY", settings.STRIPE_SECRET_KEY, "Stripe billing"),
     ]
     print("\n=== OneClerk.ai Service Check ===")
     all_ok = True
