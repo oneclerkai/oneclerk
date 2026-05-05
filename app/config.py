@@ -4,7 +4,7 @@ from functools import lru_cache
 import logging
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger("oneclerk.config")
@@ -19,6 +19,14 @@ class Settings(BaseSettings):
     )
 
     ENVIRONMENT: Literal["development", "staging", "production"] = "development"
+
+    @field_validator("ENVIRONMENT", mode="before")
+    @classmethod
+    def normalise_environment(cls, v: object) -> object:
+        if isinstance(v, str):
+            return v.lower()
+        return v
+
     SECRET_KEY: str = "change-me"
     FRONTEND_URL: str = "http://localhost:3000"
     PUBLIC_BASE_URL: str = "http://localhost:5000"
