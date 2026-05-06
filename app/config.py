@@ -22,11 +22,10 @@ class Settings(BaseSettings):
 
     @field_validator("ENVIRONMENT", mode="before")
     @classmethod
-    def normalise_environment(cls, v: object) -> object:
+    def normalize_environment(cls, v):
         if isinstance(v, str):
             return v.lower()
         return v
-
     SECRET_KEY: str = "change-me"
     FRONTEND_URL: str = "http://localhost:3000"
     PUBLIC_BASE_URL: str = "http://localhost:5000"
