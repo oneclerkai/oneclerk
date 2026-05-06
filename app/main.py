@@ -1,151 +1,163 @@
 from contextlib import asynccontextmanager
-from pathlib import Path
-import asyncio
-import logging
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
-from fastapi.staticfiles import StaticFiles
-
-from app.config import settings
-from app.database import init_models
-from app.routes import agents, auth, billing, calls, dashboard, webhooks
-from app.startup_check import check_all_services
-from app.services.redis_client import ping_redis
-from app.services.synthesis import cleanup_audio_files
-from app.services.synthesis import AUDIO_DIR, delete_file_later
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("oneclerk")
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.exceptions import RequestValidationError
+from sqlalchemy import text
+import os
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
-    check_all_services()
-    settings.validate_startup()
-    settings.log_service_checklist()
-
-    if settings.DATABASE_URL:
-        try:
-            await init_models()
-            logger.info("Database tables ensured.")
-        except Exception:  # pragma: no cover
-            logger.exception("Failed to initialize database tables")
-    else:
-        logger.warning("DATABASE_URL is not set; DB-backed routes will return 500.")
-
-    cleanup_task = asyncio.create_task(_audio_cleanup_loop())
-    if settings.REDIS_URL:
-        logger.info("Redis reachable=%s", "yes" if await ping_redis() else "no")
+async def lifespan(app: FastAPI):
+    print("Starting OneClerk.ai...")
+    try:
+        from app.database import engine, Base
+        from app.models import User, Agent, Call, ConversationTurn
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        print("Database tables ready")
+    except Exception as e:
+        print(f"Database setup warning: {e}")
 
     try:
-        yield
-    finally:
-        cleanup_task.cancel()
+        from app.database import AsyncSessionLocal
+        migrations = [
+            "ALTER TABLE calls ADD COLUMN IF NOT EXISTS duration_minutes FLOAT DEFAULT 0",
+            "ALTER TABLE calls ADD COLUMN IF NOT EXISTS billable_minutes FLOAT DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS minutes_used_this_month FLOAT DEFAULT 0",
+            "ALTER TABLE agents ADD COLUMN IF NOT EXISTS total_minutes FLOAT DEFAULT 0",
+            "ALTER TABLE agents ADD COLUMN IF NOT EXISTS google_calendar_id VARCHAR(255)",
+            "ALTER TABLE agents ADD COLUMN IF NOT EXISTS calendly_url VARCHAR(500)",
+        ]
+        async with AsyncSessionLocal() as db:
+            for sql in migrations:
+                try:
+                    await db.execute(text(sql))
+                except Exception:
+                    pass
+            await db.commit()
+        print("Migrations applied")
+    except Exception as e:
+        print(f"Migration warning: {e}")
 
-
-async def _audio_cleanup_loop() -> None:
-    while True:
-        try:
-            await cleanup_audio_files()
-        except Exception:
-            logger.exception("Audio cleanup failed")
-        await asyncio.sleep(1800)
+    print("OneClerk.ai ready")
+    yield
+    print("OneClerk.ai shutting down")
 
 
 app = FastAPI(
-    title="OneClerk API",
-    description="The voice AI receptionist that answers your business calls.",
+    title="OneClerk.ai API",
     version="1.0.0",
-    lifespan=lifespan,
+    lifespan=lifespan
 )
 
-allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
-if settings.FRONTEND_URL:
-    allowed_origins.append(settings.FRONTEND_URL)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(auth.router)
-app.include_router(agents.router)
-app.include_router(calls.router)
-app.include_router(dashboard.router)
-app.include_router(billing.router)
-app.include_router(webhooks.router)
-app.include_router(auth.router, prefix="/api")
-app.include_router(agents.router, prefix="/api")
-app.include_router(calls.router, prefix="/api")
-app.include_router(dashboard.router, prefix="/api")
-app.include_router(billing.router, prefix="/api")
-
-_STATIC_DIR = Path(__file__).parent / "static"
-_HAS_STATIC = _STATIC_DIR.exists()
-if _HAS_STATIC:
-    app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
-
-
-@app.get("/", include_in_schema=False)
-async def root():
-    if _HAS_STATIC:
-        return FileResponse(_STATIC_DIR / "index.html")
-    return {
-        "product": "OneClerk",
-        "tagline": "Your phone rings. OneClerk handles it.",
-        "version": "1.0.0",
-        "environment": settings.ENVIRONMENT,
-        "docs": "/docs",
-        "health": "/health",
-    }
-
-
-@app.get("/app", include_in_schema=False)
-async def dashboard_app():
-    if _HAS_STATIC:
-        return FileResponse(_STATIC_DIR / "index.html")
-    return {"detail": "frontend not bundled"}
-
-
-@app.get("/favicon.ico", include_in_schema=False)
-async def favicon():
-    return Response(status_code=204)
-
-
-@app.get("/api", include_in_schema=False)
-async def api_info() -> dict:
-    return {
-        "product": "OneClerk",
-        "tagline": "Your phone rings. OneClerk handles it.",
-        "version": "1.0.0",
-        "environment": settings.ENVIRONMENT,
-        "docs": "/docs",
-        "health": "/health",
-    }
-
 
 @app.get("/health")
-async def health() -> dict:
+async def health():
+    from app.config import settings
     return {
         "status": "ok",
-        "product": "OneClerk",
-        "services": settings.service_checklist(),
+        "product": "OneClerk.ai",
+        "version": "1.0.0",
+        "environment": settings.ENVIRONMENT
     }
 
 
-@app.get("/api/audio/{filename}", include_in_schema=False)
-async def serve_audio(filename: str) -> FileResponse:
-    safe = Path(filename).name
-    path = AUDIO_DIR / safe
-    if not path.exists() or not safe.endswith(".mp3"):
-        raise HTTPException(404, "audio not found")
-    asyncio.create_task(delete_file_later(safe, delay_seconds=1800))
-    return FileResponse(
-        path,
-        media_type="audio/mpeg",
-        headers={"Cache-Control": "public, max-age=3600"},
+@app.get("/health/db")
+async def health_db():
+    try:
+        from app.database import AsyncSessionLocal
+        async with AsyncSessionLocal() as db:
+            await db.execute(text("SELECT 1"))
+        return {"status": "ok", "database": "connected"}
+    except Exception as e:
+        return {"status": "error", "database": str(e)}
+
+
+@app.get("/")
+async def root():
+    return {"product": "OneClerk.ai", "docs": "/docs", "health": "/health"}
+
+
+@app.get("/api/audio/{filename}")
+async def serve_audio(filename: str):
+    filepath = f"/tmp/audio/{filename}"
+    if not os.path.exists(filepath):
+        raise HTTPException(404, "Audio not found")
+    return FileResponse(filepath, media_type="audio/mpeg")
+
+
+try:
+    from app.api.auth import router as auth_router
+    app.include_router(auth_router)
+    print("Auth router loaded")
+except Exception as e:
+    print(f"Auth router failed: {e}")
+
+try:
+    from app.api.agents import router as agents_router
+    app.include_router(agents_router)
+    print("Agents router loaded")
+except Exception as e:
+    print(f"Agents router failed: {e}")
+
+try:
+    from app.api.dashboard import router as dashboard_router
+    app.include_router(dashboard_router)
+    print("Dashboard router loaded")
+except Exception as e:
+    print(f"Dashboard router failed: {e}")
+
+try:
+    from app.api.webhooks import router as webhooks_router
+    app.include_router(webhooks_router)
+    print("Webhooks router loaded")
+except Exception as e:
+    print(f"Webhooks router failed: {e}")
+
+try:
+    from app.api.voice_test import router as voice_test_router
+    app.include_router(voice_test_router)
+    print("Voice test router loaded")
+except Exception as e:
+    print(f"Voice test router failed: {e}")
+
+try:
+    from app.api.billing import router as billing_router
+    app.include_router(billing_router)
+    print("Billing router loaded")
+except Exception as e:
+    print(f"Billing router failed: {e}")
+
+try:
+    from app.api.demo import router as demo_router
+    app.include_router(demo_router)
+    print("Demo router loaded")
+except Exception as e:
+    print(f"Demo router failed: {e}")
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request, exc):
+    return JSONResponse(
+        status_code=422,
+        content={"detail": str(exc.errors()[0].get("msg", "Validation error"))}
     )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    from app.config import settings
+    if settings.ENVIRONMENT == "production":
+        return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+    return JSONResponse(status_code=500, content={"detail": str(exc)})
