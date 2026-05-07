@@ -5,9 +5,10 @@ WORKDIR /app
 # Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install dependencies
+# Install dependencies using only pre-built wheels (no source builds)
+# This avoids Render's read-only filesystem issues with Rust/Cargo builds
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir --only-binary :all: -r requirements.txt
 
 # Copy application code
 COPY . .
