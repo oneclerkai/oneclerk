@@ -2,6 +2,7 @@
 // Uses Lucide for icons (loaded from CDN in index.html).
 
 const API = "";
+const API_PREFIX = "/api";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const h = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
@@ -14,10 +15,25 @@ const Store = {
   set user(v) { v ? localStorage.setItem("oc_user", JSON.stringify(v)) : localStorage.removeItem("oc_user"); },
 };
 
+function apiPath(path) {
+  if (/^https?:\/\//.test(path) || path.startsWith(API_PREFIX) || path === "/health") return API + path;
+  return API + API_PREFIX + path;
+}
+
+function apiErrorMessage(payload, fallback) {
+  const detail = payload?.detail ?? payload?.message ?? payload?.error;
+  if (!detail) return fallback;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((item) => item?.msg || item?.message || JSON.stringify(item)).join("; ");
+  }
+  return detail.message || JSON.stringify(detail);
+}
+
 async function api(path, { method = "GET", body, auth = true } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (auth && Store.token) headers["Authorization"] = `Bearer ${Store.token}`;
-  const res = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const res = await fetch(apiPath(path), { method, headers, body: body ? JSON.stringify(body) : undefined });
   if (res.status === 401) {
     Store.token = null;
     Store.user = null;
@@ -28,7 +44,7 @@ async function api(path, { method = "GET", body, auth = true } = {}) {
   }
   if (!res.ok) {
     let msg = `Request failed (${res.status})`;
-    try { const j = await res.json(); msg = j.detail || msg; } catch {}
+    try { msg = apiErrorMessage(await res.json(), msg); } catch {}
     throw new Error(msg);
   }
   if (res.status === 204) return null;
@@ -3573,6 +3589,12 @@ async function render() {
       Store.user = me;
       Store._refreshed = true;
     } catch { /* token invalid; api() already clears */ }
+  }
+
+  if (!Store.token) {
+    root.appendChild(await routes.auth());
+    renderIcons();
+    return;
   }
 
   if (Store.user && Store.user.onboarding_completed === false && r.path !== "/onboarding") {

@@ -72,11 +72,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router)
-app.include_router(agents.router)
-app.include_router(calls.router)
-app.include_router(dashboard.router)
-app.include_router(billing.router)
 app.include_router(webhooks.router)
 app.include_router(auth.router, prefix="/api")
 app.include_router(agents.router, prefix="/api")

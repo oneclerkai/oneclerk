@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.config import settings
 from app.database import get_db
@@ -68,6 +69,18 @@ def _connection_status(agent: Agent) -> dict:
     }
 
 
+def _missing_activation_requirements(agent: Agent) -> list[str]:
+    cfg = agent.config or {}
+    missing: list[str] = []
+    if not str(cfg.get("business_name") or "").strip():
+        missing.append("business_name")
+    if not str(cfg.get("greeting_message") or "").strip():
+        missing.append("greeting_message")
+    if not str(agent.telnyx_phone or "").strip():
+        missing.append("telnyx_phone")
+    return missing
+
+
 def _agent_dict(agent: Agent) -> dict:
     return {
         "id": agent.id,
@@ -86,6 +99,7 @@ def _agent_dict(agent: Agent) -> dict:
         "total_calls": agent.total_calls,
         "created_at": agent.created_at.isoformat() if agent.created_at else None,
         "connection_status": _connection_status(agent),
+        "activation_missing": _missing_activation_requirements(agent),
     }
 
 
@@ -143,6 +157,7 @@ async def update_agent(
     agent = await _get_owned_agent(db, current_user, agent_id)
     agent.name = data.name
     agent.config = data.config.model_dump()
+    flag_modified(agent, "config")
     if data.forwarding_number is not None:
         agent.forwarding_number = data.forwarding_number
     if data.twilio_number is not None:
@@ -163,6 +178,15 @@ async def activate_agent(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     agent = await _get_owned_agent(db, current_user, agent_id)
+    missing = _missing_activation_requirements(agent)
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "Agent cannot go live yet. Add the required setup fields first.",
+                "missing": missing,
+            },
+        )
     agent.is_active = True
     agent.status = "active"
     await db.commit()
@@ -283,6 +307,11 @@ async def provision_telnyx_number(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     agent = await _get_owned_agent(db, current_user, agent_id)
+    if not settings.TELNYX_API_KEY or not settings.TELNYX_CONNECTION_ID:
+        raise HTTPException(
+            status_code=503,
+            detail="Telnyx is not configured. Set TELNYX_API_KEY and TELNYX_CONNECTION_ID.",
+        )
     tier_limits = {"trial": 1, "starter": 1, "growth": 3, "scale": 10}
     plan = current_user.subscription_tier or current_user.plan or "trial"
     limit = tier_limits.get(plan, 1)
@@ -296,13 +325,17 @@ async def provision_telnyx_number(
     purchased = await get_or_create_phone_number("US")
     if not purchased:
         raise HTTPException(503, "No phone numbers available right now. Try again in a few minutes.")
-    agent.telnyx_phone = purchased.get("number")
+    number = purchased.get("number")
+    if not number:
+        raise HTTPException(503, "Telnyx did not return a usable phone number. Try again in a few minutes.")
+    agent.telnyx_phone = number
     agent.telnyx_phone_sid = purchased.get("phone_number_id")
-    agent.twilio_number = purchased.get("number")
     await db.commit()
+    await db.refresh(agent)
     return {
-        "telnyx_number": purchased["number"],
-        "instructions": get_forwarding_instructions(purchased["number"]),
+        "agent": _agent_dict(agent),
+        "telnyx_number": agent.telnyx_phone,
+        "instructions": get_forwarding_instructions(agent.telnyx_phone),
         "message": "Your OneClerk number is ready. Follow the instructions to activate call forwarding.",
     }
 

@@ -12,7 +12,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database import AsyncSessionLocal
+from app.database import get_sessionmaker
 from app.models import Agent, Call, CallStatus, ConversationTurn, User
 from app.services import ai_brain, synthesis, telnyx_handler, whatsapp
 from app.services.redis_client import get_redis
@@ -36,9 +36,13 @@ router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 
 
 async def _db() -> AsyncSession:
-    if AsyncSessionLocal is None:
-        raise RuntimeError("DATABASE_URL is not configured")
-    return AsyncSessionLocal()
+    sessionmaker = get_sessionmaker()
+    if sessionmaker is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Database is not configured. Set DATABASE_URL in the backend environment.",
+        )
+    return sessionmaker()
 
 
 async def get_agent_by_telnyx_number(db: AsyncSession, to_number: str) -> Agent | None:

@@ -4,6 +4,22 @@ export const getToken = () => localStorage.getItem('oneclerk_token')
 export const setToken = (t: string) => localStorage.setItem('oneclerk_token', t)
 export const clearToken = () => localStorage.removeItem('oneclerk_token')
 
+function apiErrorMessage(payload: any, fallback: string) {
+  const detail = payload?.detail ?? payload?.message ?? payload?.error
+  if (!detail) return fallback
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail.map((item) => item?.msg || item?.message || JSON.stringify(item)).join('; ')
+  }
+  return detail.message || JSON.stringify(detail)
+}
+
+function notifyError(message: string) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('oneclerk:error', { detail: message }))
+  }
+}
+
 async function apiFetch(path: string, options: RequestInit = {}) {
   const token = getToken()
   const res = await fetch(`${API_URL}${path}`, {
@@ -21,7 +37,9 @@ async function apiFetch(path: string, options: RequestInit = {}) {
   }
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'Request failed' }))
-    throw new Error(error.detail || 'Request failed')
+    const message = apiErrorMessage(error, `Request failed (${res.status})`)
+    notifyError(message)
+    throw new Error(message)
   }
   if (res.status === 204) return null
   return res.json()

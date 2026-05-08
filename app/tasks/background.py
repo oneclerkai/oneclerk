@@ -7,7 +7,7 @@ import time
 
 from sqlalchemy import func, select, text
 
-from app.database import AsyncSessionLocal
+from app.database import get_sessionmaker
 from app.models import Agent, Call, User
 from app.services.ai_brain import generate_call_summary
 from app.services.synthesis import AUDIO_DIR
@@ -30,9 +30,10 @@ async def _get_user(db, user_id: str) -> User | None:
 @celery_app.task(bind=True, max_retries=3)
 def process_completed_call(self, call_id: str):
     async def run():
-        if AsyncSessionLocal is None:
+        sessionmaker = get_sessionmaker()
+        if sessionmaker is None:
             return
-        async with AsyncSessionLocal() as db:
+        async with sessionmaker() as db:
             call = await _get_call(db, call_id)
             if call is None:
                 return
@@ -68,9 +69,10 @@ def process_completed_call(self, call_id: str):
 @celery_app.task
 def send_daily_digest():
     async def run():
-        if AsyncSessionLocal is None:
+        sessionmaker = get_sessionmaker()
+        if sessionmaker is None:
             return
-        async with AsyncSessionLocal() as db:
+        async with sessionmaker() as db:
             users = (await db.execute(select(User))).scalars().all()
             yesterday = datetime.utcnow() - timedelta(days=1)
             for user in users:
@@ -99,9 +101,10 @@ def send_daily_digest():
 @celery_app.task
 def reset_monthly_call_counts():
     async def run():
-        if AsyncSessionLocal is None:
+        sessionmaker = get_sessionmaker()
+        if sessionmaker is None:
             return
-        async with AsyncSessionLocal() as db:
+        async with sessionmaker() as db:
             await db.execute(text("UPDATE agents SET calls_this_month = 0"))
             await db.commit()
 

@@ -8,7 +8,7 @@ import uuid
 from sqlalchemy import desc, select
 
 from app.config import settings
-from app.database import AsyncSessionLocal
+from app.database import get_sessionmaker
 from app.models import Agent, Call, CallStatus
 from app.services.ai_brain import get_ai_response
 from app.services.redis_client import safe_setex
@@ -127,24 +127,53 @@ async def end_call(call_control_id: str, farewell_text: str) -> bool:
 
 
 async def get_or_create_phone_number(country_code: str = "US") -> dict:
-    if telnyx is None:
+    if telnyx is None or not settings.TELNYX_API_KEY or not settings.TELNYX_CONNECTION_ID:
         return {}
-    available = telnyx.AvailablePhoneNumber.list(country_code=country_code, limit=1)
-    items = list(available)
+    telnyx.api_key = settings.TELNYX_API_KEY
+    available = telnyx.AvailablePhoneNumber.list(
+        country_code=country_code,
+        features=["voice", "sms"],
+        limit=1,
+    )
+    items = getattr(available, "data", None)
+    if items is None and isinstance(available, dict):
+        items = available.get("data")
+    if items is None:
+        try:
+            items = list(available)
+        except TypeError:
+            items = []
     if not items:
         return {}
     chosen = items[0]
-    purchased = telnyx.NumberOrder.create(
-        phone_numbers=[{"phone_number": chosen.phone_number}],
-        connection_id=settings.TELNYX_CONNECTION_ID,
-    )
-    return {"number": chosen.phone_number, "phone_number_id": getattr(purchased, "id", "")}
+    phone_number = getattr(chosen, "phone_number", None)
+    if phone_number is None and isinstance(chosen, dict):
+        phone_number = chosen.get("phone_number")
+    if not phone_number:
+        return {}
+    try:
+        purchased = telnyx.PhoneNumber.create(
+            phone_number=phone_number,
+            connection_id=settings.TELNYX_CONNECTION_ID,
+        )
+    except Exception:
+        purchased = telnyx.NumberOrder.create(
+            phone_numbers=[{"phone_number": phone_number}],
+            connection_id=settings.TELNYX_CONNECTION_ID,
+        )
+    purchased_number = getattr(purchased, "phone_number", None) or phone_number
+    purchased_id = getattr(purchased, "id", "") or getattr(purchased, "phone_number_id", "")
+    if isinstance(purchased, dict):
+        purchased_number = purchased.get("phone_number") or purchased_number
+        purchased_id = purchased.get("id") or purchased.get("phone_number_id") or purchased_id
+    return {"number": purchased_number, "phone_number_id": purchased_id}
 
 
 async def _find_or_create_call(call_control_id: str, caller_number: str, target_number: str) -> tuple[Call | None, Agent | None]:
-    if AsyncSessionLocal is None:
+    sessionmaker = get_sessionmaker()
+    if sessionmaker is None:
         return None, None
-    async with AsyncSessionLocal() as db:
+    async with sessionmaker() as db:
         result = await db.execute(
             select(Agent).where(
                 (Agent.telnyx_phone == target_number) | (Agent.twilio_number == target_number),
@@ -211,13 +240,14 @@ async def handle_playback_ended(event_data: dict) -> None:
 
 
 async def handle_gather_ended(event_data: dict) -> None:
-    if AsyncSessionLocal is None:
+    sessionmaker = get_sessionmaker()
+    if sessionmaker is None:
         return
     payload = event_data.get("payload", {})
     call_control_id = payload.get("call_control_id")
     if not call_control_id:
         return
-    async with AsyncSessionLocal() as db:
+    async with sessionmaker() as db:
         call = (await db.execute(select(Call).where(Call.call_sid == call_control_id))).scalar_one_or_none()
         if call is None:
             return
@@ -244,13 +274,14 @@ async def handle_gather_ended(event_data: dict) -> None:
 
 
 async def handle_call_hangup(event_data: dict) -> None:
-    if AsyncSessionLocal is None:
+    sessionmaker = get_sessionmaker()
+    if sessionmaker is None:
         return
     payload = event_data.get("payload", {})
     call_control_id = payload.get("call_control_id")
     if not call_control_id:
         return
-    async with AsyncSessionLocal() as db:
+    async with sessionmaker() as db:
         call = (await db.execute(select(Call).where(Call.call_sid == call_control_id))).scalar_one_or_none()
         if call is None:
             return

@@ -1,6 +1,7 @@
 from typing import AsyncGenerator, Optional
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -63,7 +64,9 @@ def _init_engine() -> None:
     AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 
-_init_engine()
+def get_sessionmaker() -> Optional[async_sessionmaker[AsyncSession]]:
+    _init_engine()
+    return AsyncSessionLocal
 
 
 # Idempotent column additions for tables that already exist from earlier runs.
@@ -118,6 +121,7 @@ _LIGHTWEIGHT_MIGRATIONS: tuple[str, ...] = (
 
 async def init_models() -> None:
     """Create tables on startup and run lightweight ALTER TABLE migrations."""
+    _init_engine()
     if engine is None:
         return
     # Import models so they are registered with Base.metadata
@@ -134,7 +138,11 @@ async def init_models() -> None:
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    _init_engine()
     if AsyncSessionLocal is None:
-        raise RuntimeError("DATABASE_URL is not configured")
+        raise HTTPException(
+            status_code=503,
+            detail="Database is not configured. Set DATABASE_URL in the backend environment.",
+        )
     async with AsyncSessionLocal() as session:
         yield session
