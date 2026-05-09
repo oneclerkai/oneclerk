@@ -45,3 +45,10 @@ async def safe_setex(key: str, ttl: int, value: Any) -> None:
     if client is None:
         return
     await client.setex(key, ttl, value)
+
+
+async def safe_delete(key: str) -> None:
+    client = get_redis()
+    if client is None:
+        return
+    await client.delete(key)

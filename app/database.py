@@ -59,6 +59,7 @@ def _init_engine() -> None:
         echo=False,
         future=True,
         pool_pre_ping=True,
+        pool_recycle=1800,
         connect_args=connect_args,
     )
     AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
@@ -81,6 +82,8 @@ _LIGHTWEIGHT_MIGRATIONS: tuple[str, ...] = (
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status VARCHAR",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE NOT NULL",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE NOT NULL",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE NOT NULL",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS business_profile JSONB",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_tier VARCHAR DEFAULT 'trial'",
     "ALTER TABLE conversation_turns ADD COLUMN IF NOT EXISTS source VARCHAR DEFAULT 'voice'",

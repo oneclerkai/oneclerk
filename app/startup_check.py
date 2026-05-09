@@ -16,6 +16,8 @@ def check_all_services() -> None:
     ]
     optional = [
         ("DEEPGRAM_API_KEY", settings.DEEPGRAM_API_KEY, "Deepgram STT"),
+        ("RESEND_API_KEY", settings.RESEND_API_KEY, "Resend email OTP"),
+        ("TWILIO_ACCOUNT_SID", settings.TWILIO_ACCOUNT_SID, "Twilio SMS OTP"),
         ("STRIPE_SECRET_KEY", settings.STRIPE_SECRET_KEY, "Stripe billing"),
     ]
     print("\n=== OneClerk.ai Service Check ===")

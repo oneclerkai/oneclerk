@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import secrets
 
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -11,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.models import User
+from app.services.notifications import send_email_otp, send_sms_otp
+from app.services.redis_client import get_redis, safe_delete, safe_get, safe_setex
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer(auto_error=False)
@@ -42,6 +45,23 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class SendEmailOtpRequest(BaseModel):
+    email: EmailStr
+
+
+class VerifyEmailOtpSignupRequest(SignupRequest):
+    otp: str
+
+
+class SendPhoneOtpRequest(BaseModel):
+    phone_number: str
+
+
+class VerifyPhoneOtpRequest(BaseModel):
+    phone_number: str
+    otp: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -54,6 +74,34 @@ def _create_access_token(subject: str) -> str:
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
+def _otp() -> str:
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def _decode_redis(value: bytes | str | None) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, bytes):
+        return value.decode("utf-8")
+    return value
+
+
+def _email_key(email: str) -> str:
+    return f"email_otp:{email.strip().lower()}"
+
+
+def _phone_key(phone_number: str) -> str:
+    return f"phone_otp:{phone_number.strip()}"
+
+
+def _ensure_redis() -> None:
+    if get_redis() is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Redis is not configured. Set REDIS_URL to use OTP verification.",
+        )
+
+
 def _user_dict(user: User) -> dict:
     return {
         "id": user.id,
@@ -63,6 +111,8 @@ def _user_dict(user: User) -> dict:
         "plan": user.plan,
         "trial_ends_at": user.trial_ends_at.isoformat() if user.trial_ends_at else None,
         "onboarding_completed": bool(user.onboarding_completed),
+        "email_verified": bool(user.email_verified),
+        "phone_verified": bool(user.phone_verified),
         "business_profile": user.business_profile or None,
     }
 
@@ -83,10 +133,69 @@ async def signup(data: SignupRequest, db: AsyncSession = Depends(get_db)) -> Tok
         hashed_password=_hash_password(data.password),
         name=data.name,
         whatsapp_number=data.whatsapp_number,
+        email_verified=False,
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
+
+    return TokenResponse(access_token=_create_access_token(user.id), user=_user_dict(user))
+
+
+@router.post("/send-email-otp")
+async def send_email_otp_route(
+    data: SendEmailOtpRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    email = data.email.lower()
+    existing = await db.execute(select(User).where(User.email == email))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    _ensure_redis()
+    otp = _otp()
+    await safe_setex(_email_key(email), 600, otp)
+    try:
+        sent = await send_email_otp(email, otp)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Could not send email OTP: {exc}") from exc
+
+    response = {"sent": sent, "expires_in_seconds": 600}
+    if not settings.RESEND_API_KEY:
+        response["dev_otp"] = otp
+    return response
+
+
+@router.post(
+    "/verify-email-otp-and-signup",
+    response_model=TokenResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def verify_email_otp_and_signup(
+    data: VerifyEmailOtpSignupRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    email = data.email.lower()
+    stored = _decode_redis(await safe_get(_email_key(email)))
+    if not stored or stored != data.otp.strip():
+        raise HTTPException(status_code=400, detail="Invalid or expired email verification code")
+
+    existing = await db.execute(select(User).where(User.email == email))
+    if existing.scalar_one_or_none():
+        await safe_delete(_email_key(email))
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    user = User(
+        email=email,
+        hashed_password=_hash_password(data.password),
+        name=data.name,
+        whatsapp_number=data.whatsapp_number,
+        email_verified=True,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    await safe_delete(_email_key(email))
 
     return TokenResponse(access_token=_create_access_token(user.id), user=_user_dict(user))
 
@@ -124,6 +233,52 @@ async def get_current_user(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     return user
+
+
+@router.post("/send-phone-otp")
+async def send_phone_otp_route(
+    data: SendPhoneOtpRequest,
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    _ensure_redis()
+    phone_number = data.phone_number.strip()
+    if not phone_number:
+        raise HTTPException(status_code=400, detail="Phone number is required")
+
+    otp = _otp()
+    await safe_setex(_phone_key(phone_number), 300, otp)
+    try:
+        sent = await send_sms_otp(phone_number, otp)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Could not send phone OTP: {exc}") from exc
+
+    response = {"sent": sent, "expires_in_seconds": 300}
+    if not (
+        settings.TWILIO_ACCOUNT_SID
+        and settings.TWILIO_AUTH_TOKEN
+        and settings.TWILIO_PHONE_NUMBER
+    ):
+        response["dev_otp"] = otp
+    return response
+
+
+@router.post("/verify-phone-otp")
+async def verify_phone_otp_route(
+    data: VerifyPhoneOtpRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    phone_number = data.phone_number.strip()
+    stored = _decode_redis(await safe_get(_phone_key(phone_number)))
+    if not stored or stored != data.otp.strip():
+        raise HTTPException(status_code=400, detail="Invalid or expired phone verification code")
+
+    current_user.whatsapp_number = phone_number
+    current_user.phone_verified = True
+    await db.commit()
+    await db.refresh(current_user)
+    await safe_delete(_phone_key(phone_number))
+    return {"verified": True, "user": _user_dict(current_user)}
 
 
 @router.get("/me")

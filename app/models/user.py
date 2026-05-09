@@ -29,4 +29,6 @@ class User(Base):
     stripe_subscription_id: Mapped[str] = mapped_column(String, nullable=True)
     subscription_status: Mapped[str] = mapped_column(String, nullable=True)
     onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    phone_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     business_profile: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=True)

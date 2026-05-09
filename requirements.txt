@@ -5,6 +5,8 @@ sqlalchemy[asyncio]==2.0.36
 asyncpg==0.30.0
 alembic==1.13.3
 redis==5.2.0
+resend==2.4.0
+twilio==9.3.6
 celery[redis]==5.4.0
 openai==1.54.0
 telnyx==2.1.6

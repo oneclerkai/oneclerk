@@ -36,6 +36,13 @@ class Settings(BaseSettings):
     TELNYX_APP_ID: str | None = None
     TELNYX_CONNECTION_ID: str | None = None
 
+    RESEND_API_KEY: str | None = None
+    RESEND_FROM_EMAIL: str = "OneClerk <verify@oneclerk.ai>"
+
+    TWILIO_ACCOUNT_SID: str | None = None
+    TWILIO_AUTH_TOKEN: str | None = None
+    TWILIO_PHONE_NUMBER: str | None = None
+
     OPENAI_API_KEY: str | None = None
     OPENAI_MODEL: str = "gpt-4o-mini"
 
@@ -58,7 +65,7 @@ class Settings(BaseSettings):
     STRIPE_GROWTH_PRICE_ID: str | None = None
     STRIPE_SCALE_PRICE_ID: str | None = None
 
-    WHATSAPP_API_URL: str = "https://api.telnyx.com/v2/messages"
+    WHATSAPP_API_URL: str | None = None
     WHATSAPP_FROM: str | None = None
 
     STARTUP_REQUIRED_KEYS: tuple[str, ...] = Field(
@@ -80,6 +87,12 @@ class Settings(BaseSettings):
             "redis": bool(self.REDIS_URL),
             "jwt": bool(self.JWT_SECRET_KEY),
             "telnyx": bool(self.TELNYX_API_KEY and self.TELNYX_PUBLIC_KEY),
+            "resend": bool(self.RESEND_API_KEY),
+            "twilio": bool(
+                self.TWILIO_ACCOUNT_SID
+                and self.TWILIO_AUTH_TOKEN
+                and self.TWILIO_PHONE_NUMBER
+            ),
             "openai": bool(self.OPENAI_API_KEY),
             "deepgram": bool(self.DEEPGRAM_API_KEY),
             "elevenlabs": bool(self.ELEVENLABS_API_KEY),
