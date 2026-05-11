@@ -3496,19 +3496,27 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 
 /* --- Animated auth-modal: light gradient + animated mesh + soft blobs --- */
 .auth-modal-backdrop-light {
-  background: linear-gradient(135deg, #f8f6ff 0%, #fef9f0 40%, #f0f7ff 70%, #fafff5 100%);
+  background: linear-gradient(135deg, #f4f1ff 0%, #fef9f0 35%, #e8f4ff 65%, #f5fff4 100%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   overflow: hidden;
 }
 .auth-modal-backdrop-light .auth-modal {
   position: relative; z-index: 5;
-  background: rgba(255,255,255,0.88);
-  backdrop-filter: blur(18px);
-  border: 1px solid rgba(255,255,255,0.9);
-  box-shadow: 0 32px 80px -20px rgba(15,15,20,0.18), 0 8px 24px -8px rgba(15,15,20,0.1);
+  background: rgba(255,255,255,0.92) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.85) !important;
+  box-shadow: 0 32px 80px -20px rgba(15,15,20,0.14), 0 8px 24px -8px rgba(15,15,20,0.08) !important;
+  color: #0d0d0f !important;
 }
-.auth-modal-backdrop-light #m-title { color: #0d0d0f; }
-.auth-modal-backdrop-light .modal-sub { color: rgba(15,15,20,0.6); }
+.auth-modal-backdrop-light .auth-modal h2,
+.auth-modal-backdrop-light #m-title { color: #0d0d0f !important; }
+.auth-modal-backdrop-light .modal-sub { color: rgba(15,15,20,0.62) !important; }
 .auth-modal-backdrop-light p.text-xs { color: rgba(15,15,20,0.45) !important; }
+.auth-modal-backdrop-light .auth-modal .auth-tabs { background: rgba(15,15,20,0.05); }
+.auth-modal-backdrop-light .auth-modal .auth-tabs button { color: rgba(15,15,20,0.6); }
+.auth-modal-backdrop-light .auth-modal .auth-tabs button.active { color: #0d0d0f; }
 .auth-mesh {
   position: absolute; inset: 0; pointer-events: none; z-index: 1;
   background-image:

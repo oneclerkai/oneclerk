@@ -1557,12 +1557,8 @@ route("dashboard", async () => {
       t += 0.035 * (0.7 + currentPitch * 0.3);
       level += ((speaking ? 0.88 : 0.08) - level) * 0.06;
       const w = canvas.width, h = canvas.height;
+      if (!w || !h) { raf = requestAnimationFrame(drawWave); return; }
       ctx.clearRect(0, 0, w, h);
-      const grd = ctx.createLinearGradient(0, 0, w, 0);
-      grd.addColorStop(0, "rgba(255,205,92,0.85)");
-      grd.addColorStop(0.5, "rgba(255,138,61,0.9)");
-      grd.addColorStop(1, "rgba(99,102,241,0.8)");
-      ctx.fillStyle = grd;
       const bars = 48;
       const bw = w / bars;
       for (let i = 0; i < bars; i++) {
@@ -1570,13 +1566,21 @@ route("dashboard", async () => {
         const amp = Math.sin(phase) * 0.35 + Math.sin(phase * 1.7) * 0.35 + Math.sin(phase * 0.6) * 0.3;
         const a = Math.abs(amp) * level;
         const bh = Math.max(3 * devicePixelRatio, a * h * 0.88);
-        ctx.beginPath();
-        ctx.roundRect(i * bw + bw * 0.2, (h - bh) / 2, bw * 0.6, bh, 2);
-        ctx.fill();
+        const x = i * bw + bw * 0.2;
+        const y = (h - bh) / 2;
+        const bww = bw * 0.6;
+        // gradient per bar based on position
+        const ratio = i / bars;
+        const r = Math.round(255 - ratio * 156);
+        const g = Math.round(138 + ratio * (-36));
+        const b2 = Math.round(61 + ratio * 180);
+        ctx.fillStyle = `rgba(${r},${g},${b2},0.88)`;
+        ctx.fillRect(x, y, bww, bh);
       }
       raf = requestAnimationFrame(drawWave);
     }
-    drawWave();
+    // Wait one frame so the canvas has been laid out before reading its size
+    requestAnimationFrame(() => { resize(); drawWave(); });
 
     page.querySelectorAll(".dash-prev-voice").forEach(b => b.addEventListener("click", () => {
       page.querySelectorAll(".dash-prev-voice").forEach(x => x.classList.remove("active"));
@@ -2665,7 +2669,7 @@ function initBuilderCanvas(stage, layout) {
     });
     renderIcons(canvas);
 
-    // Edges (curved dotted) + sticky-note labels
+    // Edges (curved dotted SVG paths — double-click to delete)
     svg.innerHTML = `
       <defs>
         <marker id="agb-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -2786,7 +2790,7 @@ function initBuilderCanvas(stage, layout) {
   }
 
   function redrawEdgesOnly() {
-    // Re-render svg + notes without rebuilding boxes
+    // Re-render svg edges without rebuilding boxes; no sticky-note labels
     svg.innerHTML = `
       <defs>
         <marker id="agb-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -2800,19 +2804,11 @@ function initBuilderCanvas(stage, layout) {
       const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
       p.setAttribute("class", "agb-edge");
       p.setAttribute("d", curvePath(a, b));
+      p.setAttribute("data-i", idx);
+      p.setAttribute("pointer-events", "stroke");
+      p.style.cursor = "pointer";
       svg.appendChild(p);
-      const sx = a.x + BOX_W, sy = a.y + BOX_H / 2;
-      const tx = b.x,         ty = b.y + BOX_H / 2;
-      const mx = (sx + tx) / 2 - 70;
-      const my = (sy + ty) / 2 - 18;
-      const note = h(`
-        <div class="agb-edge-note" style="left:${mx}px;top:${my}px" data-i="${idx}">
-          <input class="agb-edge-input" placeholder="label this connection" value="${escapeHtml(edge.note || '')}"/>
-          <button class="agb-edge-x" title="Delete connection">×</button>
-        </div>`);
-      canvas.appendChild(note);
-      $(".agb-edge-input", note).addEventListener("input", e => { edge.note = e.target.value; });
-      $(".agb-edge-x", note).addEventListener("click", () => {
+      p.addEventListener("dblclick", () => {
         layout.edges.splice(idx, 1); redraw();
       });
     });
