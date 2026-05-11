@@ -358,69 +358,186 @@ const FRAMES = [
   },
 ];
 
-// Reviews — real problems solved, real-sounding people, with avatars + place
+// Reviews — short, punchy, one specific result per person
 const REVIEWS = [
   {
-    quote: "I'm a family doctor running a solo practice — our front desk was swamped with after-hours calls. OneClerk answers every call instantly, books appointments straight into my Google Calendar, and texts me a WhatsApp summary before I even check my voicemail. Caught 23 missed calls in week one. Two became same-day patients.",
+    quote: "Caught 23 missed calls in week one — two became same-day patients. OneClerk books into my calendar and sends a WhatsApp summary before I've had my first coffee.",
     name: "Dr. Marisol Ruiz",
     place: "Family Physician · Austin, TX",
     img: "https://i.pravatar.cc/120?img=47",
   },
   {
-    quote: "As a salon owner with five chairs going at once, I can't always grab the phone. The voice clone feature is genuinely uncanny — it sounds exactly like my receptionist Maya. Clients book, rebook, and ask about pricing without ever suspecting it's AI. My no-show rate dropped 40% in the first month.",
+    quote: "Clients book, rebook, and ask pricing without ever realising it's AI. No-show rate dropped 40% in 30 days — that alone paid for the whole year.",
     name: "Jamie Lin",
     place: "Salon Owner · Glow Salon, Brooklyn",
     img: "https://i.pravatar.cc/120?img=32",
   },
   {
-    quote: "HVAC dispatcher here — we were losing emergency callbacks at night. OneClerk triages every call: real emergencies get escalated to my on-call tech in seconds, routine tune-ups get booked automatically. The WhatsApp summary hits my phone before I've even read the notification. Booked $6k in jobs the first weekend.",
+    quote: "Real emergencies get escalated instantly; routine jobs book themselves. We captured $6,000 in weekend work we used to lose to voicemail.",
     name: "Andre Thompson",
     place: "HVAC Business Owner · Phoenix, AZ",
     img: "https://i.pravatar.cc/120?img=12",
   },
   {
-    quote: "Our dental practice had a receptionist vacancy for 3 months. We configured OneClerk in 12 minutes — it reads our live calendar, books cleanings and consultations, and sends patients a confirmation text automatically. Saved a full receptionist salary and actually improved our patient experience scores.",
+    quote: "Three-month receptionist vacancy — configured OneClerk in twelve minutes and saved the full salary. Patient experience scores actually went up.",
     name: "Dr. Priya Nair",
     place: "Practice Manager · Bright Smiles Dental",
     img: "https://i.pravatar.cc/120?img=44",
   },
   {
-    quote: "I'm a solo plumber — I can't answer calls mid-job and used to lose customers to whoever picked up first. OneClerk answers instantly, explains my rates, schedules service calls, and pings me on WhatsApp with the job address. I've recaptured at least 8 jobs a month that I used to lose to voicemail.",
+    quote: "I can't answer mid-job and used to lose every caller to whoever picked up first. OneClerk recovered 8 booked jobs in my very first month.",
     name: "Mike Hartman",
     place: "Plumber · Hartman Plumbing Co.",
     img: "https://i.pravatar.cc/120?img=15",
   },
   {
-    quote: "I run a med spa with a heavily multilingual clientele — Spanish, Vietnamese, Mandarin. The agent switches languages mid-call like a native speaker. I built the entire intake flow using the drag-and-drop builder in one afternoon. Our cancellation rate dropped from 22% to 6% in two months.",
+    quote: "The agent switches Spanish, Vietnamese, and Mandarin mid-call without missing a beat. Cancellation rate fell from 22% to 6% in two months.",
     name: "Linh Pham",
     place: "Med Spa Director · Lotus Med Spa",
     img: "https://i.pravatar.cc/120?img=49",
   },
   {
-    quote: "At our law firm we needed pre-screening — conflict checks, matter type, urgency flagging. OneClerk handles all of that before the call even reaches me. Two partners genuinely thought we'd hired a new paralegal. The flow builder is exactly like Figma for phone calls. Worth every dollar.",
+    quote: "Pre-screens callers, runs conflict checks, flags urgency — all before the call reaches me. Two partners thought we'd hired a new paralegal.",
     name: "Carla Jensen",
     place: "Attorney · Jensen & Vega Law",
     img: "https://i.pravatar.cc/120?img=28",
   },
   {
-    quote: "Restaurant owner here — our host stand can't always get to the phone during dinner rush. OneClerk takes reservations via voice, reads my OpenTable availability in real time, and handles every 'do you have gluten-free options?' call on autopilot. After-hours bookings tripled in month one.",
+    quote: "Takes reservations, reads our live availability, handles every dietary question on autopilot. After-hours bookings tripled in month one.",
     name: "Rohan Shah",
     place: "Restaurant Owner · Marigold Kitchen",
     img: "https://i.pravatar.cc/120?img=8",
   },
   {
-    quote: "I manage operations for a tutoring company with 12 locations. Each location now has its own AI receptionist with the right hours, pricing, and staff info — configured separately in the builder. The WhatsApp recap system means I know exactly what happened at every location before my first coffee.",
+    quote: "All 12 locations now have their own AI receptionist with the right hours, staff, and pricing. I know what happened everywhere before my first coffee.",
     name: "Eva Müller",
     place: "Operations Lead · BrightMinds Tutoring",
     img: "https://i.pravatar.cc/120?img=20",
   },
   {
-    quote: "Solo attorney — intake is everything and I used to miss it. OneClerk pre-screens callers, runs through conflict-check questions, and flags the urgent ones for immediate callback. My client acquisition rate went up 35% in 60 days. The voice sounds authoritative and professional. Nothing like the robotic AI I expected.",
+    quote: "OneClerk pre-screens every caller and flags urgent ones for immediate callback. Client acquisition up 35% in just 60 days.",
     name: "Devin Okafor",
     place: "Solo Attorney · Houston, TX",
     img: "https://i.pravatar.cc/120?img=33",
   },
 ];
+
+// ── Global voice-preview data (used by dashboard + agent setup) ──────────────
+const PREVIEW_VOICES = [
+  { id: "maya",   label: "Maya",   sub: "Warm · Mid-30s",     rate: 0.95, pitch: 1.15, gender: "female" },
+  { id: "arjun",  label: "Arjun",  sub: "Calm · Deep",        rate: 0.88, pitch: 0.65, gender: "male"   },
+  { id: "sofia",  label: "Sofia",  sub: "Bright · Friendly",  rate: 1.08, pitch: 1.35, gender: "female" },
+  { id: "daniel", label: "Daniel", sub: "Professional",       rate: 1.00, pitch: 0.90, gender: "male"   },
+  { id: "linh",   label: "Linh",   sub: "Soft · Soothing",    rate: 0.85, pitch: 1.05, gender: "female" },
+  { id: "emma",   label: "Emma",   sub: "Empathetic",         rate: 0.92, pitch: 1.20, gender: "female" },
+  { id: "chris",  label: "Chris",  sub: "Energetic",          rate: 1.05, pitch: 0.85, gender: "male"   },
+];
+const PREVIEW_LANGS = [
+  "English (US)","English (UK)","Hindi (हिंदी)","Spanish (Español)","French (Français)",
+  "Mandarin (普通话)","Portuguese (Português)","Arabic (العربية)","Vietnamese (Tiếng Việt)",
+  "Bengali (বাংলা)","Russian (Русский)","Japanese (日本語)","Korean (한국어)","German (Deutsch)",
+  "Italian (Italiano)","Turkish (Türkçe)","Polish (Polski)","Dutch (Nederlands)","Thai (ภาษาไทย)",
+  "Swahili (Kiswahili)","Tagalog (Filipino)","Marathi (मराठी)","Tamil (தமிழ்)","Telugu (తెలుగు)",
+  "Urdu (اردو)","Persian (فارسی)","Malay (Bahasa Melayu)","Ukrainian (Українська)",
+  "Amharic (አማርኛ)","Hausa (Hausa)",
+];
+const PREVIEW_LANG_MAP = {
+  "English (US)":"en-US","English (UK)":"en-GB","Hindi (हिंदी)":"hi-IN",
+  "Spanish (Español)":"es-ES","French (Français)":"fr-FR","Mandarin (普通话)":"zh-CN",
+  "Portuguese (Português)":"pt-PT","Arabic (العربية)":"ar-SA","Vietnamese (Tiếng Việt)":"vi-VN",
+  "Bengali (বাংলা)":"bn-BD","Russian (Русский)":"ru-RU","Japanese (日本語)":"ja-JP",
+  "Korean (한국어)":"ko-KR","German (Deutsch)":"de-DE","Italian (Italiano)":"it-IT",
+  "Turkish (Türkçe)":"tr-TR","Polish (Polski)":"pl-PL","Dutch (Nederlands)":"nl-NL",
+  "Thai (ภาษาไทย)":"th-TH","Swahili (Kiswahili)":"sw-KE","Tagalog (Filipino)":"fil-PH",
+  "Marathi (मराठी)":"mr-IN","Tamil (தமிழ்)":"ta-IN","Telugu (తెలుగు)":"te-IN",
+  "Urdu (اردو)":"ur-PK","Persian (فارسی)":"fa-IR","Malay (Bahasa Melayu)":"ms-MY",
+  "Ukrainian (Українська)":"uk-UA","Amharic (አማርኛ)":"am-ET","Hausa (Hausa)":"ha-NG",
+};
+
+// Mount a self-contained voice preview into any container element.
+// container must have children with data-preview-canvas, data-preview-play, data-preview-lbl,
+// data-preview-voice, data-preview-lang attributes.
+function mountVoicePreview(container, preselectedLang) {
+  const canvas  = container.querySelector("[data-preview-canvas]");
+  const playBtn = container.querySelector("[data-preview-play]");
+  const lbl     = container.querySelector("[data-preview-lbl]");
+  if (!canvas || !playBtn) return;
+  const ctx = canvas.getContext("2d");
+  let speaking = false, t = 0, level = 0.1, raf = null, currentPitch = 1.15;
+  let selectedVoice = PREVIEW_VOICES[0];
+  let selectedLang  = preselectedLang || PREVIEW_LANGS[0];
+  const dpr = window.devicePixelRatio || 1;
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    canvas.width  = r.width  * dpr;
+    canvas.height = r.height * dpr;
+  }
+  window.addEventListener("resize", resize);
+
+  function drawWave() {
+    t += 0.035 * (0.7 + currentPitch * 0.3);
+    level += ((speaking ? 0.88 : 0.08) - level) * 0.06;
+    const w = canvas.width, h = canvas.height;
+    if (!w || !h) { raf = requestAnimationFrame(drawWave); return; }
+    ctx.clearRect(0, 0, w, h);
+    const bars = 44;
+    const bw = w / bars;
+    for (let i = 0; i < bars; i++) {
+      const phase = i * 0.4 + t;
+      const amp = Math.sin(phase)*0.35 + Math.sin(phase*1.7)*0.35 + Math.sin(phase*0.6)*0.3;
+      const bh = Math.max(3*dpr, Math.abs(amp)*level*h*0.88);
+      const ratio = i / bars;
+      const r2 = Math.round(255 - ratio*156);
+      const g2 = Math.round(138 - ratio*36);
+      const b2 = Math.round(61  + ratio*180);
+      ctx.fillStyle = `rgba(${r2},${g2},${b2},0.88)`;
+      ctx.fillRect(i*bw + bw*0.18, (h-bh)/2, bw*0.64, bh);
+    }
+    raf = requestAnimationFrame(drawWave);
+  }
+  requestAnimationFrame(() => { resize(); drawWave(); });
+
+  container.querySelectorAll("[data-preview-voice]").forEach(b => b.addEventListener("click", () => {
+    container.querySelectorAll("[data-preview-voice]").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    selectedVoice = PREVIEW_VOICES.find(v => v.id === b.dataset.previewVoice) || PREVIEW_VOICES[0];
+    currentPitch  = selectedVoice.pitch;
+  }));
+  container.querySelectorAll("[data-preview-lang]").forEach(b => b.addEventListener("click", () => {
+    container.querySelectorAll("[data-preview-lang]").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    selectedLang = b.dataset.previewLang;
+  }));
+
+  const GREETINGS = {
+    "hi-IN":"नमस्ते, यहाँ OneClerk है। मैं आपकी कैसे मदद कर सकता हूँ?",
+    "es-ES":"Hola, le habla OneClerk. ¿En qué le puedo ayudar?",
+    "fr-FR":"Bonjour, ici OneClerk. Comment puis-je vous aider?",
+    "zh-CN":"您好，这里是OneClerk。我可以如何帮助您？",
+    "vi-VN":"Xin chào, đây là OneClerk. Tôi có thể giúp gì cho bạn?",
+    "ar-SA":"مرحبا، هذا OneClerk. كيف يمكنني مساعدتك؟",
+    "de-DE":"Hallo, hier ist OneClerk. Wie kann ich Ihnen helfen?",
+    "ja-JP":"こんにちは、OneClerkです。どのようにお手伝いできますか？",
+    "pt-PT":"Olá, aqui é o OneClerk. Como posso ajudá-lo?",
+    "ko-KR":"안녕하세요, OneClerk입니다. 어떻게 도와드릴까요?",
+  };
+  playBtn.addEventListener("click", () => {
+    if (!window.speechSynthesis) { toast("Speech not supported in this browser","error"); return; }
+    if (speaking) {
+      window.speechSynthesis.cancel(); speaking = false;
+      lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); return;
+    }
+    const langCode = PREVIEW_LANG_MAP[selectedLang] || "en-US";
+    const text = GREETINGS[langCode] || `Hi, this is ${Store.user?.name || "your AI receptionist"} from OneClerk. How can I help you today?`;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang  = langCode; u.rate = selectedVoice.rate; u.pitch = selectedVoice.pitch;
+    currentPitch = selectedVoice.pitch;
+    speaking = true; lbl.textContent = "Stop"; playBtn.classList.add("playing");
+    u.onend = u.onerror = () => { speaking = false; lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); };
+    try { window.speechSynthesis.speak(u); } catch { speaking = false; lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); }
+  });
+}
 
 route("auth", async () => {
   const root = h(`
@@ -1449,37 +1566,6 @@ route("dashboard", async () => {
   const name = (Store.user?.name || "").split(" ")[0] || "there";
   const wrap = shell("dashboard", `${greeting}, ${name}`, new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }), action);
   const page = $("#page", wrap);
-  const PREVIEW_VOICES = [
-    { id: "maya",   label: "Maya",   sub: "Warm · Mid-30s",      rate: 0.95, pitch: 1.15, gender: "female" },
-    { id: "arjun",  label: "Arjun",  sub: "Calm · Deep",          rate: 0.88, pitch: 0.65, gender: "male"   },
-    { id: "sofia",  label: "Sofia",  sub: "Bright · Friendly",    rate: 1.08, pitch: 1.35, gender: "female" },
-    { id: "daniel", label: "Daniel", sub: "Professional",         rate: 1.00, pitch: 0.90, gender: "male"   },
-    { id: "linh",   label: "Linh",   sub: "Soft · Soothing",      rate: 0.85, pitch: 1.05, gender: "female" },
-    { id: "emma",   label: "Emma",   sub: "Empathetic",           rate: 0.92, pitch: 1.20, gender: "female" },
-    { id: "chris",  label: "Chris",  sub: "Energetic",            rate: 1.05, pitch: 0.85, gender: "male"   },
-  ];
-  const PREVIEW_LANGS = [
-    "English (US)", "English (UK)", "Hindi (हिंदी)", "Spanish (Español)", "French (Français)",
-    "Mandarin (普通话)", "Portuguese (Português)", "Arabic (العربية)", "Vietnamese (Tiếng Việt)",
-    "Bengali (বাংলা)", "Russian (Русский)", "Japanese (日本語)", "Korean (한국어)", "German (Deutsch)",
-    "Italian (Italiano)", "Turkish (Türkçe)", "Polish (Polski)", "Dutch (Nederlands)", "Thai (ภาษาไทย)",
-    "Swahili (Kiswahili)", "Tagalog (Filipino)", "Marathi (मराठी)", "Tamil (தமிழ்)", "Telugu (తెలుగు)",
-    "Urdu (اردو)", "Persian (فارسی)", "Malay (Bahasa Melayu)", "Ukrainian (Українська)",
-    "Amharic (አማርኛ)", "Hausa (Hausa)",
-  ];
-  const PREVIEW_LANG_MAP = {
-    "English (US)": "en-US", "English (UK)": "en-GB", "Hindi (हिंदी)": "hi-IN",
-    "Spanish (Español)": "es-ES", "French (Français)": "fr-FR", "Mandarin (普通话)": "zh-CN",
-    "Portuguese (Português)": "pt-PT", "Arabic (العربية)": "ar-SA", "Vietnamese (Tiếng Việt)": "vi-VN",
-    "Bengali (বাংলা)": "bn-BD", "Russian (Русский)": "ru-RU", "Japanese (日本語)": "ja-JP",
-    "Korean (한국어)": "ko-KR", "German (Deutsch)": "de-DE", "Italian (Italiano)": "it-IT",
-    "Turkish (Türkçe)": "tr-TR", "Polish (Polski)": "pl-PL", "Dutch (Nederlands)": "nl-NL",
-    "Thai (ภาษาไทย)": "th-TH", "Swahili (Kiswahili)": "sw-KE", "Tagalog (Filipino)": "fil-PH",
-    "Marathi (मराठी)": "mr-IN", "Tamil (தமிழ்)": "ta-IN", "Telugu (తెలుగు)": "te-IN",
-    "Urdu (اردو)": "ur-PK", "Persian (فارسی)": "fa-IR", "Malay (Bahasa Melayu)": "ms-MY",
-    "Ukrainian (Українська)": "uk-UA", "Amharic (አማርኛ)": "am-ET", "Hausa (Hausa)": "ha-NG",
-  };
-
   page.innerHTML = `
     <div class="grid grid-cols-4 mb-6" id="stats">${skeleton(1)}</div>
     <div class="grid" style="grid-template-columns: 1.7fr 1fr; gap:16px">
@@ -1662,7 +1748,18 @@ route("dashboard", async () => {
 // Per-day custom notes — stored locally so the user can scribble plans on the calendar.
 const CL_NOTES_KEY = "oc_cal_notes_v1";
 function loadUserNotes() {
-  try { return JSON.parse(localStorage.getItem(CL_NOTES_KEY) || "{}"); } catch { return {}; }
+  try {
+    const raw = JSON.parse(localStorage.getItem(CL_NOTES_KEY) || "{}");
+    // Migrate old single-note format { text, color } → array [{ id, text, color }]
+    const result = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (Array.isArray(v)) { result[k] = v; }
+      else if (v && typeof v === "object" && v.text) {
+        result[k] = [{ id: k + "_0", text: v.text, color: v.color || "amber" }];
+      }
+    }
+    return result;
+  } catch { return {}; }
 }
 function saveUserNotes(map) { localStorage.setItem(CL_NOTES_KEY, JSON.stringify(map)); }
 
@@ -1801,8 +1898,9 @@ route("calls", async () => {
       const key = `${y}-${m}-${d}`;
       const isToday = isThisMonth && d === today.getDate();
       const dayBookings = bk[key] || [];
-      const userNote = userNotes[key];
-      const noteCol = userNote?.color || "amber";
+      const dayNotes  = userNotes[key] || [];
+      const firstNote = dayNotes[0];
+      const noteCol   = firstNote?.color || "amber";
       html += `
         <div class="cl-bigcal-cell ${isToday ? 'cl-bigcal-today' : ''}" data-key="${key}" data-d="${d}">
           <div class="cl-bigcal-num">${d}</div>
@@ -1812,9 +1910,9 @@ route("calls", async () => {
                 <span class="cl-bigcal-dot"></span>${escapeHtml((b.det.service || b.det.topic || 'Booking').slice(0, 18))}
               </div>`).join("")}
             ${dayBookings.length > 3 ? `<div class="cl-bigcal-more">+${dayBookings.length - 3} more</div>` : ""}
-            ${userNote ? `
-              <div class="cl-bigcal-block cl-bigcal-usernote cl-bigcal-c-${noteCol}">
-                <span class="cl-bigcal-dot"></span>${escapeHtml((userNote.text || '').slice(0, 18))}
+            ${firstNote ? `
+              <div class="cl-bigcal-block cl-bigcal-usernote cl-bigcal-c-${noteCol}" title="${escapeHtml(firstNote.text)}">
+                <span class="cl-bigcal-dot"></span>${escapeHtml((firstNote.text || '').slice(0, 15))}${dayNotes.length > 1 ? `<span class="cl-bigcal-note-plus">+${dayNotes.length - 1}</span>` : ""}
               </div>` : ""}
           </div>
         </div>`;
@@ -1913,14 +2011,21 @@ route("calls", async () => {
   return wrap;
 });
 
-// Day-detail popup: anime-style sticky note with green dot, bookings + editable note.
+// Day-detail popup: multi-note support — add multiple notes, delete individual ones.
 function openDayPopup(key, dayNum, bookings, onChange) {
-  const userNotes = loadUserNotes();
-  const existing = userNotes[key] || { text: "", color: "green" };
+  let notes = [...(loadUserNotes()[key] || [])];
   const overlay = h(`<div class="cl-pop-overlay"></div>`);
   const [yy, mm, dd] = key.split("-").map(Number);
   const dateLabel = new Date(yy, mm, dd).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-  const colors = ["green","amber","pink","blue","violet"];
+  const COLORS = ["green","amber","pink","blue","violet"];
+  let chosenColor = notes[0]?.color || "amber";
+
+  function persistNotes() {
+    const all = loadUserNotes();
+    if (notes.length) all[key] = notes; else delete all[key];
+    saveUserNotes(all); onChange && onChange();
+  }
+
   const pop = h(`
     <div class="cl-anime-note">
       <div class="cl-anime-note-header">
@@ -1930,7 +2035,7 @@ function openDayPopup(key, dayNum, bookings, onChange) {
       </div>
 
       ${bookings.length ? `
-        <div class="cl-anime-note-bookings-label">Bookings (${bookings.length})</div>
+        <div class="cl-anime-note-section-label">Bookings <span class="cl-notes-count">(${bookings.length})</span></div>
         <div class="cl-anime-note-bookings">
           ${bookings.map(b => `
             <div class="cl-anime-booking" data-call-id="${b.call.id}">
@@ -1941,53 +2046,79 @@ function openDayPopup(key, dayNum, bookings, onChange) {
               </div>
               <button class="cl-anime-booking-open">→</button>
             </div>`).join("")}
-        </div>` : ``}
+        </div>` : ""}
 
-      <div class="cl-anime-note-textarea-wrap">
-        <textarea class="cl-anime-note-textarea" id="cl-day-note" placeholder="Write a note for this day…">${escapeHtml(existing.text || "")}</textarea>
+      <div class="cl-anime-note-section-label">
+        Notes <span class="cl-notes-count" id="cl-notes-count">(${notes.length})</span>
       </div>
+      <div class="cl-note-list" id="cl-note-list"></div>
 
-      <div class="cl-anime-note-footer">
-        <div class="cl-anime-note-colors">
-          ${colors.map(c => `<button class="cl-anime-color cl-anime-c-${c} ${c === existing.color ? 'sel' : ''}" data-c="${c}"></button>`).join("")}
-        </div>
-        <div class="cl-anime-note-actions">
-          ${existing.text ? `<button class="cl-anime-del">Delete</button>` : ``}
-          <button class="cl-anime-save">Save</button>
+      <div class="cl-anime-add-form">
+        <textarea class="cl-anime-note-textarea" id="cl-day-note" placeholder="Add a note for this day…" rows="2"></textarea>
+        <div class="cl-anime-note-footer">
+          <div class="cl-anime-note-colors">
+            ${COLORS.map(c => `<button class="cl-anime-color cl-anime-c-${c} ${c === chosenColor ? 'sel' : ''}" data-c="${c}" title="${c}"></button>`).join("")}
+          </div>
+          <button class="cl-anime-save">Add note</button>
         </div>
       </div>
     </div>`);
+
   document.body.append(overlay, pop);
   const close = () => { overlay.remove(); pop.remove(); };
   overlay.addEventListener("click", close);
   $(".cl-anime-note-close", pop).addEventListener("click", close);
 
-  let chosen = existing.color;
+  // Color picker
   pop.querySelectorAll(".cl-anime-color").forEach(b => b.addEventListener("click", () => {
-    chosen = b.dataset.c;
+    chosenColor = b.dataset.c;
     pop.querySelectorAll(".cl-anime-color").forEach(x => x.classList.remove("sel"));
     b.classList.add("sel");
-    pop.style.setProperty("--note-accent", `var(--anime-c-${chosen})`);
   }));
+
+  // Render/refresh note list in-place
+  function renderNoteList() {
+    const listEl = $("#cl-note-list", pop);
+    const countEl = $("#cl-notes-count", pop);
+    if (countEl) countEl.textContent = `(${notes.length})`;
+    if (!notes.length) {
+      listEl.innerHTML = `<div class="cl-note-empty">No notes yet — write one below and press Add note.</div>`;
+      return;
+    }
+    listEl.innerHTML = notes.map((n, i) => `
+      <div class="cl-note-item">
+        <span class="cl-note-item-dot" style="background:var(--anime-c-${n.color || 'amber'})"></span>
+        <span class="cl-note-item-text">${escapeHtml(n.text)}</span>
+        <button class="cl-note-item-del" data-ni="${i}" title="Delete this note">×</button>
+      </div>`).join("");
+    listEl.querySelectorAll(".cl-note-item-del").forEach(btn => {
+      btn.addEventListener("click", () => {
+        notes.splice(+btn.dataset.ni, 1);
+        persistNotes(); renderNoteList();
+      });
+    });
+    // Update header accent from first note
+    pop.style.setProperty("--note-accent", `var(--anime-c-${notes[0]?.color || chosenColor})`);
+  }
+  renderNoteList();
+
+  // Add note
   $(".cl-anime-save", pop).addEventListener("click", () => {
-    const text = $("#cl-day-note", pop).value.trim();
-    const all = loadUserNotes();
-    if (text) all[key] = { text, color: chosen };
-    else delete all[key];
-    saveUserNotes(all); onChange && onChange(); close();
+    const ta = $("#cl-day-note", pop);
+    const text = ta.value.trim();
+    if (!text) { ta.style.borderColor = "#dc2626"; ta.focus(); setTimeout(() => ta.style.borderColor = "", 700); return; }
+    notes.push({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, text, color: chosenColor });
+    ta.value = "";
+    persistNotes(); renderNoteList();
   });
-  const delBtn = $(".cl-anime-del", pop);
-  if (delBtn) delBtn.addEventListener("click", () => {
-    const all = loadUserNotes(); delete all[key]; saveUserNotes(all);
-    onChange && onChange(); close();
-  });
+
+  // Open booking
   pop.querySelectorAll(".cl-anime-booking-open").forEach(btn => btn.addEventListener("click", () => {
     const callId = btn.closest("[data-call-id]").dataset.callId;
-    close();
-    setTimeout(() => openCallPaperPopup(callId), 80);
+    close(); setTimeout(() => openCallPaperPopup(callId), 80);
   }));
-  // Set initial accent color
-  pop.style.setProperty("--note-accent", `var(--anime-c-${chosen})`);
+
+  pop.style.setProperty("--note-accent", `var(--anime-c-${notes[0]?.color || chosenColor})`);
   renderIcons(pop);
 }
 
@@ -2965,8 +3096,8 @@ route("agentNew", async () => {
         },
       },
     });
-    toast("Agent created — drag pieces in to build it.", "success");
-    navigate("#/agents");
+    toast("Agent created — let's set it up!", "success");
+    navigate(`#/agents/${created.agent.id}/setup`);
   } catch (ex) {
     page.innerHTML = `<div class="card p-6 text-danger">${escapeHtml(ex.message)}</div>`;
   }
@@ -3086,14 +3217,87 @@ route("agentSetup", async (id) => {
           </div>
           ${carrierBlock}
         </div>
-        <div class="card p-5" style="display:flex;flex-direction:column;height:fit-content;max-height:80vh">
-          <div class="font-semibold mb-1">Try it in chat</div>
-          <div class="text-xs text-muted mb-3">Test the AI with text — same brain that answers your calls.</div>
-          ${testChatWidget(id)}
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="card p-4" id="svp-card">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <div class="font-semibold" style="font-size:13px">Voice Preview</div>
+                <div class="text-xs text-muted">Hear exactly how your agent will greet callers.</div>
+              </div>
+              <button class="dash-prev-play" id="svp-play" style="padding:8px 14px;font-size:12px">
+                <span class="dash-prev-dot"></span><span id="svp-lbl">Play</span>
+              </button>
+            </div>
+            <canvas id="svp-wave" class="dash-prev-wave" style="height:60px;margin-bottom:10px"></canvas>
+            <div style="display:flex;gap:5px;flex-wrap:wrap">
+              ${PREVIEW_VOICES.map((v, i) => `
+                <button class="dash-prev-voice ${i === 0 ? 'active' : ''}" data-svid="${v.id}" style="flex:1;min-width:64px;padding:6px 4px">
+                  <div class="dash-prev-voice-name" style="font-size:11px">${v.label}</div>
+                  <div class="dash-prev-voice-sub" style="font-size:9.5px">${v.sub}</div>
+                </button>`).join("")}
+            </div>
+          </div>
+          <div class="card p-5" style="display:flex;flex-direction:column;max-height:60vh">
+            <div class="font-semibold mb-1">Try it in chat</div>
+            <div class="text-xs text-muted mb-3">Test the AI with text — same brain that answers your calls.</div>
+            ${testChatWidget(id)}
+          </div>
         </div>
       </div>
     `));
     renderIcons(page);
+
+    // ── Setup-page mini voice preview ─────────────────────────────────────────
+    (function initSetupVoicePreview() {
+      const svpCanvas = page.querySelector("#svp-wave");
+      const svpPlay   = page.querySelector("#svp-play");
+      const svpLbl    = page.querySelector("#svp-lbl");
+      if (!svpCanvas || !svpPlay) return;
+      const ctx2 = svpCanvas.getContext("2d");
+      let spk2 = false, t2 = 0, lv2 = 0.1, raf2 = null, cPitch2 = 1.15;
+      let sVoice2 = PREVIEW_VOICES[0];
+      const dpr2 = window.devicePixelRatio || 1;
+      function sz2() { const r = svpCanvas.getBoundingClientRect(); svpCanvas.width = r.width*dpr2; svpCanvas.height = r.height*dpr2; }
+      window.addEventListener("resize", sz2);
+      function dw2() {
+        t2 += 0.035*(0.7 + cPitch2*0.3); lv2 += ((spk2 ? 0.88 : 0.08) - lv2)*0.06;
+        const w = svpCanvas.width, h = svpCanvas.height;
+        if (!w || !h) { raf2 = requestAnimationFrame(dw2); return; }
+        ctx2.clearRect(0, 0, w, h);
+        const bars = 40, bw = w/bars;
+        for (let i = 0; i < bars; i++) {
+          const phase = i*0.4 + t2;
+          const amp = Math.sin(phase)*0.35 + Math.sin(phase*1.7)*0.35 + Math.sin(phase*0.6)*0.3;
+          const bh = Math.max(3*dpr2, Math.abs(amp)*lv2*h*0.88);
+          const ratio = i/bars;
+          ctx2.fillStyle = `rgba(${Math.round(255-ratio*156)},${Math.round(138-ratio*36)},${Math.round(61+ratio*180)},0.88)`;
+          ctx2.fillRect(i*bw+bw*0.18, (h-bh)/2, bw*0.64, bh);
+        }
+        raf2 = requestAnimationFrame(dw2);
+      }
+      requestAnimationFrame(() => { sz2(); dw2(); });
+      page.querySelectorAll("[data-svid]").forEach(b => b.addEventListener("click", () => {
+        page.querySelectorAll("[data-svid]").forEach(x => x.classList.remove("active"));
+        b.classList.add("active");
+        sVoice2 = PREVIEW_VOICES.find(v => v.id === b.dataset.svid) || PREVIEW_VOICES[0];
+        cPitch2 = sVoice2.pitch;
+      }));
+      const LANG_SIMPLE = { Hindi:"hi-IN", Spanish:"es-ES", French:"fr-FR", Mandarin:"zh-CN", Vietnamese:"vi-VN", Arabic:"ar-SA", German:"de-DE", Japanese:"ja-JP", Portuguese:"pt-PT", Korean:"ko-KR" };
+      const langCode = LANG_SIMPLE[cfg.language] || "en-US";
+      const GRTS2 = { "hi-IN":"नमस्ते, यहाँ OneClerk है। मैं आपकी कैसे मदद कर सकता हूँ?", "es-ES":"Hola, le habla OneClerk. ¿En qué le puedo ayudar?", "fr-FR":"Bonjour, ici OneClerk. Comment puis-je vous aider?", "zh-CN":"您好，这里是OneClerk。我可以如何帮助您？" };
+      const agentName = cfg.agent_name || "your AI receptionist";
+      const bizName   = cfg.business_name || "OneClerk";
+      const greeting  = GRTS2[langCode] || `Hi, this is ${agentName} from ${bizName}. How can I help you today?`;
+      svpPlay.addEventListener("click", () => {
+        if (!window.speechSynthesis) { toast("Speech not supported in this browser","error"); return; }
+        if (spk2) { window.speechSynthesis.cancel(); spk2=false; svpLbl.textContent="Play"; svpPlay.classList.remove("playing"); return; }
+        const u = new SpeechSynthesisUtterance(greeting);
+        u.lang=langCode; u.rate=sVoice2.rate; u.pitch=sVoice2.pitch; cPitch2=sVoice2.pitch;
+        spk2=true; svpLbl.textContent="Stop"; svpPlay.classList.add("playing");
+        u.onend=u.onerror=()=>{ spk2=false; svpLbl.textContent="Play"; svpPlay.classList.remove("playing"); };
+        try { window.speechSynthesis.speak(u); } catch { spk2=false; svpLbl.textContent="Play"; svpPlay.classList.remove("playing"); }
+      });
+    })();
 
     // Wire up checklist actions
     page.querySelectorAll("[data-act]").forEach(b => b.addEventListener("click", async () => {

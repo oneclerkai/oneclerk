@@ -4135,3 +4135,48 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   .dash-prev-controls { max-height: none; }
   .test-chat { min-height: 200px; }
 }
+
+/* ── Multi-note calendar popup list ─────────────────────────── */
+.cl-anime-note-section-label {
+  padding: 10px 16px 4px;
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--muted);
+}
+.cl-notes-count { font-weight: 400; text-transform: none; letter-spacing: 0; }
+.cl-note-list {
+  padding: 0 12px 2px;
+  display: flex; flex-direction: column; gap: 5px;
+  max-height: 160px; overflow-y: auto;
+}
+.cl-note-empty {
+  font-size: 12px; color: var(--muted); font-style: italic;
+  padding: 8px 4px;
+}
+.cl-note-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 10px;
+  background: rgba(15,15,20,0.03);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: background .12s;
+}
+.cl-note-item:hover { background: rgba(15,15,20,0.06); }
+.cl-note-item-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  flex-shrink: 0; margin-top: 3px;
+}
+.cl-note-item-text {
+  flex: 1; font-size: 12.5px; line-height: 1.5; color: #0f0f14;
+  word-break: break-word;
+}
+.cl-note-item-del {
+  background: none; border: none; cursor: pointer;
+  color: rgba(15,15,20,0.3); font-size: 16px; line-height: 1;
+  padding: 0 2px; flex-shrink: 0; transition: color .12s;
+}
+.cl-note-item-del:hover { color: #dc2626; }
+.cl-anime-add-form { padding: 6px 12px 4px; border-top: 1px solid var(--border); }
+.cl-bigcal-note-plus {
+  font-size: 9px; font-weight: 700; opacity: 0.7;
+  margin-left: 2px;
+}
