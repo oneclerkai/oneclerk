@@ -361,61 +361,61 @@ const FRAMES = [
 // Reviews — real problems solved, real-sounding people, with avatars + place
 const REVIEWS = [
   {
-    quote: "Caught 17 missed calls our first week. Two became patients the same day. The triage on the chest-pain call texted me before I even knew it happened.",
+    quote: "I'm a family doctor running a solo practice — our front desk was swamped with after-hours calls. OneClerk answers every call instantly, books appointments straight into my Google Calendar, and texts me a WhatsApp summary before I even check my voicemail. Caught 23 missed calls in week one. Two became same-day patients.",
     name: "Dr. Marisol Ruiz",
-    place: "Family Practice · Austin, TX",
+    place: "Family Physician · Austin, TX",
     img: "https://i.pravatar.cc/120?img=47",
   },
   {
-    quote: "Sounds exactly like my front desk girl. Clients send selfies thanking 'her' for fitting them in. The drag-and-drop builder took twenty minutes total.",
+    quote: "As a salon owner with five chairs going at once, I can't always grab the phone. The voice clone feature is genuinely uncanny — it sounds exactly like my receptionist Maya. Clients book, rebook, and ask about pricing without ever suspecting it's AI. My no-show rate dropped 40% in the first month.",
     name: "Jamie Lin",
-    place: "Owner · Glow Salon, Brooklyn",
+    place: "Salon Owner · Glow Salon, Brooklyn",
     img: "https://i.pravatar.cc/120?img=32",
   },
   {
-    quote: "We were missing every after-hours emergency call. Now I get a WhatsApp recap before I even open my laptop. Booked $4k in jobs the first weekend.",
+    quote: "HVAC dispatcher here — we were losing emergency callbacks at night. OneClerk triages every call: real emergencies get escalated to my on-call tech in seconds, routine tune-ups get booked automatically. The WhatsApp summary hits my phone before I've even read the notification. Booked $6k in jobs the first weekend.",
     name: "Andre Thompson",
-    place: "Owner · A&T Heating, Phoenix",
+    place: "HVAC Business Owner · Phoenix, AZ",
     img: "https://i.pravatar.cc/120?img=12",
   },
   {
-    quote: "Saved a full receptionist salary in month one. The calendar sync to Square just works — no double bookings since we switched.",
-    name: "Priya Nair",
-    place: "Manager · Bright Smiles Dental",
+    quote: "Our dental practice had a receptionist vacancy for 3 months. We configured OneClerk in 12 minutes — it reads our live calendar, books cleanings and consultations, and sends patients a confirmation text automatically. Saved a full receptionist salary and actually improved our patient experience scores.",
+    name: "Dr. Priya Nair",
+    place: "Practice Manager · Bright Smiles Dental",
     img: "https://i.pravatar.cc/120?img=44",
   },
   {
-    quote: "It books, it cancels, it texts the summary. That's the whole job and it actually does it. The 'sounds like you' voice is uncanny.",
+    quote: "I'm a solo plumber — I can't answer calls mid-job and used to lose customers to whoever picked up first. OneClerk answers instantly, explains my rates, schedules service calls, and pings me on WhatsApp with the job address. I've recaptured at least 8 jobs a month that I used to lose to voicemail.",
     name: "Mike Hartman",
-    place: "Owner · Hartman Plumbing Co.",
+    place: "Plumber · Hartman Plumbing Co.",
     img: "https://i.pravatar.cc/120?img=15",
   },
   {
-    quote: "Bilingual callers used to hang up. Now Spanish, Mandarin, even Vietnamese — handled. Our cancellation rate dropped to single digits.",
+    quote: "I run a med spa with a heavily multilingual clientele — Spanish, Vietnamese, Mandarin. The agent switches languages mid-call like a native speaker. I built the entire intake flow using the drag-and-drop builder in one afternoon. Our cancellation rate dropped from 22% to 6% in two months.",
     name: "Linh Pham",
-    place: "Director · Lotus Med Spa",
+    place: "Med Spa Director · Lotus Med Spa",
     img: "https://i.pravatar.cc/120?img=49",
   },
   {
-    quote: "Finally, an AI that doesn't sound like an AI. Two of my partners thought we hired a new paralegal. We hadn't.",
+    quote: "At our law firm we needed pre-screening — conflict checks, matter type, urgency flagging. OneClerk handles all of that before the call even reaches me. Two partners genuinely thought we'd hired a new paralegal. The flow builder is exactly like Figma for phone calls. Worth every dollar.",
     name: "Carla Jensen",
-    place: "Partner · Jensen & Vega Law",
+    place: "Attorney · Jensen & Vega Law",
     img: "https://i.pravatar.cc/120?img=28",
   },
   {
-    quote: "After-hours bookings tripled. Clients can't believe we 'have someone working until midnight.' We don't — OneClerk does.",
+    quote: "Restaurant owner here — our host stand can't always get to the phone during dinner rush. OneClerk takes reservations via voice, reads my OpenTable availability in real time, and handles every 'do you have gluten-free options?' call on autopilot. After-hours bookings tripled in month one.",
     name: "Rohan Shah",
-    place: "Founder · Polish Auto Detailing",
+    place: "Restaurant Owner · Marigold Kitchen",
     img: "https://i.pravatar.cc/120?img=8",
   },
   {
-    quote: "The flow builder felt like Figma for phone calls. Built our entire intake in one cup of coffee.",
+    quote: "I manage operations for a tutoring company with 12 locations. Each location now has its own AI receptionist with the right hours, pricing, and staff info — configured separately in the builder. The WhatsApp recap system means I know exactly what happened at every location before my first coffee.",
     name: "Eva Müller",
-    place: "Ops Lead · Berlin Tutoring",
+    place: "Operations Lead · BrightMinds Tutoring",
     img: "https://i.pravatar.cc/120?img=20",
   },
   {
-    quote: "It pre-screens conflict checks before they even reach me. That's a paralegal-level task happening on a phone call. Wild.",
+    quote: "Solo attorney — intake is everything and I used to miss it. OneClerk pre-screens callers, runs through conflict-check questions, and flags the urgent ones for immediate callback. My client acquisition rate went up 35% in 60 days. The voice sounds authoritative and professional. Nothing like the robotic AI I expected.",
     name: "Devin Okafor",
     place: "Solo Attorney · Houston, TX",
     img: "https://i.pravatar.cc/120?img=33",
@@ -992,8 +992,8 @@ function openAuthModal(initialMode = "login") {
   document.querySelectorAll(".auth-modal-backdrop").forEach(n => n.remove());
   let mode = initialMode === "signup" ? "signup" : "login";
   const modal = h(`
-    <div class="auth-modal-backdrop auth-modal-backdrop-anim">
-      <div class="auth-bg-grain" aria-hidden="true"></div>
+    <div class="auth-modal-backdrop auth-modal-backdrop-light">
+      <div class="auth-mesh" aria-hidden="true"></div>
       <div class="auth-bg-blob auth-bg-blob-a" aria-hidden="true"></div>
       <div class="auth-bg-blob auth-bg-blob-b" aria-hidden="true"></div>
       <div class="auth-bg-blob auth-bg-blob-c" aria-hidden="true"></div>
@@ -1449,6 +1449,37 @@ route("dashboard", async () => {
   const name = (Store.user?.name || "").split(" ")[0] || "there";
   const wrap = shell("dashboard", `${greeting}, ${name}`, new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }), action);
   const page = $("#page", wrap);
+  const PREVIEW_VOICES = [
+    { id: "maya",   label: "Maya",   sub: "Warm · Mid-30s",      rate: 0.95, pitch: 1.15, gender: "female" },
+    { id: "arjun",  label: "Arjun",  sub: "Calm · Deep",          rate: 0.88, pitch: 0.65, gender: "male"   },
+    { id: "sofia",  label: "Sofia",  sub: "Bright · Friendly",    rate: 1.08, pitch: 1.35, gender: "female" },
+    { id: "daniel", label: "Daniel", sub: "Professional",         rate: 1.00, pitch: 0.90, gender: "male"   },
+    { id: "linh",   label: "Linh",   sub: "Soft · Soothing",      rate: 0.85, pitch: 1.05, gender: "female" },
+    { id: "emma",   label: "Emma",   sub: "Empathetic",           rate: 0.92, pitch: 1.20, gender: "female" },
+    { id: "chris",  label: "Chris",  sub: "Energetic",            rate: 1.05, pitch: 0.85, gender: "male"   },
+  ];
+  const PREVIEW_LANGS = [
+    "English (US)", "English (UK)", "Hindi (हिंदी)", "Spanish (Español)", "French (Français)",
+    "Mandarin (普通话)", "Portuguese (Português)", "Arabic (العربية)", "Vietnamese (Tiếng Việt)",
+    "Bengali (বাংলা)", "Russian (Русский)", "Japanese (日本語)", "Korean (한국어)", "German (Deutsch)",
+    "Italian (Italiano)", "Turkish (Türkçe)", "Polish (Polski)", "Dutch (Nederlands)", "Thai (ภาษาไทย)",
+    "Swahili (Kiswahili)", "Tagalog (Filipino)", "Marathi (मराठी)", "Tamil (தமிழ்)", "Telugu (తెలుగు)",
+    "Urdu (اردو)", "Persian (فارسی)", "Malay (Bahasa Melayu)", "Ukrainian (Українська)",
+    "Amharic (አማርኛ)", "Hausa (Hausa)",
+  ];
+  const PREVIEW_LANG_MAP = {
+    "English (US)": "en-US", "English (UK)": "en-GB", "Hindi (हिंदी)": "hi-IN",
+    "Spanish (Español)": "es-ES", "French (Français)": "fr-FR", "Mandarin (普通话)": "zh-CN",
+    "Portuguese (Português)": "pt-PT", "Arabic (العربية)": "ar-SA", "Vietnamese (Tiếng Việt)": "vi-VN",
+    "Bengali (বাংলা)": "bn-BD", "Russian (Русский)": "ru-RU", "Japanese (日本語)": "ja-JP",
+    "Korean (한국어)": "ko-KR", "German (Deutsch)": "de-DE", "Italian (Italiano)": "it-IT",
+    "Turkish (Türkçe)": "tr-TR", "Polish (Polski)": "pl-PL", "Dutch (Nederlands)": "nl-NL",
+    "Thai (ภาษาไทย)": "th-TH", "Swahili (Kiswahili)": "sw-KE", "Tagalog (Filipino)": "fil-PH",
+    "Marathi (मराठी)": "mr-IN", "Tamil (தமிழ்)": "ta-IN", "Telugu (తెలుగు)": "te-IN",
+    "Urdu (اردو)": "ur-PK", "Persian (فارسی)": "fa-IR", "Malay (Bahasa Melayu)": "ms-MY",
+    "Ukrainian (Українська)": "uk-UA", "Amharic (አማርኛ)": "am-ET", "Hausa (Hausa)": "ha-NG",
+  };
+
   page.innerHTML = `
     <div class="grid grid-cols-4 mb-6" id="stats">${skeleton(1)}</div>
     <div class="grid" style="grid-template-columns: 1.7fr 1fr; gap:16px">
@@ -1466,10 +1497,130 @@ route("dashboard", async () => {
         </div>
         <div id="agents-mini">${skeleton(3)}</div>
       </div>
+    </div>
+
+    <div class="card mt-4" id="dash-preview">
+      <div class="dash-prev-head">
+        <div>
+          <div class="font-semibold" style="font-size:14px">Agent Voice Preview</div>
+          <div class="text-xs text-muted mt-1">Pick a voice and language — hear exactly how your agent will sound on a live call.</div>
+        </div>
+        <button class="dash-prev-play" id="dash-prev-play">
+          <span class="dash-prev-dot"></span><span id="dash-prev-lbl">Play sample</span>
+        </button>
+      </div>
+      <div class="dash-prev-body">
+        <div class="dash-prev-wave-wrap">
+          <canvas id="dash-prev-wave" class="dash-prev-wave"></canvas>
+        </div>
+        <div class="dash-prev-controls">
+          <div class="dash-prev-section-label">Voice</div>
+          <div class="dash-prev-voices" id="dash-prev-voices">
+            ${PREVIEW_VOICES.map((v, i) => `
+              <button class="dash-prev-voice ${i === 0 ? 'active' : ''}" data-vid="${v.id}">
+                <div class="dash-prev-voice-name">${v.label}</div>
+                <div class="dash-prev-voice-sub">${v.sub}</div>
+              </button>`).join("")}
+          </div>
+          <div class="dash-prev-section-label" style="margin-top:14px">Language <span class="dash-prev-lang-count">(${PREVIEW_LANGS.length})</span></div>
+          <div class="dash-prev-langs" id="dash-prev-langs">
+            ${PREVIEW_LANGS.map((l, i) => `
+              <button class="dash-prev-lang ${i === 0 ? 'active' : ''}" data-lang="${escapeHtml(l)}">${escapeHtml(l)}</button>`).join("")}
+          </div>
+        </div>
+      </div>
     </div>`;
   renderIcons(page);
   $("#see-all", page).addEventListener("click", () => navigate("#/calls"));
   $("#new-agent2", page).addEventListener("click", () => navigate("#/agents/new"));
+
+  // --- Dashboard Preview section: waveform + voices + languages ---
+  (function initDashPreview() {
+    const canvas = page.querySelector("#dash-prev-wave");
+    const playBtn = page.querySelector("#dash-prev-play");
+    const lbl = page.querySelector("#dash-prev-lbl");
+    if (!canvas || !playBtn) return;
+    const ctx = canvas.getContext("2d");
+    let speaking = false, t = 0, level = 0.1, raf = null, currentPitch = 1.15;
+    let selectedVoice = PREVIEW_VOICES[0];
+    let selectedLang = PREVIEW_LANGS[0];
+
+    function resize() {
+      const r = canvas.getBoundingClientRect();
+      canvas.width = r.width * devicePixelRatio;
+      canvas.height = r.height * devicePixelRatio;
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    function drawWave() {
+      t += 0.035 * (0.7 + currentPitch * 0.3);
+      level += ((speaking ? 0.88 : 0.08) - level) * 0.06;
+      const w = canvas.width, h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      const grd = ctx.createLinearGradient(0, 0, w, 0);
+      grd.addColorStop(0, "rgba(255,205,92,0.85)");
+      grd.addColorStop(0.5, "rgba(255,138,61,0.9)");
+      grd.addColorStop(1, "rgba(99,102,241,0.8)");
+      ctx.fillStyle = grd;
+      const bars = 48;
+      const bw = w / bars;
+      for (let i = 0; i < bars; i++) {
+        const phase = i * 0.4 + t;
+        const amp = Math.sin(phase) * 0.35 + Math.sin(phase * 1.7) * 0.35 + Math.sin(phase * 0.6) * 0.3;
+        const a = Math.abs(amp) * level;
+        const bh = Math.max(3 * devicePixelRatio, a * h * 0.88);
+        ctx.beginPath();
+        ctx.roundRect(i * bw + bw * 0.2, (h - bh) / 2, bw * 0.6, bh, 2);
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(drawWave);
+    }
+    drawWave();
+
+    page.querySelectorAll(".dash-prev-voice").forEach(b => b.addEventListener("click", () => {
+      page.querySelectorAll(".dash-prev-voice").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      selectedVoice = PREVIEW_VOICES.find(v => v.id === b.dataset.vid) || PREVIEW_VOICES[0];
+      currentPitch = selectedVoice.pitch;
+    }));
+    page.querySelectorAll(".dash-prev-lang").forEach(b => b.addEventListener("click", () => {
+      page.querySelectorAll(".dash-prev-lang").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      selectedLang = b.dataset.lang;
+    }));
+
+    playBtn.addEventListener("click", () => {
+      if (!window.speechSynthesis) { toast("Speech not supported in this browser", "error"); return; }
+      if (speaking) {
+        window.speechSynthesis.cancel();
+        speaking = false;
+        lbl.textContent = "Play sample";
+        playBtn.classList.remove("playing");
+        return;
+      }
+      const langCode = PREVIEW_LANG_MAP[selectedLang] || "en-US";
+      const greetings = {
+        "hi-IN": "नमस्ते, यहाँ OneClerk है। मैं आपकी कैसे मदद कर सकता हूँ?",
+        "es-ES": "Hola, le habla OneClerk. ¿En qué le puedo ayudar?",
+        "fr-FR": "Bonjour, ici OneClerk. Comment puis-je vous aider?",
+        "zh-CN": "您好，这里是OneClerk。我可以如何帮助您？",
+        "vi-VN": "Xin chào, đây là OneClerk. Tôi có thể giúp gì cho bạn?",
+        "ar-SA": "مرحبا، هذا OneClerk. كيف يمكنني مساعدتك؟",
+      };
+      const text = greetings[langCode] || `Hi, this is ${Store.user?.name || "your AI assistant"} from OneClerk. How can I help you today?`;
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = langCode;
+      u.rate = selectedVoice.rate;
+      u.pitch = selectedVoice.pitch;
+      currentPitch = selectedVoice.pitch;
+      speaking = true;
+      lbl.textContent = "Stop";
+      playBtn.classList.add("playing");
+      u.onend = u.onerror = () => { speaking = false; lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); };
+      try { window.speechSynthesis.speak(u); } catch (e) { speaking = false; lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); }
+    });
+  })();
 
   try {
     const [stats, agents, recent] = await Promise.all([api("/dashboard/stats"), api("/agents/list"), api("/calls/recent")]);
@@ -1758,78 +1909,81 @@ route("calls", async () => {
   return wrap;
 });
 
-// Day-detail popup: shows bookings for the day + lets the user save a custom note.
+// Day-detail popup: anime-style sticky note with green dot, bookings + editable note.
 function openDayPopup(key, dayNum, bookings, onChange) {
   const userNotes = loadUserNotes();
-  const existing = userNotes[key] || { text: "", color: "amber" };
+  const existing = userNotes[key] || { text: "", color: "green" };
   const overlay = h(`<div class="cl-pop-overlay"></div>`);
   const [yy, mm, dd] = key.split("-").map(Number);
   const dateLabel = new Date(yy, mm, dd).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-  const colors = ["amber","pink","blue","green","violet"];
+  const colors = ["green","amber","pink","blue","violet"];
   const pop = h(`
-    <div class="cl-day-pop">
-      <button class="cl-pop-close" title="Close">×</button>
-      <div class="cl-day-pop-head">
-        <div class="cl-pop-eyebrow">SCHEDULE</div>
-        <div class="cl-pop-num">${escapeHtml(dateLabel)}</div>
+    <div class="cl-anime-note">
+      <div class="cl-anime-note-header">
+        <div class="cl-anime-note-dot"></div>
+        <div class="cl-anime-note-date">${escapeHtml(dateLabel)}</div>
+        <button class="cl-anime-note-close" title="Close">×</button>
       </div>
 
-      <div class="cl-day-section">
-        <div class="cl-day-section-title">Bookings (${bookings.length})</div>
-        <div class="cl-day-bookings">
-          ${bookings.length ? bookings.map(b => `
-            <div class="cl-day-booking" data-call-id="${b.call.id}">
-              <div class="cl-day-booking-time">${escapeHtml(b.det.time || b.det.when || "")}</div>
-              <div class="cl-day-booking-who">${escapeHtml(b.det.name || b.call.caller_number || "Caller")}</div>
-              <div class="cl-day-booking-what">${escapeHtml(b.det.service || b.det.topic || b.det.reason || "Appointment")}</div>
-              <button class="cl-day-booking-open">Open transcript →</button>
-            </div>`).join("") : `<div class="cl-side-empty">No AI bookings on this day yet.</div>`}
+      ${bookings.length ? `
+        <div class="cl-anime-note-bookings-label">Bookings (${bookings.length})</div>
+        <div class="cl-anime-note-bookings">
+          ${bookings.map(b => `
+            <div class="cl-anime-booking" data-call-id="${b.call.id}">
+              <div class="cl-anime-booking-time">${escapeHtml(b.det.time || b.det.when || "—")}</div>
+              <div class="cl-anime-booking-info">
+                <div class="cl-anime-booking-who">${escapeHtml(b.det.name || b.call.caller_number || "Caller")}</div>
+                <div class="cl-anime-booking-what">${escapeHtml(b.det.service || b.det.topic || b.det.reason || "Appointment")}</div>
+              </div>
+              <button class="cl-anime-booking-open">→</button>
+            </div>`).join("")}
+        </div>` : ``}
+
+      <div class="cl-anime-note-textarea-wrap">
+        <textarea class="cl-anime-note-textarea" id="cl-day-note" placeholder="Write a note for this day…">${escapeHtml(existing.text || "")}</textarea>
+      </div>
+
+      <div class="cl-anime-note-footer">
+        <div class="cl-anime-note-colors">
+          ${colors.map(c => `<button class="cl-anime-color cl-anime-c-${c} ${c === existing.color ? 'sel' : ''}" data-c="${c}"></button>`).join("")}
         </div>
-      </div>
-
-      <div class="cl-day-section">
-        <div class="cl-day-section-title">Your note</div>
-        <textarea class="cl-day-note" id="cl-day-note" placeholder="Anything you want to remember on this day…">${escapeHtml(existing.text || "")}</textarea>
-        <div class="cl-day-note-row">
-          <div class="cl-day-colors">
-            ${colors.map(c => `<button class="cl-day-color cl-day-c-${c} ${c === existing.color ? 'sel' : ''}" data-c="${c}" title="${c}"></button>`).join("")}
-          </div>
-          <div class="cl-day-note-actions">
-            <button class="cl-day-note-del">Delete</button>
-            <button class="cl-day-note-save">Save note</button>
-          </div>
+        <div class="cl-anime-note-actions">
+          ${existing.text ? `<button class="cl-anime-del">Delete</button>` : ``}
+          <button class="cl-anime-save">Save</button>
         </div>
       </div>
     </div>`);
   document.body.append(overlay, pop);
   const close = () => { overlay.remove(); pop.remove(); };
   overlay.addEventListener("click", close);
-  $(".cl-pop-close", pop).addEventListener("click", close);
+  $(".cl-anime-note-close", pop).addEventListener("click", close);
 
   let chosen = existing.color;
-  pop.querySelectorAll(".cl-day-color").forEach(b => b.addEventListener("click", () => {
+  pop.querySelectorAll(".cl-anime-color").forEach(b => b.addEventListener("click", () => {
     chosen = b.dataset.c;
-    pop.querySelectorAll(".cl-day-color").forEach(x => x.classList.remove("sel"));
+    pop.querySelectorAll(".cl-anime-color").forEach(x => x.classList.remove("sel"));
     b.classList.add("sel");
+    pop.style.setProperty("--note-accent", `var(--anime-c-${chosen})`);
   }));
-  $(".cl-day-note-save", pop).addEventListener("click", () => {
+  $(".cl-anime-save", pop).addEventListener("click", () => {
     const text = $("#cl-day-note", pop).value.trim();
     const all = loadUserNotes();
     if (text) all[key] = { text, color: chosen };
     else delete all[key];
-    saveUserNotes(all);
-    onChange && onChange();
-    close();
+    saveUserNotes(all); onChange && onChange(); close();
   });
-  $(".cl-day-note-del", pop).addEventListener("click", () => {
+  const delBtn = $(".cl-anime-del", pop);
+  if (delBtn) delBtn.addEventListener("click", () => {
     const all = loadUserNotes(); delete all[key]; saveUserNotes(all);
     onChange && onChange(); close();
   });
-  pop.querySelectorAll(".cl-day-booking-open").forEach((btn, i) => btn.addEventListener("click", () => {
+  pop.querySelectorAll(".cl-anime-booking-open").forEach(btn => btn.addEventListener("click", () => {
     const callId = btn.closest("[data-call-id]").dataset.callId;
     close();
     setTimeout(() => openCallPaperPopup(callId), 80);
   }));
+  // Set initial accent color
+  pop.style.setProperty("--note-accent", `var(--anime-c-${chosen})`);
   renderIcons(pop);
 }
 
@@ -2156,6 +2310,40 @@ route("agents", async () => {
       // Trigger redraw via event by re-mounting the builder
       initBuilderCanvas(stage, layout);
     }));
+
+    // Make the OC orb draggable within the canvas wrap
+    const orbWrap = $("#agb-orb-wrap", stage);
+    const canvasWrapEl = $("#agb-canvas-wrap", stage);
+    if (orbWrap && canvasWrapEl) {
+      const orbEl = orbWrap.querySelector(".agb-orb");
+      if (orbEl) {
+        let draggingOrb = false, orbStartX = 0, orbStartY = 0, orbOriginX = 0, orbOriginY = 0;
+        orbEl.style.cursor = "grab";
+        orbEl.addEventListener("mousedown", (ev) => {
+          if (ev.button !== 0) return;
+          ev.preventDefault(); ev.stopPropagation();
+          draggingOrb = true;
+          orbEl.style.cursor = "grabbing";
+          const wr = orbWrap.getBoundingClientRect();
+          const cr = canvasWrapEl.getBoundingClientRect();
+          orbStartX = ev.clientX;
+          orbStartY = ev.clientY;
+          orbOriginX = wr.left - cr.left + canvasWrapEl.scrollLeft;
+          orbOriginY = wr.top - cr.top + canvasWrapEl.scrollTop;
+        });
+        const orbMouseMove = (ev) => {
+          if (!draggingOrb) return;
+          orbWrap.style.transform = "none";
+          orbWrap.style.left = (orbOriginX + ev.clientX - orbStartX) + "px";
+          orbWrap.style.top  = (orbOriginY + ev.clientY - orbStartY) + "px";
+        };
+        const orbMouseUp = () => {
+          if (draggingOrb) { draggingOrb = false; orbEl.style.cursor = "grab"; }
+        };
+        document.addEventListener("mousemove", orbMouseMove);
+        document.addEventListener("mouseup", orbMouseUp);
+      }
+    }
 
     // Wire toolbar actions
     $("#agb-toggle", stage).addEventListener("click", async () => {
@@ -2493,21 +2681,10 @@ function initBuilderCanvas(stage, layout) {
       p.setAttribute("class", "agb-edge");
       p.setAttribute("d", curvePath(a, b));
       p.setAttribute("data-i", idx);
+      p.setAttribute("pointer-events", "stroke");
+      p.style.cursor = "pointer";
       svg.appendChild(p);
-
-      // Sticky note at midpoint
-      const sx = a.x + BOX_W, sy = a.y + BOX_H / 2;
-      const tx = b.x,         ty = b.y + BOX_H / 2;
-      const mx = (sx + tx) / 2 - 70;
-      const my = (sy + ty) / 2 - 18;
-      const note = h(`
-        <div class="agb-edge-note" style="left:${mx}px;top:${my}px" data-i="${idx}">
-          <input class="agb-edge-input" placeholder="label this connection" value="${escapeHtml(edge.note || '')}"/>
-          <button class="agb-edge-x" title="Delete connection">×</button>
-        </div>`);
-      canvas.appendChild(note);
-      $(".agb-edge-input", note).addEventListener("input", e => { edge.note = e.target.value; });
-      $(".agb-edge-x", note).addEventListener("click", () => {
+      p.addEventListener("dblclick", () => {
         layout.edges.splice(idx, 1);
         redraw();
       });
