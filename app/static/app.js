@@ -2305,11 +2305,11 @@ const AGB_BOX_DEFS = [
 ];
 
 function agbDefaultLayout(agent) {
-  // Minimal: just the agent box centered. User adds the rest with the "+" orb.
+  // Minimal: just the agentinfo box centered. User adds the rest with the "+" orb.
   return {
     boxes: [
-      { id: "ag", kind: "agent", x: 360, y: 200,
-        data: { name: agent.config?.agent_name || agent.name || "Agent", voice: agent.voice_id || "" } },
+      { id: "ag", kind: "agentinfo", x: 360, y: 200,
+        data: { name: agent.config?.agent_name || agent.name || "Agent", role: "Voice AI Receptionist", voice: agent.voice_id || "maya", languages: ["English (US)"] } },
     ],
     edges: [],
   };

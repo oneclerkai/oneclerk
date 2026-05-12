@@ -88,10 +88,17 @@ if _HAS_STATIC:
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
 
+_NO_CACHE_HEADERS = {
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
+
 @app.get("/", include_in_schema=False)
 async def root():
     if _HAS_STATIC:
-        return FileResponse(_STATIC_DIR / "index.html")
+        return FileResponse(_STATIC_DIR / "index.html", headers=_NO_CACHE_HEADERS)
     return {
         "product": "OneClerk",
         "tagline": "Your phone rings. OneClerk handles it.",
@@ -105,7 +112,7 @@ async def root():
 @app.get("/app", include_in_schema=False)
 async def dashboard_app():
     if _HAS_STATIC:
-        return FileResponse(_STATIC_DIR / "index.html")
+        return FileResponse(_STATIC_DIR / "index.html", headers=_NO_CACHE_HEADERS)
     return {"detail": "frontend not bundled"}
 
 

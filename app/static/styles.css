@@ -2407,7 +2407,7 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   transform: translate(-50%, -50%);
   width: min(720px, 92vw);
   max-height: 88vh;
-  z-index: 71;
+  z-index: 115;
   border-radius: 6px;
   overflow: hidden;
   box-shadow:
