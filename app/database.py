@@ -1,3 +1,5 @@
+import logging
+from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -6,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import DeclarativeBase
 
 from app.config import settings
+
+logger = logging.getLogger("oneclerk.database")
 
 
 class Base(DeclarativeBase):
@@ -59,6 +63,7 @@ def _init_engine() -> None:
         echo=False,
         future=True,
         pool_pre_ping=True,
+        pool_size=10,
         pool_recycle=1800,
         connect_args=connect_args,
     )
@@ -68,6 +73,32 @@ def _init_engine() -> None:
 def get_sessionmaker() -> Optional[async_sessionmaker[AsyncSession]]:
     _init_engine()
     return AsyncSessionLocal
+
+
+@asynccontextmanager
+async def safe_db_operation():
+    """Async context manager for DB sessions safe to use outside HTTP request scope.
+
+    WebSocket handlers and background tasks cannot use FastAPI's Depends() injection.
+    This wrapper ensures the session is always closed even if an exception occurs.
+
+    Usage::
+
+        async with safe_db_operation() as db:
+            result = await db.execute(...)
+    """
+    _init_engine()
+    if AsyncSessionLocal is None:
+        raise RuntimeError("Database is not configured. Set DATABASE_URL.")
+    session: AsyncSession = AsyncSessionLocal()
+    try:
+        yield session
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise
+    finally:
+        await session.close()
 
 
 # Idempotent column additions for tables that already exist from earlier runs.
@@ -119,6 +150,12 @@ _LIGHTWEIGHT_MIGRATIONS: tuple[str, ...] = (
     "ALTER TABLE calls ADD COLUMN IF NOT EXISTS started_at TIMESTAMP",
     "ALTER TABLE calls ADD COLUMN IF NOT EXISTS ended_at TIMESTAMP",
     "ALTER TABLE calls ADD COLUMN IF NOT EXISTS created_at TIMESTAMP",
+    # Rollover / billing alert columns
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS rollover_minutes INTEGER DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS rollover_expires_at TIMESTAMP",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS usage_alert_80_sent BOOLEAN DEFAULT FALSE",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS usage_alert_100_sent BOOLEAN DEFAULT FALSE",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS minutes_used_this_month INTEGER DEFAULT 0",
 )
 
 

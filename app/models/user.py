@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Optional
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -32,3 +32,10 @@ class User(Base):
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     phone_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     business_profile: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=True)
+
+    # Rollover minutes engine
+    minutes_used_this_month: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    rollover_minutes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    rollover_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    usage_alert_80_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    usage_alert_100_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

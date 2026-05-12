@@ -12,7 +12,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database import get_sessionmaker
+from app.database import safe_db_operation
 from app.models import Agent, Call, CallStatus, ConversationTurn, User
 from app.services import ai_brain, synthesis, telnyx_handler, whatsapp
 from app.services.redis_client import get_redis
@@ -33,16 +33,6 @@ except ImportError:  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
-
-
-async def _db() -> AsyncSession:
-    sessionmaker = get_sessionmaker()
-    if sessionmaker is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Database is not configured. Set DATABASE_URL in the backend environment.",
-        )
-    return sessionmaker()
 
 
 async def get_agent_by_telnyx_number(db: AsyncSession, to_number: str) -> Agent | None:
@@ -123,7 +113,7 @@ async def handle_telnyx(request: Request) -> dict:
         "call.hangup": handle_call_hangup,
         "call.recording.saved": handle_recording_saved,
     }
-    async with await _db() as db:
+    async with safe_db_operation() as db:
         handler = handlers.get(event_type)
         if handler:
             await handler(event_data, db)
@@ -135,13 +125,35 @@ async def handle_call_initiated(data: dict, db: AsyncSession):
     from_number = data["from"]
     to_number = data["to"]
     telnyx_call_sid = data["call_leg_id"]
+
+    # Anti-abuse: blacklist check
+    from app.services.telnyx_handler import _is_blacklisted, _check_rate_limit
+    if await _is_blacklisted(from_number):
+        logger.warning("Rejected blacklisted caller %s", from_number)
+        if telnyx is not None:
+            telnyx.Call.reject(call_control_id)
+        return
+
     agent = await get_agent_by_telnyx_number(db, to_number)
     if not agent or agent.status != "active":
         if telnyx is not None:
             telnyx.Call.reject(call_control_id)
         return
     user = await get_user(db, agent.user_id)
-    if user is None or not await check_call_limit(user, agent):
+    if user is None:
+        return
+
+    # Anti-abuse: rate limit for trial plans
+    plan = user.subscription_tier or user.plan or "trial"
+    if not await _check_rate_limit(from_number, plan):
+        await telnyx_handler.answer_and_say(
+            call_control_id,
+            "You have reached the call limit for this hour. Please try again later.",
+            language=agent.language,
+        )
+        return
+
+    if not await check_call_limit(user, agent):
         await telnyx_handler.answer_and_say(
             call_control_id,
             "This service is temporarily unavailable. Please try again later.",
@@ -183,15 +195,35 @@ async def handle_call_answered(data: dict, db: AsyncSession):
     agent = await get_agent(db, call_data["agent_id"])
     if agent is None:
         return
-    greeting_url = await synthesis.synthesize_greeting(agent)
-    if telnyx is not None:
-        telnyx.Call.playback_start(
-            call_control_id,
-            audio_url=greeting_url,
-            overlay=False,
-            loop=1,
-            client_state="greeting_playing",
-        )
+    # Stream greeting sentences for low latency
+    first = True
+    async for url in synthesis.synthesize_sentences(
+        _build_greeting(agent),
+        language=agent.language or "english",
+        gender="female",
+    ):
+        if telnyx is not None:
+            telnyx.Call.playback_start(
+                call_control_id,
+                audio_url=url,
+                overlay=not first,
+                loop=1,
+                client_state="greeting_playing",
+            )
+        first = False
+    if first:
+        # No audio — fall back to gather immediately
+        await handle_playback_ended(data, db)
+
+
+def _build_greeting(agent: Agent) -> str:
+    context = agent.config or {}
+    business_name = context.get("business_name", agent.name)
+    return (
+        f"Thank you for calling {business_name}. "
+        f"This call may be recorded for quality. "
+        f"I'm {agent.name}, how can I help you today?"
+    )
 
 
 async def handle_playback_ended(data: dict, db: AsyncSession):
@@ -265,7 +297,7 @@ async def handle_gather_ended(data: dict, db: AsyncSession):
         await db.commit()
         asyncio.create_task(
             whatsapp.send_escalation_alert(
-                agent.business_context.get("owner_whatsapp"),
+                (agent.config or {}).get("owner_whatsapp"),
                 call.caller_number or "",
                 "Emergency call in progress",
             )
@@ -290,20 +322,33 @@ async def handle_gather_ended(data: dict, db: AsyncSession):
         asyncio.create_task(
             whatsapp.send_booking_link(
                 call.caller_number or "",
-                agent.business_context.get("business_name"),
+                (agent.config or {}).get("business_name"),
                 agent.name,
-                agent.business_context.get("calendly_url"),
+                (agent.config or {}).get("calendly_url"),
                 ai_result.get("booking_service"),
             )
         )
-    response_url = await synthesis.synthesize(response_text, language=agent.language)
+    # Barge-in: stop any currently playing audio before responding
     if telnyx is not None:
-        telnyx.Call.playback_start(
-            call_control_id,
-            audio_url=response_url,
-            overlay=False,
-            client_state="response_playing",
-        )
+        try:
+            telnyx.Call.playback_stop(call_control_id)
+        except Exception:
+            pass
+
+    # Stream response sentences for low latency
+    first = True
+    async for url in synthesis.synthesize_sentences(response_text, language=agent.language):
+        if telnyx is not None:
+            telnyx.Call.playback_start(
+                call_control_id,
+                audio_url=url,
+                overlay=not first,
+                client_state="response_playing",
+            )
+        first = False
+    if first:
+        # No audio generated — fall back to gather
+        await handle_playback_ended(data, db)
 
 
 async def handle_speak_ended(data: dict, db: AsyncSession):
@@ -377,7 +422,7 @@ async def stripe_webhook(
         return {"received": True, "parsed": False}
     event_type = event.get("type") if isinstance(event, dict) else event.type
     data = ((event.get("data") or {}).get("object") if isinstance(event, dict) else event.data.object)
-    async with await _db() as db:
+    async with safe_db_operation() as db:
         if event_type == "checkout.session.completed":
             user_id = (data.get("metadata") or {}).get("user_id")
             customer_id = data.get("customer")
@@ -425,7 +470,7 @@ async def whatsapp_inbound(request: Request) -> Response:
     body = (payload.get("text") or payload.get("body") or "").strip()
     if not body:
         return Response(content='{"received": true}', media_type="application/json")
-    async with await _db() as db:
+    async with safe_db_operation() as db:
         agent = None
         for column in (Agent.telnyx_phone, Agent.twilio_number, Agent.forwarding_number):
             result = await db.execute(select(Agent).where(column == target, Agent.is_active.is_(True)))

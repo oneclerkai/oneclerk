@@ -139,11 +139,13 @@ async def health() -> dict:
 async def serve_audio(filename: str) -> FileResponse:
     safe = Path(filename).name
     path = AUDIO_DIR / safe
-    if not path.exists() or not safe.endswith(".mp3"):
+    # Accept both .wav (µ-law, preferred) and legacy .mp3 files
+    if not path.exists() or not (safe.endswith(".wav") or safe.endswith(".mp3")):
         raise HTTPException(404, "audio not found")
+    media_type = "audio/wav" if safe.endswith(".wav") else "audio/mpeg"
     asyncio.create_task(delete_file_later(safe, delay_seconds=1800))
     return FileResponse(
         path,
-        media_type="audio/mpeg",
+        media_type=media_type,
         headers={"Cache-Control": "public, max-age=3600"},
     )

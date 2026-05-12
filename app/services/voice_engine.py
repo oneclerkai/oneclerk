@@ -1,6 +1,7 @@
-"""ElevenLabs TTS integration with on-disk caching served via /audio/{filename}.
+"""ElevenLabs TTS integration — legacy helper kept for backward compatibility.
 
-Falls back gracefully to Twilio's Polly voice when no ElevenLabs key is set.
+New code should use ``app.services.synthesis`` directly, which handles
+8 kHz µ-law conversion, sentence streaming, and Redis caching.
 """
 from __future__ import annotations
 
@@ -27,7 +28,8 @@ def _cache_path(text: str, voice_id: str) -> Path:
     return AUDIO_DIR / f"{digest}.mp3"
 
 
-def cleanup_old_audio() -> None:
+async def _cleanup_old_audio() -> None:
+    """Async-safe cleanup of stale audio files."""
     cutoff = time.time() - _TTL_SECONDS
     for f in AUDIO_DIR.glob("*.mp3"):
         try:
@@ -38,9 +40,13 @@ def cleanup_old_audio() -> None:
 
 
 async def synthesize_to_url(text: str, voice_id: str | None = None) -> str | None:
-    """Synthesize `text` via ElevenLabs and return a public URL to the MP3.
+    """Synthesize ``text`` via ElevenLabs and return a public URL to the MP3.
 
     Returns None if ELEVENLABS_API_KEY is missing or synthesis fails.
+
+    .. deprecated::
+        Use ``app.services.synthesis.synthesize`` instead, which outputs
+        8 kHz µ-law WAV for correct PSTN playback.
     """
     if not settings.ELEVENLABS_API_KEY or not settings.PUBLIC_BASE_URL:
         return None
@@ -69,8 +75,8 @@ async def synthesize_to_url(text: str, voice_id: str | None = None) -> str | Non
             logger.exception("ElevenLabs synthesis failed")
             return None
 
-    # background cleanup, fire-and-forget
-    asyncio.get_event_loop().run_in_executor(None, cleanup_old_audio)
+    # Fire-and-forget cleanup (async-safe)
+    asyncio.create_task(_cleanup_old_audio())
 
     base = settings.PUBLIC_BASE_URL.rstrip("/")
     return f"{base}/audio/{cache.name}"

@@ -51,7 +51,7 @@ def process_completed_call(self, call_id: str):
             agent.calls_this_month += 1
             agent.total_calls += 1
             await db.commit()
-            owner_whatsapp = agent.business_context.get("owner_whatsapp") or user.whatsapp_number or ""
+            owner_whatsapp = (agent.config or {}).get("owner_whatsapp") or user.whatsapp_number or ""
             if owner_whatsapp:
                 await send_call_summary_to_owner(
                     owner_whatsapp,
@@ -112,6 +112,36 @@ def reset_monthly_call_counts():
 
 
 @celery_app.task
+def calculate_monthly_rollover():
+    """Run at month-end: compute rollover minutes for every user and reset usage counters."""
+    from app.services.billing_calculator import compute_rollover
+
+    async def run():
+        sessionmaker = get_sessionmaker()
+        if sessionmaker is None:
+            return
+        async with sessionmaker() as db:
+            users = (await db.execute(select(User))).scalars().all()
+            for user in users:
+                plan = user.subscription_tier or user.plan or "trial"
+                new_rollover, new_expires = compute_rollover(
+                    plan=plan,
+                    minutes_used=user.minutes_used_this_month or 0,
+                    rollover_minutes=user.rollover_minutes or 0,
+                    rollover_expires_at=user.rollover_expires_at,
+                )
+                user.rollover_minutes = new_rollover
+                user.rollover_expires_at = new_expires
+                # Reset monthly counters and alert flags
+                user.minutes_used_this_month = 0
+                user.usage_alert_80_sent = False
+                user.usage_alert_100_sent = False
+            await db.commit()
+
+    asyncio.run(run())
+
+
+@celery_app.task
 def cleanup_audio_files():
     audio_dir = str(AUDIO_DIR)
     if not os.path.exists(audio_dir):
@@ -119,6 +149,8 @@ def cleanup_audio_files():
     now = time.time()
     deleted = 0
     for filename in os.listdir(audio_dir):
+        if not (filename.endswith(".wav") or filename.endswith(".mp3")):
+            continue
         filepath = os.path.join(audio_dir, filename)
         if os.path.isfile(filepath) and os.path.getmtime(filepath) < now - 1800:
             os.remove(filepath)

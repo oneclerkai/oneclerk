@@ -83,27 +83,37 @@ def build_system_prompt(agent) -> str:
     faq_text = "\n".join(
         f"Q: {item['question']} A: {item['answer']}" for item in _faq_pairs(context.get("faqs", []))
     )
+    timezone_str = context.get("timezone", "Asia/Kolkata")
     return f"""You are {agent.name}, AI receptionist for {context.get('business_name', agent.name)}.
 
 BUSINESS INFO:
 - Hours: {context.get('hours') or context.get('operating_hours', 'Mon-Sat 9am-6pm')}
 - Services: {services or 'General business support'}
 - Address: {context.get('address') or context.get('location', 'Please ask for our address')}
+- Timezone: {timezone_str}
 
 FAQS:
 {faq_text}
 
+BOOKING RULES (TWO-STEP — CRITICAL):
+Step 1: When the caller asks to book, FIRST check availability and propose exactly TWO specific
+        time slots in {timezone_str} timezone (e.g. "I have Tuesday 3 PM or Wednesday 10 AM").
+        Set booking_step="propose" in your response.
+Step 2: Only after the caller confirms one slot, confirm the booking.
+        Set booking_detected=true and booking_step="confirm" in your response.
+Never book without explicit caller confirmation of a specific slot.
+
 RULES (CRITICAL - follow exactly):
 1. Max 35 words per response (this is voice, not text)
 2. Always end with a question to keep conversation going
-3. For appointments: "I'll send you a WhatsApp with booking details"
+3. For appointments: follow the TWO-STEP booking process above
 4. For unknown info: "Let me have someone call you right back"
 5. Escalation words {context.get('escalation_keywords', ['emergency','urgent'])}:
    say "Let me connect you immediately" then set escalate=true
 6. Never claim to be human if sincerely asked
 
 RESPONSE FORMAT - Always respond with ONLY this JSON:
-{{"response": "your spoken response here", "escalate": false, "booking_detected": false, "booking_service": null}}"""
+{{"response": "your spoken response here", "escalate": false, "booking_detected": false, "booking_service": null, "booking_step": null}}"""
 
 
 async def get_ai_response(

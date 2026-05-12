@@ -11,6 +11,7 @@ from app.config import settings
 from app.database import get_db
 from app.models import User
 from app.routes.auth import get_current_user
+from app.services.billing_calculator import PLAN_CONFIG, calculate_usage
 
 try:
     import stripe  # type: ignore
@@ -22,9 +23,9 @@ router = APIRouter(prefix="/billing", tags=["billing"])
 
 
 PLANS = {
-    "starter": {"name": "Starter", "price_monthly": 39, "calls_limit": 200},
-    "growth": {"name": "Growth", "price_monthly": 99, "calls_limit": 500},
-    "scale": {"name": "Scale", "price_monthly": 149, "calls_limit": 1000},
+    "starter": {"name": "Starter", "price_monthly": 39, "calls_limit": 200, "minutes_included": 300},
+    "growth":  {"name": "Growth",  "price_monthly": 99, "calls_limit": 500, "minutes_included": 600},
+    "scale":   {"name": "Scale",   "price_monthly": 149, "calls_limit": 1000, "minutes_included": 1200},
 }
 
 
@@ -118,7 +119,16 @@ async def billing_status(
     current_user: User = Depends(get_current_user),
 ) -> dict:
     plan_key = current_user.plan or "trial"
-    plan_info = PLANS.get(plan_key, {"name": "Trial", "calls_limit": 50, "price_monthly": 0})
+    plan_info = PLANS.get(plan_key, {"name": "Trial", "calls_limit": 50, "price_monthly": 0, "minutes_included": 50})
+
+    # Compute usage summary with rollover
+    usage = calculate_usage(
+        plan=plan_key,
+        minutes_used=current_user.minutes_used_this_month or 0,
+        rollover_minutes=current_user.rollover_minutes or 0,
+        rollover_expires_at=current_user.rollover_expires_at,
+    )
+
     return {
         "plan": plan_key,
         "plan_name": plan_info.get("name", plan_key.title()),
@@ -127,4 +137,18 @@ async def billing_status(
         "trial_ends_at": current_user.trial_ends_at.isoformat() if current_user.trial_ends_at else None,
         "stripe_customer_id": current_user.stripe_customer_id,
         "stripe_ready": _stripe_ready(),
+        # Usage & rollover data for the UsageWidget
+        "usage": {
+            "minutes_used": usage.minutes_used,
+            "minutes_included": usage.included_minutes,
+            "rollover_minutes": usage.rollover_minutes,
+            "total_available": usage.total_available,
+            "minutes_remaining": usage.minutes_remaining,
+            "overage_minutes": usage.overage_minutes,
+            "overage_cost_inr": usage.overage_cost_inr,
+            "pct_used": round(usage.pct_used, 1),
+            "alert_80": usage.alert_80,
+            "alert_100": usage.alert_100,
+            "allow_overage": usage.allow_overage,
+        },
     }
