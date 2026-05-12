@@ -17,7 +17,6 @@ const SIDEBAR_LINKS = [
   { href: '/dashboard/billing', label: 'Billing', icon: '💳' },
   { href: '/dashboard/settings', label: 'Settings', icon: '⚙️' },
 ]
-
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
@@ -54,8 +53,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100">
-          <p className="text-xs text-gray-400">OneClerk v1.0</p>
+        <div className="px-4 py-4 border-t border-gray-100 space-y-2">
+          <button
+            onClick={() => { localStorage.removeItem('oneclerk_token'); window.location.href = '/login' }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Sign out
+          </button>
+          <p className="text-xs text-gray-400 px-3">OneClerk v1.0</p>
         </div>
       </aside>
 

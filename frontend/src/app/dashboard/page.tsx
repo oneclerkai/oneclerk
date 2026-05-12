@@ -1,11 +1,12 @@
 /**
- * Dashboard overview page — stats, usage widget, and MMI carrier codes.
+ * Dashboard overview — stats, voice preview, usage widget, MMI codes.
  */
 'use client'
 
 import React, { useEffect, useState } from 'react'
 import UsageWidget from '../../components/UsageWidget'
 import MMICarrierCodes from '../../components/MMICarrierCodes'
+import VoicePreview from '../../components/VoicePreview'
 import { dashboard, billing, agents } from '../../lib/api'
 
 interface Stats {
@@ -14,6 +15,7 @@ interface Stats {
   bookings_today: number
   escalations_today: number
   active_agents: number
+  urgent_today: number
 }
 
 interface BillingStatus {
@@ -34,9 +36,27 @@ interface BillingStatus {
   }
 }
 
-function StatCard({ label, value, icon, color }: { label: string; value: number | string; icon: string; color: string }) {
+interface Agent {
+  id: string
+  name: string
+  is_active: boolean
+  telnyx_phone?: string
+  config?: { business_name?: string }
+}
+
+function StatCard({
+  label,
+  value,
+  icon,
+  color,
+}: {
+  label: string
+  value: number | string
+  icon: string
+  color: string
+}) {
   return (
-    <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-5`}>
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
       <div className="flex items-center justify-between mb-3">
         <span className="text-2xl">{icon}</span>
         <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${color}`}>{label}</span>
@@ -49,7 +69,7 @@ function StatCard({ label, value, icon, color }: { label: string; value: number 
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null)
-  const [forwardingNumber, setForwardingNumber] = useState<string | undefined>()
+  const [agentList, setAgentList] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -62,9 +82,7 @@ export default function DashboardPage() {
         ])
         if (statsData) setStats(statsData)
         if (billingData) setBillingStatus(billingData)
-        // Use the first active agent's telnyx number as the forwarding number
-        const activeAgent = (agentsData?.agents ?? []).find((a: any) => a.is_active)
-        if (activeAgent?.telnyx_phone) setForwardingNumber(activeAgent.telnyx_phone)
+        setAgentList(agentsData?.agents ?? [])
       } finally {
         setLoading(false)
       }
@@ -73,6 +91,9 @@ export default function DashboardPage() {
     const timer = setInterval(load, 30_000)
     return () => clearInterval(timer)
   }, [])
+
+  const activeAgent = agentList.find((a) => a.is_active)
+  const forwardingNumber = activeAgent?.telnyx_phone
 
   if (loading) {
     return (
@@ -92,10 +113,51 @@ export default function DashboardPage() {
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Calls" value={stats?.total_calls ?? 0} icon="📞" color="bg-blue-50 text-blue-600" />
-        <StatCard label="Today" value={stats?.calls_today ?? 0} icon="📅" color="bg-green-50 text-green-600" />
-        <StatCard label="Bookings" value={stats?.bookings_today ?? 0} icon="📆" color="bg-purple-50 text-purple-600" />
-        <StatCard label="Escalations" value={stats?.escalations_today ?? 0} icon="🚨" color="bg-red-50 text-red-600" />
+        <StatCard
+          label="Total Calls"
+          value={stats?.total_calls ?? 0}
+          icon="📞"
+          color="bg-blue-50 text-blue-600"
+        />
+        <StatCard
+          label="Today"
+          value={stats?.calls_today ?? 0}
+          icon="📅"
+          color="bg-green-50 text-green-600"
+        />
+        <StatCard
+          label="Bookings Today"
+          value={stats?.bookings_today ?? 0}
+          icon="📆"
+          color="bg-purple-50 text-purple-600"
+        />
+        <StatCard
+          label="Urgent Today"
+          value={stats?.urgent_today ?? 0}
+          icon="🚨"
+          color="bg-red-50 text-red-600"
+        />
+      </div>
+
+      {/* Voice preview */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700">Agent Voice Preview</h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Hear exactly how your agent will sound on a live call.
+            </p>
+          </div>
+          {activeAgent && (
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+              {activeAgent.name} · Live
+            </span>
+          )}
+        </div>
+        <VoicePreview
+          agentName={activeAgent?.name}
+          businessName={activeAgent?.config?.business_name}
+        />
       </div>
 
       {/* Usage + MMI codes */}

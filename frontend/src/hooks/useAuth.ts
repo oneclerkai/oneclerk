@@ -1,8 +1,21 @@
 import { useEffect, useState } from 'react'
 import { auth, clearToken, getToken, setToken } from '../lib/api'
 
+export interface AuthUser {
+  id: string
+  email: string
+  name: string | null
+  whatsapp_number: string | null
+  plan: string
+  trial_ends_at: string | null
+  onboarding_completed: boolean
+  email_verified: boolean
+  phone_verified: boolean
+  business_profile: Record<string, unknown> | null
+}
+
 export function useAuth() {
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -11,13 +24,17 @@ export function useAuth() {
       setLoading(false)
       return
     }
-    auth.me().then(setUser).catch(() => clearToken()).finally(() => setLoading(false))
+    auth
+      .me()
+      .then((u) => setUser(u as AuthUser))
+      .catch(() => clearToken())
+      .finally(() => setLoading(false))
   }, [])
 
   const login = async (email: string, password: string) => {
     const result = await auth.login(email, password)
     setToken(result.access_token)
-    setUser(result.user)
+    setUser(result.user as AuthUser)
     return result
   }
 
@@ -26,5 +43,31 @@ export function useAuth() {
     auth.logout()
   }
 
-  return { user, loading, login, logout }
+  const refreshUser = async () => {
+    try {
+      const u = await auth.me()
+      setUser(u as AuthUser)
+    } catch {
+      clearToken()
+      setUser(null)
+    }
+  }
+
+  return { user, loading, login, logout, refreshUser }
+}
+
+/**
+ * Redirect to /login if no token is present.
+ * Use this in dashboard pages that require authentication.
+ */
+export function useRequireAuth() {
+  const { user, loading } = useAuth()
+
+  useEffect(() => {
+    if (!loading && !user && !getToken()) {
+      window.location.href = '/login'
+    }
+  }, [user, loading])
+
+  return { user, loading }
 }

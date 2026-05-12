@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -21,12 +22,13 @@ router = APIRouter(prefix="/calls", tags=["calls"])
 async def serve_audio_legacy(filename: str) -> FileResponse:
     safe = Path(filename).name
     path = AUDIO_DIR / safe
-    if not path.exists() or not safe.endswith(".mp3"):
+    if not path.exists() or not (safe.endswith(".mp3") or safe.endswith(".wav")):
         raise HTTPException(404, "audio not found")
+    media_type = "audio/wav" if safe.endswith(".wav") else "audio/mpeg"
     asyncio.create_task(delete_file_later(safe, delay_seconds=1800))
     return FileResponse(
         path,
-        media_type="audio/mpeg",
+        media_type=media_type,
         headers={"Cache-Control": "public, max-age=3600"},
     )
 
@@ -52,6 +54,8 @@ async def recent_calls(
             "status": call.status,
             "is_urgent": call.is_urgent,
             "booking_made": call.booking_made,
+            "summary": call.summary,
+            "conversation": call.conversation or [],
             "created_at": call.created_at.isoformat() if call.created_at else None,
         }
         for call in result.scalars().all()
@@ -81,6 +85,8 @@ async def get_call(
         "is_urgent": call.is_urgent,
         "booking_made": call.booking_made,
         "booking_details": call.booking_details,
+        "summary": call.summary,
         "conversation": call.conversation or [],
         "created_at": call.created_at.isoformat() if call.created_at else None,
+        "ended_at": call.ended_at.isoformat() if call.ended_at else None,
     }

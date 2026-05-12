@@ -55,7 +55,27 @@ function AgentForm({ initial, onSave, isSaving }: AgentBuilderProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await onSave(form)
+    // Map form fields to the backend CreateAgentRequest shape
+    const payload = {
+      name: form.name,
+      voice_id: form.voice_id || undefined,
+      language: form.language,
+      config: {
+        business_name: form.business_name,
+        agent_name: form.name,
+        greeting_message: `Thank you for calling ${form.business_name}. This call may be recorded for quality. I'm ${form.name}, how can I help you today?`,
+        operating_hours: form.hours,
+        services: form.services,
+        escalation_triggers: 'emergency, urgent, immediate',
+        owner_whatsapp: '',
+        language: form.language,
+        calendly_url: form.calendly_url,
+        timezone: form.timezone,
+        faqs: '',
+      },
+      forwarding_number: form.escalation_phone || undefined,
+    }
+    await onSave(payload as any)
   }
 
   return (
@@ -213,7 +233,28 @@ function AgentCanvas({ initial, onSave, isSaving }: AgentBuilderProps) {
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
         <h2 className="text-xl font-bold text-gray-900">Agent Canvas</h2>
         <button
-          onClick={() => onSave(initial as AgentConfig)}
+          onClick={() => {
+            if (!initial) return
+            const payload = {
+              name: (initial as any).name || 'Agent',
+              language: (initial as any).language || 'english',
+              config: {
+                business_name: (initial as any).business_name || '',
+                agent_name: (initial as any).name || 'Agent',
+                greeting_message: 'How can I help you today?',
+                operating_hours: (initial as any).hours || 'Mon-Sat 9am-6pm',
+                services: (initial as any).services || '',
+                escalation_triggers: 'emergency, urgent',
+                owner_whatsapp: '',
+                language: (initial as any).language || 'english',
+                calendly_url: (initial as any).calendly_url || '',
+                timezone: (initial as any).timezone || 'Asia/Kolkata',
+                faqs: '',
+                builder_layout: { nodes, edges: [] },
+              },
+            }
+            onSave(payload as any)
+          }}
           disabled={isSaving}
           className="py-2 px-5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors"
         >

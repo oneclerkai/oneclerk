@@ -21,7 +21,7 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    href: '/agents',
+    href: '/dashboard/agents',
     label: 'Agents',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
@@ -30,7 +30,7 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    href: '/calls',
+    href: '/dashboard/calls',
     label: 'Calls',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
@@ -39,7 +39,7 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    href: '/billing',
+    href: '/dashboard/billing',
     label: 'Billing',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
