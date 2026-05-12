@@ -1202,12 +1202,12 @@ function openAuthModal(initialMode = "login") {
 
 // --- Layout shell ---
 function shell(activeKey, title, subtitle, action) {
-  // Streamlined nav: only the four sections the user actually works in.
   const items = [
-    { k: "agents", label: "Agents", icon: "bot", hash: "#/agents" },
-    { k: "calls", label: "Calls", icon: "phone", hash: "#/calls" },
-    { k: "settings", label: "Settings", icon: "settings", hash: "#/settings" },
-    { k: "billing", label: "Billing", icon: "credit-card", hash: "#/billing" },
+    { k: "agents",  label: "Agents",  icon: "bot",        hash: "#/agents"  },
+    { k: "calls",   label: "Calls",   icon: "phone",      hash: "#/calls"   },
+    { k: "preview", label: "Preview", icon: "radio",      hash: "#/preview" },
+    { k: "settings",label: "Settings",icon: "settings",   hash: "#/settings"},
+    { k: "billing", label: "Billing", icon: "credit-card",hash: "#/billing" },
   ];
   const u = Store.user || { name: "—", email: "" };
   const initials = (u.name || u.email || "?").split(/\s+/).map(s => s[0]).slice(0, 2).join("").toUpperCase();
@@ -1243,7 +1243,7 @@ function shell(activeKey, title, subtitle, action) {
         <div class="page" id="page"></div>
       </main>
       <div class="mobile-tabs">
-        ${items.slice(0,4).map(i => `<button data-hash="${i.hash}" class="${activeKey===i.k?'active':''}"><div><i data-lucide="${i.icon}" class="icon"></i></div><div>${i.label}</div></button>`).join("")}
+        ${items.slice(0,5).map(i => `<button data-hash="${i.hash}" class="${activeKey===i.k?'active':''}"><div><i data-lucide="${i.icon}" class="icon"></i></div><div>${i.label}</div></button>`).join("")}
       </div>
     </div>`);
   $$(".nav-item[data-hash]", wrap).forEach(b => b.addEventListener("click", () => navigate(b.dataset.hash)));
@@ -2288,20 +2288,20 @@ function saveCallNotes(map) { localStorage.setItem(CL_CALL_NOTES_KEY, JSON.strin
 // === Agents page — visual builder with phone/whatsapp/agent/calendar/text/upload boxes
 //     connected by curved lines with sticky notes ===
 const AGB_BOX_DEFS = [
-  { kind: "phone",    label: "Phone number",     icon: "phone",          brand: "phone",     accent: "#0d6efd",
-    note: "Forward your business line here. We pick up in 2 seconds." },
-  { kind: "whatsapp", label: "WhatsApp",         icon: "message-circle", brand: "whatsapp",  accent: "#25d366",
-    note: "Owner gets a recap text the moment the caller hangs up." },
-  { kind: "agent",    label: "AI Agent",         icon: "bot",            brand: "agent",     accent: "#f59e0b",
-    note: "This is the brain — give it a name and a voice." },
-  { kind: "calendar", label: "Google Calendar",  icon: "calendar",       brand: "gcal",      accent: "#4285f4",
+  { kind: "phone",      label: "Your Phone Line",        icon: "phone",          brand: "phone",    accent: "#0d6efd",
+    note: "Forward your business number here. Callers get answered in 2 seconds." },
+  { kind: "whatsapp",   label: "WhatsApp Notifications", icon: "message-circle", brand: "whatsapp", accent: "#25d366",
+    note: "Owner gets a recap text the moment each caller hangs up." },
+  { kind: "agentinfo",  label: "Agent Identity",         icon: "user-circle",    brand: "agent",    accent: "#f59e0b",
+    note: "Give your AI a name, role, voice and the languages it speaks." },
+  { kind: "calendar",   label: "Google Calendar",        icon: "calendar",       brand: "gcal",     accent: "#4285f4",
     note: "Bookings drop straight into your real calendar." },
-  { kind: "gmail",    label: "Gmail",            icon: "mail",           brand: "gmail",     accent: "#ea4335",
-    note: "Send the caller a follow-up email." },
-  { kind: "text",     label: "Talking points",   icon: "file-text",      brand: "text",      accent: "#eab308",
-    note: "Hours, prices, FAQs — anything the AI should mention." },
-  { kind: "upload",   label: "Upload docs",      icon: "upload-cloud",   brand: "upload",    accent: "#2563eb",
-    note: "PDFs, menus, intake forms — drag in for the AI to learn." },
+  { kind: "gmail",      label: "Gmail Follow-ups",       icon: "mail",           brand: "gmail",    accent: "#ea4335",
+    note: "Send the caller a personalised follow-up email after every call." },
+  { kind: "points",     label: "Key Talking Points",     icon: "list",           brand: "text",     accent: "#eab308",
+    note: "Important things the AI must mention — hours, prices, policies." },
+  { kind: "upload",     label: "Business Knowledge",     icon: "upload-cloud",   brand: "upload",   accent: "#2563eb",
+    note: "Paste text, a URL, or upload PDFs for the AI to learn from." },
 ];
 
 function agbDefaultLayout(agent) {
@@ -2348,19 +2348,26 @@ route("agents", async () => {
     return wrap;
   }
 
-  // --- Page layout: agent picker on top, builder canvas below ---
+  // --- Page layout: history sidebar on left, builder canvas on right ---
   page.innerHTML = `
-    <div class="agb-tabs" id="agb-tabs">
-      ${agents.map((a, i) => `
-        <button class="agb-tab ${i === 0 ? 'active' : ''}" data-i="${i}">
-          <span class="dot ${a.is_active ? 'dot-success' : 'dot-muted'}"></span>
-          <span>${escapeHtml(a.name)}</span>
-        </button>`).join("")}
-      <button class="agb-tab agb-tab-new" id="agb-new">
-        <i data-lucide="plus" class="icon"></i>New
-      </button>
+    <div class="agb-layout">
+      <aside class="agb-history-sidebar">
+        <div class="agb-history-head">
+          <i data-lucide="bot" class="icon" style="width:14px;height:14px"></i>
+          Agents
+        </div>
+        ${agents.map((a, i) => `
+          <button class="agb-history-item ${i === 0 ? 'active' : ''}" data-i="${i}">
+            <span class="dot ${a.is_active ? 'dot-success' : 'dot-muted'}" style="flex-shrink:0"></span>
+            <span class="agb-history-name">${escapeHtml(a.name)}</span>
+            ${a.is_active ? '<span class="agb-history-live">Live</span>' : ''}
+          </button>`).join("")}
+        <button class="agb-history-new" id="agb-new">
+          <i data-lucide="plus" class="icon" style="width:14px;height:14px"></i>New agent
+        </button>
+      </aside>
+      <div class="agb-stage" id="agb-stage"></div>
     </div>
-    <div class="agb-stage" id="agb-stage"></div>
   `;
   renderIcons(page);
   $("#agb-new", page).addEventListener("click", () => navigate("#/agents/new"));
@@ -2521,10 +2528,10 @@ route("agents", async () => {
     maybeShowBuilderTutorial(stage);
   }
 
-  // Tab switching
+  // Sidebar agent switching
   $$("[data-i]", page).forEach(b => b.addEventListener("click", () => {
     activeIdx = +b.dataset.i;
-    $$(".agb-tab", page).forEach(t => t.classList.remove("active"));
+    $$(".agb-history-item", page).forEach(t => t.classList.remove("active"));
     b.classList.add("active");
     renderStage();
   }));
@@ -2696,7 +2703,7 @@ function initBuilderCanvas(stage, layout) {
     selectedEdge: null,
   };
 
-  const BOX_W = 240, BOX_H = 170;
+  const BOX_W = 260, BOX_H = 220;
 
   function defOf(kind) { return AGB_BOX_DEFS.find(d => d.kind === kind) || AGB_BOX_DEFS[0]; }
   function boxById(id) { return layout.boxes.find(b => b.id === id); }
@@ -2732,47 +2739,74 @@ function initBuilderCanvas(stage, layout) {
         <div class="agb-phone-rings" aria-hidden="true">
           <span></span><span></span><span></span>
         </div>
-        <label class="agb-flabel">Forwarding number</label>
+        <label class="agb-flabel">Business phone number</label>
         <input class="agb-inline" data-field="number" placeholder="+1 555 0100" value="${escapeHtml(box.data.number || '')}"/>
-        <div class="agb-cal-status ${linked ? 'is-linked' : ''}">${linked ? '✓ Receiving calls' : 'Paste your business line'}</div>`;
+        <label class="agb-flabel" style="margin-top:6px">Forwarding number</label>
+        <input class="agb-inline" data-field="forward" placeholder="+1 555 0199" value="${escapeHtml(box.data.forward || '')}"/>
+        <div class="agb-cal-status ${linked ? 'is-linked' : ''}" style="margin-top:6px">${linked ? '✓ Receiving calls' : 'Add your number to get started'}</div>`;
     } else if (box.kind === "whatsapp") {
       const linked = !!(box.data.number || "").trim();
       body = `
-        <label class="agb-flabel">Owner WhatsApp</label>
+        <label class="agb-flabel">Owner WhatsApp number</label>
         <input class="agb-inline" data-field="number" placeholder="+1 555 0100" value="${escapeHtml(box.data.number || '')}"/>
-        <div class="agb-cal-status ${linked ? 'is-linked' : ''}">${linked ? '✓ Recaps will be sent here' : 'Owner gets a recap after every call'}</div>`;
-    } else if (box.kind === "agent") {
+        <label class="agb-flabel" style="margin-top:6px">Recap message</label>
+        <input class="agb-inline" data-field="template" placeholder="Call recap for {name}: {summary}" value="${escapeHtml(box.data.template || '')}"/>
+        <div class="agb-cal-status ${linked ? 'is-linked' : ''}" style="margin-top:6px">${linked ? '✓ Recaps will be sent here' : 'Owner gets a recap after every call'}</div>`;
+    } else if (box.kind === "agentinfo") {
+      const selLangs = Array.isArray(box.data.languages) ? box.data.languages : ["English (US)"];
       body = `
         <label class="agb-flabel">Agent name</label>
         <input class="agb-inline" data-field="name" placeholder="e.g. Maya" value="${escapeHtml(box.data.name || '')}"/>
-        <label class="agb-flabel">Voice</label>
+        <label class="agb-flabel" style="margin-top:6px">Role / what it does</label>
+        <input class="agb-inline" data-field="role" placeholder="e.g. Dental receptionist" value="${escapeHtml(box.data.role || '')}"/>
+        <label class="agb-flabel" style="margin-top:6px">Voice</label>
         <select class="agb-inline" data-field="voice">
-          ${["warm female","calm male","cheerful female","authoritative male","gentle elder"].map(v =>
-            `<option value="${v}" ${box.data.voice === v ? 'selected' : ''}>${v}</option>`).join("")}
-        </select>`;
+          ${PREVIEW_VOICES.map(v =>
+            `<option value="${v.id}" ${box.data.voice === v.id ? 'selected' : ''}>${v.label} — ${v.sub}</option>`).join("")}
+        </select>
+        <label class="agb-flabel" style="margin-top:8px">Languages spoken</label>
+        <div class="agb-lang-grid" data-box-id="${box.id}">
+          ${PREVIEW_LANGS.map(l => `
+            <button class="agb-lang-chip ${selLangs.includes(l) ? 'sel' : ''}" data-lang="${escapeHtml(l)}">${escapeHtml(l.split(" ")[0])}</button>
+          `).join("")}
+        </div>`;
     } else if (box.kind === "calendar") {
       const linked = !!(box.data.url || "").trim();
       body = `
-        <label class="agb-flabel">Calendar link</label>
-        <input class="agb-inline" data-field="url" placeholder="calendly.com/yourname or Google link" value="${escapeHtml(box.data.url || '')}"/>
-        <div class="agb-cal-status ${linked ? 'is-linked' : ''}">${linked ? '✓ Linked — bookings drop in' : 'Paste link to connect'}</div>`;
+        <label class="agb-flabel">Calendar / booking link</label>
+        <input class="agb-inline" data-field="url" placeholder="calendly.com/yourname" value="${escapeHtml(box.data.url || '')}"/>
+        <label class="agb-flabel" style="margin-top:6px">Default meeting duration</label>
+        <select class="agb-inline" data-field="duration">
+          ${["15 min","30 min","45 min","60 min"].map(d =>
+            `<option ${box.data.duration === d ? 'selected' : ''}>${d}</option>`).join("")}
+        </select>
+        <div class="agb-cal-status ${linked ? 'is-linked' : ''}" style="margin-top:6px">${linked ? '✓ Linked — bookings drop in' : 'Paste a Calendly or Google Meet link'}</div>`;
     } else if (box.kind === "gmail") {
       const linked = !!(box.data.email || "").trim();
       body = `
-        <label class="agb-flabel">From email</label>
+        <label class="agb-flabel">From email address</label>
         <input class="agb-inline" data-field="email" placeholder="hello@yourbiz.com" value="${escapeHtml(box.data.email || '')}"/>
-        <div class="agb-cal-status ${linked ? 'is-linked' : ''}">${linked ? '✓ Will send follow-ups' : 'We email the caller after the call'}</div>`;
-    } else if (box.kind === "text") {
+        <label class="agb-flabel" style="margin-top:6px">Email subject line</label>
+        <input class="agb-inline" data-field="subject" placeholder="Thanks for calling {business_name}" value="${escapeHtml(box.data.subject || '')}"/>
+        <div class="agb-cal-status ${linked ? 'is-linked' : ''}" style="margin-top:6px">${linked ? '✓ Follow-ups will be sent' : 'Email caller a summary after the call'}</div>`;
+    } else if (box.kind === "points") {
+      const pts = Array.isArray(box.data.points) ? box.data.points : (box.data.points ? [box.data.points] : []);
       body = `
-        <label class="agb-flabel">Talking points</label>
-        <textarea class="agb-inline agb-textarea" data-field="content" placeholder="Hours, services, prices, FAQs…">${escapeHtml(box.data.content || '')}</textarea>`;
+        <label class="agb-flabel">Title / topic</label>
+        <input class="agb-inline" data-field="title" placeholder="e.g. Pricing FAQ" value="${escapeHtml(box.data.title || '')}"/>
+        <label class="agb-flabel" style="margin-top:6px">Key talking points</label>
+        <textarea class="agb-inline agb-textarea" data-field="content" placeholder="• We're open Mon–Sat 9am–6pm&#10;• Free estimates on all jobs&#10;• 10% off for first-time clients">${escapeHtml(box.data.content || '')}</textarea>`;
     } else if (box.kind === "upload") {
       const files = Array.isArray(box.data.files) ? box.data.files : [];
       body = `
-        <label class="agb-upload-label">
-          <input type="file" class="agb-upload-input" data-field="files" multiple/>
+        <label class="agb-flabel">Paste text or URL</label>
+        <input class="agb-inline" data-field="url" placeholder="https://yourbiz.com/menu" value="${escapeHtml(box.data.url || '')}"/>
+        <label class="agb-flabel" style="margin-top:6px">Or type knowledge directly</label>
+        <textarea class="agb-inline agb-textarea" data-field="text" placeholder="Paste menu, FAQ, intake form text…">${escapeHtml(box.data.text || '')}</textarea>
+        <label class="agb-upload-label" style="margin-top:6px">
+          <input type="file" class="agb-upload-input" data-field="files" multiple accept=".pdf,.doc,.docx,.txt"/>
           <span class="agb-upload-ic">${brandSvg("upload")}</span>
-          <span>${files.length ? `${files.length} file(s) attached` : 'Click or drop files'}</span>
+          <span>${files.length ? `${files.length} file(s) attached` : 'Upload PDF / DOC / TXT'}</span>
         </label>`;
     }
     return `
@@ -2851,6 +2885,21 @@ function initBuilderCanvas(stage, layout) {
         ev.preventDefault();
         el.classList.add("is-dragging");
         state.dragBox = { id, ox: box.x, oy: box.y, mx: ev.clientX, my: ev.clientY };
+      });
+      // Language chip toggles for agentinfo card
+      el.querySelectorAll(".agb-lang-chip").forEach(chip => {
+        chip.addEventListener("mousedown", (ev) => ev.stopPropagation());
+        chip.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          const lang = chip.dataset.lang;
+          if (!Array.isArray(box.data.languages)) box.data.languages = ["English (US)"];
+          if (box.data.languages.includes(lang)) {
+            box.data.languages = box.data.languages.filter(l => l !== lang);
+          } else {
+            box.data.languages = [...box.data.languages, lang];
+          }
+          chip.classList.toggle("sel", box.data.languages.includes(lang));
+        });
       });
       // Field bindings
       el.querySelectorAll("[data-field]").forEach(inp => {
@@ -3425,6 +3474,113 @@ route("settings", async () => {
   return wrap;
 });
 
+route("preview", async () => {
+  const wrap = shell("preview", "Preview", "Hear your AI agent speak before going live.");
+  const page = $("#page", wrap);
+
+  let agents = [];
+  try {
+    const r = await api("/agents/list");
+    agents = r.agents || [];
+  } catch (_) {}
+
+  const firstAgent = agents[0] || null;
+
+  page.innerHTML = `
+    <div class="prev-page">
+      <div class="prev-stage">
+        <div class="prev-wave-wrap">
+          <canvas class="prev-wave-canvas" data-preview-canvas width="600" height="120"></canvas>
+        </div>
+        <div class="prev-agent-badge" id="prev-agent-badge">
+          <div class="prev-agent-orb">OC</div>
+          <div>
+            <div class="prev-agent-name" id="prev-agent-name">${escapeHtml(firstAgent ? firstAgent.name : "No agent")}</div>
+            <div class="prev-agent-role" id="prev-agent-role">Voice AI Receptionist</div>
+          </div>
+        </div>
+        <button class="prev-play-btn" data-preview-play>
+          <i data-lucide="play" class="icon prev-play-icon" id="prev-play-icon"></i>
+          <span id="prev-play-lbl" data-preview-lbl>Play sample</span>
+        </button>
+      </div>
+
+      <div class="prev-controls">
+        ${agents.length > 1 ? `
+        <div class="prev-ctrl-group">
+          <div class="prev-ctrl-label">Agent</div>
+          <div class="prev-ctrl-row">
+            ${agents.map((a, i) => `
+              <button class="prev-chip ${i === 0 ? 'sel' : ''}" data-agent-i="${i}">${escapeHtml(a.name)}</button>
+            `).join("")}
+          </div>
+        </div>` : ""}
+
+        <div class="prev-ctrl-group">
+          <div class="prev-ctrl-label">Voice</div>
+          <div class="prev-ctrl-row">
+            ${PREVIEW_VOICES.map((v, i) => `
+              <button class="prev-chip ${i === 0 ? 'sel' : ''}" data-pvid="${v.id}">
+                ${escapeHtml(v.label)}
+                <span class="prev-chip-sub">${escapeHtml(v.sub)}</span>
+              </button>
+            `).join("")}
+          </div>
+        </div>
+
+        <div class="prev-ctrl-group">
+          <div class="prev-ctrl-label">Language <span class="prev-lang-count">(${PREVIEW_LANGS.length})</span></div>
+          <div class="prev-ctrl-row prev-lang-row">
+            ${PREVIEW_LANGS.map((l, i) => `
+              <button class="prev-chip ${i === 0 ? 'sel' : ''}" data-plang="${escapeHtml(l)}">${escapeHtml(l)}</button>
+            `).join("")}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  renderIcons(page);
+
+  let selVoice = PREVIEW_VOICES[0];
+  let selLang  = PREVIEW_LANGS[0];
+  let selAgent = firstAgent;
+
+  // Agent picker
+  $$("[data-agent-i]", page).forEach(b => {
+    b.addEventListener("click", () => {
+      $$("[data-agent-i]", page).forEach(x => x.classList.remove("sel"));
+      b.classList.add("sel");
+      selAgent = agents[+b.dataset.agentI];
+      const nameEl = $("#prev-agent-name", page);
+      if (nameEl) nameEl.textContent = selAgent ? selAgent.name : "—";
+    });
+  });
+
+  // Voice picker
+  $$("[data-pvid]", page).forEach(b => {
+    b.addEventListener("click", () => {
+      $$("[data-pvid]", page).forEach(x => x.classList.remove("sel"));
+      b.classList.add("sel");
+      selVoice = PREVIEW_VOICES.find(v => v.id === b.dataset.pvid) || PREVIEW_VOICES[0];
+    });
+  });
+
+  // Language picker
+  $$("[data-plang]", page).forEach(b => {
+    b.addEventListener("click", () => {
+      $$("[data-plang]", page).forEach(x => x.classList.remove("sel"));
+      b.classList.add("sel");
+      selLang = b.dataset.plang;
+    });
+  });
+
+  // Waveform + TTS playback
+  const stageEl = page.querySelector(".prev-stage");
+  mountVoicePreview(stageEl, selLang);
+
+  return wrap;
+});
+
 route("billing", async () => {
   const wrap = shell("billing", "Billing", "Pick a plan that fits how busy your phone gets.");
   const page = $("#page", wrap);
@@ -3989,6 +4145,7 @@ async function render() {
   else if (r.parts[0] === "agents" && r.parts[2] === "edit") { view = await routes.agentEdit(r.parts[1]); }
   else if (r.parts[0] === "agents" && r.parts[2] === "setup") { view = await routes.agentSetup(r.parts[1]); }
   else if (r.parts[0] === "agents" && r.parts[2] === "flow") { view = await routes.agentFlow(r.parts[1]); }
+  else if (r.path === "/preview") { view = await routes.preview(); }
   else if (r.path === "/settings") { view = await routes.settings(); }
   else if (r.path === "/billing") { view = await routes.billing(); }
   else if (r.path === "/billing-success") { view = await routes.billingSuccess(); }

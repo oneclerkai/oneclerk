@@ -7,15 +7,21 @@ from typing import Any
 from app.config import settings
 from app.services.redis_client import safe_get, safe_setex
 
+import os
+
 try:
     from openai import AsyncOpenAI
 except ImportError:  # pragma: no cover
     AsyncOpenAI = None  # type: ignore[assignment]
 
+# Use Replit AI Integrations (no personal API key required) if available,
+# otherwise fall back to the user-supplied OPENAI_API_KEY.
+_ai_base_url = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
+_ai_key = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY") or settings.OPENAI_API_KEY
 
 client = (
-    AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-    if AsyncOpenAI is not None and settings.OPENAI_API_KEY
+    AsyncOpenAI(api_key=_ai_key, base_url=_ai_base_url or None)
+    if AsyncOpenAI is not None and _ai_key
     else None
 )
 
