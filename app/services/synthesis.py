@@ -167,6 +167,65 @@ async def synthesize(
     return audio_url
 
 
+async def synthesize_with_metadata(
+    text: str,
+    language: str = "english",
+    gender: str = "female",
+    voice_id: str | None = None,
+) -> dict:
+    """Synthesize *text* and return a dict with the audio URL plus metadata.
+
+    The metadata (duration_seconds, format, sample_rate) lets the frontend
+    display audio duration before playback starts.
+
+    Returns::
+
+        {
+            "audio_url": "https://…/api/audio/abc123.wav",
+            "text": "Hello…",
+            "duration_seconds": 3.2,
+            "format": "wav",
+            "sample_rate": 8000,
+            "voice_id": "21m00Tcm4TlvDq8ikWAM",
+        }
+    """
+    if client is None or VoiceSettings is None:
+        return {}
+
+    selected_voice = voice_id or VOICE_MAP.get(language.lower(), {}).get(
+        gender, settings.VOICE_EN_FEMALE
+    )
+
+    mp3_bytes = await _fetch_elevenlabs(text, selected_voice)
+    if not mp3_bytes:
+        return {}
+
+    audio_bytes = _mp3_to_ulaw(mp3_bytes)
+    ext = _audio_extension()
+    audio_url = await _save_audio(audio_bytes, ext)
+
+    # Estimate duration from byte count (8 kHz µ-law = 8 000 bytes/sec)
+    duration_seconds: float
+    if _PYDUB_AVAILABLE and ext == "wav":
+        try:
+            seg = AudioSegment.from_file(io.BytesIO(audio_bytes), format="wav")
+            duration_seconds = len(seg) / 1000.0
+        except Exception:
+            duration_seconds = len(audio_bytes) / 8000.0
+    else:
+        # MP3 fallback: rough estimate at 128 kbps
+        duration_seconds = len(audio_bytes) / 16000.0
+
+    return {
+        "audio_url": audio_url,
+        "text": text,
+        "duration_seconds": round(duration_seconds, 2),
+        "format": ext,
+        "sample_rate": 8000 if ext == "wav" else 44100,
+        "voice_id": selected_voice,
+    }
+
+
 async def synthesize_sentences(
     text: str,
     language: str = "english",

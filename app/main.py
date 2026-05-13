@@ -5,13 +5,14 @@ import logging
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.config import settings
 from app.database import init_models
-from app.routes import agents, auth, billing, calls, dashboard, webhooks
+from app.routes import agents, auth, billing, calls, dashboard, integrations, webhooks
 from app.startup_check import check_all_services
 from app.services.redis_client import ping_redis
 from app.services.synthesis import cleanup_audio_files
@@ -63,6 +64,10 @@ app = FastAPI(
 )
 
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["*.railway.app", "*.oneclerk.ai", "localhost", "127.0.0.1", "*"],
+)
 
 allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
 if settings.FRONTEND_URL:
@@ -81,6 +86,7 @@ app.include_router(agents.router, prefix="/api")
 app.include_router(calls.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(billing.router, prefix="/api")
+app.include_router(integrations.router, prefix="/api")
 
 _STATIC_DIR = Path(__file__).parent / "static"
 _HAS_STATIC = _STATIC_DIR.exists()

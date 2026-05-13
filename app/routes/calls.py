@@ -33,6 +33,7 @@ async def serve_audio_legacy(filename: str) -> FileResponse:
     )
 
 
+@router.get("/list")
 @router.get("/recent")
 async def recent_calls(
     current_user: User = Depends(get_current_user),
