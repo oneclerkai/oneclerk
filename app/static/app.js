@@ -578,15 +578,15 @@ route("auth", async () => {
           <div class="lp-cta-mega-row">
             <div class="lp-cta-with-icons">
               <div class="lp-cta-side-icons">
-                <div class="lp-cta-note" data-ni="0">
-                  <div class="lp-cta-note-tape"></div>
-                  <div class="lp-cta-note-num">01</div>
-                  <div class="lp-cta-note-title">Picks up 24/7</div>
+                <div class="lp-glass-icon-card" data-brand="whatsapp">
+                  <div class="lp-gic-shine"></div>
+                  <div class="lp-gic-icon">${brandSvg("whatsapp")}</div>
+                  <div class="lp-gic-label">WhatsApp</div>
                 </div>
-                <div class="lp-cta-note" data-ni="1">
-                  <div class="lp-cta-note-tape"></div>
-                  <div class="lp-cta-note-num">02</div>
-                  <div class="lp-cta-note-title">Books appts</div>
+                <div class="lp-glass-icon-card" data-brand="gmail">
+                  <div class="lp-gic-shine"></div>
+                  <div class="lp-gic-icon">${brandSvg("gmail")}</div>
+                  <div class="lp-gic-label">Gmail</div>
                 </div>
               </div>
               <div class="lp-cta-row">
@@ -596,15 +596,15 @@ route("auth", async () => {
                 <button class="lp-cta-secondary" data-scroll="lp-try">Hear it talk →</button>
               </div>
               <div class="lp-cta-side-icons">
-                <div class="lp-cta-note" data-ni="2">
-                  <div class="lp-cta-note-tape"></div>
-                  <div class="lp-cta-note-num">03</div>
-                  <div class="lp-cta-note-title">30+ languages</div>
+                <div class="lp-glass-icon-card" data-brand="gcal">
+                  <div class="lp-gic-shine"></div>
+                  <div class="lp-gic-icon">${brandSvg("gcal")}</div>
+                  <div class="lp-gic-label">Calendar</div>
                 </div>
-                <div class="lp-cta-note" data-ni="3">
-                  <div class="lp-cta-note-tape"></div>
-                  <div class="lp-cta-note-num">04</div>
-                  <div class="lp-cta-note-title">WhatsApp recap</div>
+                <div class="lp-glass-icon-card lp-gic-ringing" data-brand="phone">
+                  <div class="lp-gic-shine"></div>
+                  <div class="lp-gic-icon">${brandSvg("phone")}</div>
+                  <div class="lp-gic-label">Calling…</div>
                 </div>
               </div>
             </div>
