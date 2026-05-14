@@ -113,23 +113,23 @@ const SUBTITLES = [
 // Each arrow uses a different artistic style (loop, zigzag, double-curl, hook).
 const HERO_NOTES = [
   {
-    title: "Picks up every single call — even at 3am",
-    body: "Two-second answer, day or night, holidays, lunch breaks, when you're driving. The line never goes to voicemail again. Most owners say this alone pays for the plan in week one.",
+    title: "Drag-and-drop setup. Live in minutes.",
+    body: "Build your autonomous agent visually — no code. Drop integrations, set your tone, hit go. Most agents are on real calls within the hour.",
     arrowStyle: "loop",
   },
   {
-    title: "Books appointments straight into your calendar",
-    body: "Reads your real availability from Google Calendar, Calendly or Square, offers slots in natural conversation, then writes the booking back. No double-booking. No spreadsheets. No staff time.",
+    title: "Books appointments automatically",
+    body: "Reads your live calendar, offers real slots, confirms the booking mid-call. Zero double-booking, zero back-and-forth.",
     arrowStyle: "zigzag",
   },
   {
-    title: "Speaks 30+ languages with a real human voice",
-    body: "Switches tongue mid-call when a Spanish or Hindi caller picks up. Voice clones your front-desk in 30 seconds — patients honestly cannot tell it isn't a person.",
+    title: "Speaks 30+ languages fluently",
+    body: "Detects the caller's language and switches instantly. Sounds human — not robotic. Can even mimic your front-desk voice.",
     arrowStyle: "doublecurl",
   },
   {
-    title: "Texts you a clean WhatsApp summary after every call",
-    body: "Caller name, what they wanted, what was promised, urgency flag, and a one-tap link to the full transcript and recording. Owner gets the recap before the customer's car leaves the lot.",
+    title: "WhatsApp recap after every call",
+    body: "Caller name, request, urgency flag, full transcript link — sent to your phone before you even notice the call ended.",
     arrowStyle: "hook",
   },
 ];
