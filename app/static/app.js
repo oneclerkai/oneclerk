@@ -1176,7 +1176,16 @@ function openAuthModal(initialMode = "login") {
           </div>
           <div>
             <label class="label">Password</label>
-            <input id="m-password" type="password" class="field" placeholder="At least 6 characters" minlength="6" autocomplete="current-password" required/>
+            <input id="m-password" type="password" class="field" placeholder="At least 8 characters" minlength="6" autocomplete="current-password" required/>
+            <div id="m-pw-meter" class="${mode==='signup'?'':'hidden'}" style="margin-top:6px">
+              <div class="pw-meter-bars">
+                <div class="pw-bar" id="pw-b0"></div>
+                <div class="pw-bar" id="pw-b1"></div>
+                <div class="pw-bar" id="pw-b2"></div>
+                <div class="pw-bar" id="pw-b3"></div>
+              </div>
+              <div class="pw-meter-label" id="pw-label">Enter a password</div>
+            </div>
           </div>
           <button class="btn btn-primary btn-lg mt-2" id="m-submit" type="submit">
             <i data-lucide="arrow-right" class="icon"></i><span>${mode==='signup'?'Create account':'Continue'}</span>
@@ -1252,6 +1261,9 @@ function openAuthModal(initialMode = "login") {
     $("#m-sub", modal).textContent = isSignup
       ? "Set up your AI receptionist in under twelve minutes."
       : "Sign in to manage your agents and calls.";
+    // Toggle password strength meter visibility
+    const pwMeter = $("#m-pw-meter", modal);
+    if (pwMeter) pwMeter.classList.toggle("hidden", !isSignup);
   };
   $$("#m-tabs button", modal).forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
 
@@ -1297,12 +1309,47 @@ function openAuthModal(initialMode = "login") {
     }
   });
 
+  // Password strength meter
+  (function initPwMeter() {
+    const pwInput  = $("#m-password", modal);
+    const meterWrap = $("#m-pw-meter", modal);
+    if (!pwInput || !meterWrap) return;
+    const bars  = [0,1,2,3].map(i => $(`#pw-b${i}`, modal));
+    const label = $("#pw-label", modal);
+    const WEAK_COLORS   = ["#ef4444","#ef4444","#d1d5db","#d1d5db"];
+    const MED_COLORS    = ["#f97316","#f97316","#f97316","#d1d5db"];
+    const STRONG_COLORS = ["#22c55e","#22c55e","#22c55e","#22c55e"];
+    function score(v) {
+      let s = 0;
+      if (v.length >= 8)              s++;
+      if (/[A-Z]/.test(v))            s++;
+      if (/[0-9]/.test(v))            s++;
+      if (/[^A-Za-z0-9]/.test(v))    s++;
+      return s;
+    }
+    function updateMeter(v) {
+      if (!v) { bars.forEach(b => b.style.background="#d1d5db"); label.textContent="Enter a password"; label.style.color=""; return; }
+      const s = score(v);
+      let colors, text, color;
+      if (s <= 1)      { colors=WEAK_COLORS;   text="Weak — add uppercase, numbers & symbols"; color="#ef4444"; }
+      else if (s === 2){ colors=MED_COLORS;    text="Fair — getting better!"; color="#f97316"; }
+      else if (s === 3){ colors=STRONG_COLORS; text="Good password"; color="#22c55e"; }
+      else             { colors=STRONG_COLORS; text="Strong password ✓"; color="#22c55e"; }
+      bars.forEach((b,i) => b.style.background = colors[i]);
+      label.textContent = text; label.style.color = color;
+    }
+    pwInput.addEventListener("input", () => {
+      if (mode === "signup") updateMeter(pwInput.value);
+    });
+    // Store score check for submit
+    modal._pwScore = () => (mode === "signup" ? score(pwInput.value) : 99);
+  })();
+
   // Validate all visible fields before submit — show red border on empty ones
   $("#m-form", modal).addEventListener("submit", (e) => {
     let blocked = false;
     const fields = modal.querySelectorAll(".field");
     fields.forEach(f => {
-      // Only validate fields that are currently visible (not in hidden rows)
       const row = f.closest('[id$="-row"]');
       const isHidden = row && row.classList.contains("hidden");
       if (!isHidden && f.offsetParent !== null && !f.value.trim()) {
@@ -1313,8 +1360,26 @@ function openAuthModal(initialMode = "login") {
       }
       f.addEventListener("input", () => f.classList.remove("field-error"), { once: true });
     });
+    // Block weak passwords on signup
+    if (mode === "signup" && modal._pwScore && modal._pwScore() <= 1) {
+      const pwField = $("#m-password", modal);
+      if (pwField) pwField.classList.add("field-error");
+      const label = $("#pw-label", modal);
+      if (label) { label.textContent = "Password is too weak — please strengthen it"; label.style.color = "#ef4444"; }
+      blocked = true;
+    }
     if (blocked) e.stopImmediatePropagation();
   }, true);
+
+  // Also toggle meter visibility when switching modes
+  const _origSetMode = window.__authSetMode;
+  const meterEl = $("#m-pw-meter", modal);
+  if (meterEl) {
+    const origSetMode = typeof setMode === "function" ? setMode : null;
+    modal._toggleMeter = (m) => {
+      if (meterEl) meterEl.classList.toggle("hidden", m !== "signup");
+    };
+  }
 
   setTimeout(() => $("#m-email", modal).focus(), 50);
 }
@@ -1759,28 +1824,52 @@ route("dashboard", async () => {
     window.addEventListener("resize", resize);
 
     function drawWave() {
-      t += 0.035 * (0.7 + currentPitch * 0.3);
-      level += ((speaking ? 0.88 : 0.08) - level) * 0.06;
+      t += 0.038 * (0.7 + currentPitch * 0.3);
+      level += ((speaking ? 0.92 : 0.10) - level) * 0.07;
       const w = canvas.width, h = canvas.height;
       if (!w || !h) { raf = requestAnimationFrame(drawWave); return; }
-      ctx.clearRect(0, 0, w, h);
-      const bars = 48;
-      const bw = w / bars;
+      /* black stage */
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, w, h);
+      const bars = 28;
+      const gap = w * 0.012;
+      const totalGap = gap * (bars - 1);
+      const bww = (w - totalGap) / bars;
+      const COLORS = [
+        [255,220,50],   // bright yellow
+        [255,200,30],
+        [255,175,40],
+        [255,145,30],   // amber
+        [255,115,20],   // orange
+        [255,85,15],
+        [240,60,20],    // orange-red
+        [200,60,100],
+        [160,60,180],   // purple-indigo
+        [99,102,241],   // indigo
+      ];
       for (let i = 0; i < bars; i++) {
-        const phase = i * 0.4 + t;
-        const amp = Math.sin(phase) * 0.35 + Math.sin(phase * 1.7) * 0.35 + Math.sin(phase * 0.6) * 0.3;
+        const phase = i * 0.48 + t;
+        const amp = Math.sin(phase)*0.40 + Math.sin(phase*1.9)*0.32 + Math.sin(phase*0.55)*0.28;
         const a = Math.abs(amp) * level;
-        const bh = Math.max(3 * devicePixelRatio, a * h * 0.88);
-        const x = i * bw + bw * 0.2;
+        const bh = Math.max(4 * devicePixelRatio, a * h * 0.96);
+        const x = i * (bww + gap);
         const y = (h - bh) / 2;
-        const bww = bw * 0.6;
-        // gradient per bar based on position
-        const ratio = i / bars;
-        const r = Math.round(255 - ratio * 156);
-        const g = Math.round(138 + ratio * (-36));
-        const b2 = Math.round(61 + ratio * 180);
-        ctx.fillStyle = `rgba(${r},${g},${b2},0.88)`;
-        ctx.fillRect(x, y, bww, bh);
+        const ratio = i / (bars - 1);
+        const ci = ratio * (COLORS.length - 1);
+        const lo = Math.floor(ci), hi = Math.min(lo + 1, COLORS.length - 1);
+        const frac = ci - lo;
+        const rc = Math.round(COLORS[lo][0] + (COLORS[hi][0]-COLORS[lo][0])*frac);
+        const gc = Math.round(COLORS[lo][1] + (COLORS[hi][1]-COLORS[lo][1])*frac);
+        const bc = Math.round(COLORS[lo][2] + (COLORS[hi][2]-COLORS[lo][2])*frac);
+        const grd = ctx.createLinearGradient(0, y, 0, y+bh);
+        grd.addColorStop(0,   `rgba(${rc},${gc},${bc},0.55)`);
+        grd.addColorStop(0.5, `rgba(${rc},${gc},${bc},1.00)`);
+        grd.addColorStop(1,   `rgba(${rc},${gc},${bc},0.55)`);
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        const r = Math.min(bww * 0.38, 5 * devicePixelRatio);
+        ctx.roundRect(x, y, bww, bh, r);
+        ctx.fill();
       }
       raf = requestAnimationFrame(drawWave);
     }
@@ -3697,11 +3786,6 @@ route("preview", async () => {
       <!-- RIGHT: Demo-style voice agent stage -->
       <div class="pv2-stage" id="pv-stage">
         <div class="pv2-stage-content">
-
-          <div class="pv2-demo-avatar">
-            <div class="pv2-demo-avatar-ring"></div>
-            <div class="pv2-demo-avatar-dot"></div>
-          </div>
 
           <div class="pv2-agent-label">
             <div class="pv2-agt-name" id="pv-agt-name">${escapeHtml(firstAgent.name)}</div>
