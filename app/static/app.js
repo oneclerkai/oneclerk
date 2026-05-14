@@ -2327,14 +2327,15 @@ function agbDefaultLayout(agent) {
 route("agents", async () => {
   const action = h(`<button class="btn btn-primary"><i data-lucide="plus" class="icon"></i>New agent</button>`);
   action.addEventListener("click", () => navigate("#/agents/new"));
-  const wrap = shell("agents", "Agents", "Drag, drop, connect. Your AI receptionist exactly how you want it.", action);
+  const wrap = shell("agents", "Agents", "Your AI receptionists — build, activate, and manage.", action);
   const page = $("#page", wrap);
-  page.innerHTML = `<div class="agb-loading">${skeleton(4)}</div>`;
+  page.innerHTML = `<div class="ag-loading">${skeleton(4)}</div>`;
 
-  let agents = [];
+  let agents = [], calls = [];
   try {
-    const r = await api("/agents/list");
-    agents = r.agents || [];
+    const [ar, cr] = await Promise.all([api("/agents/list"), api("/calls/recent")]);
+    agents = ar.agents || [];
+    calls  = cr.calls  || [];
   } catch (e) {
     page.innerHTML = `<div class="card p-6 text-danger">${escapeHtml(e.message)}</div>`;
     return wrap;
@@ -2342,14 +2343,17 @@ route("agents", async () => {
 
   if (!agents.length) {
     page.innerHTML = `
-      <div class="agb-empty">
-        <div class="agb-empty-card">
-          <i data-lucide="bot" class="icon agb-empty-icon"></i>
-          <h2>No agents yet</h2>
-          <p>Spin up your first AI receptionist. Takes about ten minutes from start to first call.</p>
+      <div class="ag-empty">
+        <div class="ag-empty-inner">
+          <div class="ag-empty-orb">OC</div>
+          <h2 class="ag-empty-h">No agents yet</h2>
+          <p class="ag-empty-p">Spin up your first AI receptionist in minutes — it'll answer every call, book appointments, and send you a WhatsApp summary.</p>
           <button class="btn btn-primary btn-lg" id="c1">
             <i data-lucide="sparkles" class="icon"></i>Create your first agent
           </button>
+          <div class="ag-empty-chips">
+            ${["Phone answering","Booking","WhatsApp summaries","30+ languages"].map(f=>`<span class="ag-empty-chip">${f}</span>`).join("")}
+          </div>
         </div>
       </div>`;
     renderIcons(page);
@@ -2357,195 +2361,120 @@ route("agents", async () => {
     return wrap;
   }
 
-  // --- Page layout: history sidebar on left, builder canvas on right ---
+  // --- Stats row + card grid ---
+  const liveCount = agents.filter(a => a.is_active).length;
+  const urgentCalls = calls.filter(c => c.is_urgent).length;
+
   page.innerHTML = `
-    <div class="agb-layout">
-      <aside class="agb-history-sidebar">
-        <div class="agb-history-head">
-          <i data-lucide="bot" class="icon" style="width:14px;height:14px"></i>
-          Agents
-        </div>
-        ${agents.map((a, i) => `
-          <button class="agb-history-item ${i === 0 ? 'active' : ''}" data-i="${i}">
-            <span class="dot ${a.is_active ? 'dot-success' : 'dot-muted'}" style="flex-shrink:0"></span>
-            <span class="agb-history-name">${escapeHtml(a.name)}</span>
-            ${a.is_active ? '<span class="agb-history-live">Live</span>' : ''}
-          </button>`).join("")}
-        <button class="agb-history-new" id="agb-new">
-          <i data-lucide="plus" class="icon" style="width:14px;height:14px"></i>New agent
-        </button>
-      </aside>
-      <div class="agb-stage" id="agb-stage"></div>
-    </div>
-  `;
-  renderIcons(page);
-  $("#agb-new", page).addEventListener("click", () => navigate("#/agents/new"));
-
-  let activeIdx = 0;
-
-  function renderStage() {
-    const a = agents[activeIdx];
-    const layout = (a.config && a.config.builder_layout) || agbDefaultLayout(a);
-
-    const stage = $("#agb-stage", page);
-    stage.innerHTML = `
-      <div class="agb-toolbar agb-toolbar-clean">
-        <div class="agb-toolbar-left">
-          <span class="badge ${a.is_active ? 'badge-success' : 'badge-muted'}">${a.is_active ? 'Live' : 'Paused'}</span>
-          <span class="agb-meta">${escapeHtml(a.name)}</span>
-        </div>
-        <div class="agb-toolbar-right">
-          <button class="btn btn-sm" id="agb-toggle">${a.is_active ? 'Pause' : 'Activate'}</button>
-          <button class="btn btn-sm btn-danger" id="agb-del" title="Delete agent"><i data-lucide="trash-2" class="icon"></i></button>
-          <button class="btn btn-primary btn-sm" id="agb-save"><i data-lucide="save" class="icon"></i>Save</button>
-        </div>
+    <div class="ag-stats-row">
+      <div class="ag-stat">
+        <div class="ag-stat-ic ag-stat-ic-indigo"><i data-lucide="bot" class="icon"></i></div>
+        <div><div class="ag-stat-val">${agents.length}</div><div class="ag-stat-lbl">Agents</div></div>
       </div>
+      <div class="ag-stat">
+        <div class="ag-stat-ic ag-stat-ic-green"><i data-lucide="radio" class="icon"></i></div>
+        <div><div class="ag-stat-val">${liveCount}</div><div class="ag-stat-lbl">Live</div></div>
+      </div>
+      <div class="ag-stat">
+        <div class="ag-stat-ic ag-stat-ic-amber"><i data-lucide="phone-call" class="icon"></i></div>
+        <div><div class="ag-stat-val">${calls.length}</div><div class="ag-stat-lbl">Recent calls</div></div>
+      </div>
+      ${urgentCalls > 0 ? `
+      <div class="ag-stat">
+        <div class="ag-stat-ic ag-stat-ic-red"><i data-lucide="alert-triangle" class="icon"></i></div>
+        <div><div class="ag-stat-val">${urgentCalls}</div><div class="ag-stat-lbl">Urgent</div></div>
+      </div>` : ""}
+    </div>
+    <div class="ag-grid" id="ag-grid"></div>`;
+  renderIcons(page);
 
-      <div class="agb-builder agb-builder-clean">
-        <div class="agb-canvas-wrap" id="agb-canvas-wrap">
-          <div class="agb-canvas" id="agb-canvas">
-            <svg class="agb-svg" id="agb-svg"></svg>
+  const grid = $("#ag-grid", page);
+  grid.innerHTML = agents.map((a) => {
+    const cfg = a.config || {};
+    const callCount = calls.filter(c => c.agent_id === a.id).length;
+    const biz = cfg.business_name || cfg.business_type || "";
+    const phone = a.twilio_number || "";
+    const lang  = cfg.language || a.language || "English";
+    const voice = a.voice_id || "Default";
+    const colorIdx = a.id ? a.id.charCodeAt(0) % 6 : 0;
+    const COLORS = ["#6366f1","#10b981","#f59e0b","#3b82f6","#ec4899","#8b5cf6"];
+    const col = COLORS[colorIdx];
+    return `
+      <div class="ag-card">
+        <div class="ag-card-header">
+          <div class="ag-card-av" style="background:${col}22;border:1.5px solid ${col}44">
+            <span class="ag-card-av-text" style="color:${col}">OC</span>
+            ${a.is_active ? `<span class="ag-card-av-dot"></span>` : ""}
           </div>
+          <div class="ag-card-id">
+            <div class="ag-card-name">${escapeHtml(a.name)}</div>
+            ${biz ? `<div class="ag-card-biz">${escapeHtml(biz)}</div>` : ""}
+          </div>
+          <span class="ag-card-status ${a.is_active ? "ag-status-live" : "ag-status-paused"}">
+            ${a.is_active ? "Live" : "Paused"}
+          </span>
+        </div>
 
-          <!-- OneClerk glassmorphic orb + "+" integration menu -->
-          <div class="agb-orb-wrap" id="agb-orb-wrap">
-            <div class="agb-orb" title="OneClerk agent">
-              <div class="agb-orb-glass"></div>
-              <div class="agb-orb-mark">OC</div>
-              <div class="agb-orb-ring"></div>
-            </div>
-            <button class="agb-orb-plus" id="agb-orb-plus" title="Add">
-              <i data-lucide="plus" class="icon"></i>
-            </button>
-            <div class="agb-orb-menu agb-orb-menu-mini" id="agb-orb-menu" hidden>
-              ${AGB_BOX_DEFS.map(d => `
-                <button class="agb-orb-menu-item agb-orb-menu-item-mini" data-add-kind="${d.kind}" style="--ax:${d.accent}" title="${escapeHtml(d.label)}">
-                  <span class="agb-orb-menu-ic agb-orb-menu-ic-brand">${brandSvg(d.brand)}</span>
-                  <span class="agb-orb-menu-label">${d.label}</span>
-                </button>
-              `).join("")}
-            </div>
+        <div class="ag-card-meta">
+          ${phone ? `<div class="ag-meta-row"><i data-lucide="phone" class="icon"></i><span>${escapeHtml(phone)}</span></div>` : `<div class="ag-meta-row ag-meta-dim"><i data-lucide="phone-missed" class="icon"></i><span>No number linked</span></div>`}
+          <div class="ag-meta-row"><i data-lucide="globe" class="icon"></i><span>${escapeHtml(lang)}</span></div>
+          <div class="ag-meta-row"><i data-lucide="mic" class="icon"></i><span>${escapeHtml(voice)}</span></div>
+        </div>
+
+        <div class="ag-card-calls-bar">
+          <div class="ag-calls-count">
+            <span class="ag-calls-num">${callCount}</span>
+            <span class="ag-calls-lbl">call${callCount !== 1 ? "s" : ""} handled</span>
           </div>
+          <div class="ag-calls-mini-dots">
+            ${Array.from({length: Math.min(callCount, 10)}, () => `<span class="ag-call-dot"></span>`).join("")}
+          </div>
+        </div>
+
+        <div class="ag-card-actions">
+          <button class="ag-btn ag-btn-primary" data-act="flow" data-id="${a.id}">
+            <i data-lucide="git-branch" class="icon"></i>Flow builder
+          </button>
+          <button class="ag-btn ag-btn-ghost" data-act="edit" data-id="${a.id}">
+            <i data-lucide="settings-2" class="icon"></i>Settings
+          </button>
+          <button class="ag-btn ${a.is_active ? "ag-btn-warn" : "ag-btn-success"}" data-act="toggle" data-id="${a.id}" data-active="${a.is_active}">
+            <i data-lucide="${a.is_active ? "pause" : "play"}" class="icon"></i>${a.is_active ? "Pause" : "Activate"}
+          </button>
+          <button class="ag-btn ag-btn-del" data-act="del" data-id="${a.id}" data-name="${escapeHtml(a.name)}" title="Delete">
+            <i data-lucide="trash-2" class="icon"></i>
+          </button>
         </div>
       </div>`;
-    renderIcons(stage);
+  }).join("");
 
-    // OneClerk orb "+" toggle + add-from-menu actions.
-    const orbPlus = $("#agb-orb-plus", stage);
-    const orbMenu = $("#agb-orb-menu", stage);
-    orbPlus && orbPlus.addEventListener("click", (ev) => {
+  renderIcons(grid);
+
+  grid.querySelectorAll("[data-act]").forEach(btn => {
+    btn.addEventListener("click", async ev => {
       ev.stopPropagation();
-      ev.preventDefault();
-      orbMenu.hidden = !orbMenu.hidden;
-      orbPlus.classList.toggle("is-open", !orbMenu.hidden);
-    });
-    document.addEventListener("click", function hideMenu(ev) {
-      if (!orbMenu) return;
-      if (orbMenu.hidden) return;
-      // Use closest() so clicking the inner SVG of the plus button still counts as the plus
-      if (orbMenu.contains(ev.target)) return;
-      if (ev.target.closest && ev.target.closest("#agb-orb-plus")) return;
-      orbMenu.hidden = true;
-      if (orbPlus) orbPlus.classList.remove("is-open");
-    });
-    orbMenu && orbMenu.querySelectorAll("[data-add-kind]").forEach(b => b.addEventListener("click", () => {
-      const kind = b.dataset.addKind;
-      const wrapEl = $("#agb-canvas-wrap", stage);
-      const r = wrapEl.getBoundingClientRect();
-      const sx = wrapEl.scrollLeft, sy = wrapEl.scrollTop;
-      // Place the new box near the visible center of the canvas.
-      const x = sx + r.width / 2 - 110 + (Math.random() * 80 - 40);
-      const y = sy + r.height / 2 - 65 + (Math.random() * 80 - 40);
-      layout.boxes.push({ id: "b" + Math.random().toString(36).slice(2, 9), kind, x, y, data: {} });
-      orbMenu.hidden = true;
-      // Trigger redraw via event by re-mounting the builder
-      initBuilderCanvas(stage, layout);
-    }));
-
-    // Make the OC orb draggable within the canvas wrap
-    const orbWrap = $("#agb-orb-wrap", stage);
-    const canvasWrapEl = $("#agb-canvas-wrap", stage);
-    if (orbWrap && canvasWrapEl) {
-      const orbEl = orbWrap.querySelector(".agb-orb");
-      if (orbEl) {
-        let draggingOrb = false, orbStartX = 0, orbStartY = 0, orbOriginX = 0, orbOriginY = 0;
-        orbEl.style.cursor = "grab";
-        orbEl.addEventListener("mousedown", (ev) => {
-          if (ev.button !== 0) return;
-          ev.preventDefault(); ev.stopPropagation();
-          draggingOrb = true;
-          orbEl.style.cursor = "grabbing";
-          const wr = orbWrap.getBoundingClientRect();
-          const cr = canvasWrapEl.getBoundingClientRect();
-          orbStartX = ev.clientX;
-          orbStartY = ev.clientY;
-          orbOriginX = wr.left - cr.left + canvasWrapEl.scrollLeft;
-          orbOriginY = wr.top - cr.top + canvasWrapEl.scrollTop;
-        });
-        const orbMouseMove = (ev) => {
-          if (!draggingOrb) return;
-          orbWrap.style.transform = "none";
-          orbWrap.style.left = (orbOriginX + ev.clientX - orbStartX) + "px";
-          orbWrap.style.top  = (orbOriginY + ev.clientY - orbStartY) + "px";
-        };
-        const orbMouseUp = () => {
-          if (draggingOrb) { draggingOrb = false; orbEl.style.cursor = "grab"; }
-        };
-        document.addEventListener("mousemove", orbMouseMove);
-        document.addEventListener("mouseup", orbMouseUp);
+      const { act, id, name, active } = btn.dataset;
+      if (act === "flow")   navigate(`#/agents/${id}/flow`);
+      else if (act === "edit") navigate(`#/agents/${id}/edit`);
+      else if (act === "toggle") {
+        try {
+          const isActive = active === "true";
+          btn.disabled = true;
+          await api(`/agents/${id}/${isActive ? "deactivate" : "activate"}`, { method: "POST" });
+          toast(isActive ? "Agent paused" : "Agent is now live!", "success");
+          location.reload();
+        } catch (e) { toast(e.message, "error"); btn.disabled = false; }
+      } else if (act === "del") {
+        if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+        try {
+          await api(`/agents/${id}`, { method: "DELETE" });
+          toast("Agent deleted", "success");
+          location.reload();
+        } catch (e) { toast(e.message, "error"); }
       }
-    }
-
-    // Wire toolbar actions
-    $("#agb-toggle", stage).addEventListener("click", async () => {
-      try {
-        await api(`/agents/${a.id}/${a.is_active ? "deactivate" : "activate"}`, { method: "POST" });
-        toast(a.is_active ? "Agent paused" : "Agent is live", "success");
-        location.hash = "#/agents";
-        location.reload();
-      } catch (e) { toast(e.message, "error"); }
     });
-    $("#agb-del", stage).addEventListener("click", async () => {
-      if (!confirm(`Delete "${a.name}"? This cannot be undone.`)) return;
-      try {
-        await api(`/agents/${a.id}`, { method: "DELETE" });
-        toast("Agent deleted", "success");
-        location.reload();
-      } catch (e) { toast(e.message, "error"); }
-    });
-    $("#agb-save", stage).addEventListener("click", async () => {
-      try {
-        const newCfg = { ...(a.config || {}), builder_layout: layout };
-        await api(`/agents/${a.id}`, {
-          method: "PUT",
-          body: {
-            name: a.name,
-            twilio_number: a.twilio_number,
-            forwarding_number: a.forwarding_number,
-            voice_id: a.voice_id,
-            language: a.language,
-            config: newCfg,
-          },
-        });
-        a.config = newCfg;
-        toast("Layout saved", "success");
-      } catch (e) { toast(e.message, "error"); }
-    });
+  });
 
-    initBuilderCanvas(stage, layout);
-    // First-ever build? Show the friendly tutorial.
-    maybeShowBuilderTutorial(stage);
-  }
-
-  // Sidebar agent switching
-  $$("[data-i]", page).forEach(b => b.addEventListener("click", () => {
-    activeIdx = +b.dataset.i;
-    $$(".agb-history-item", page).forEach(t => t.classList.remove("active"));
-    b.classList.add("active");
-    renderStage();
-  }));
-
-  renderStage();
   return wrap;
 });
 
@@ -3494,58 +3423,91 @@ route("preview", async () => {
   } catch (_) {}
 
   const firstAgent = agents[0] || null;
+  const VOICE_ICONS = { maya: "😊", echo: "🎙️", nova: "✨", aria: "🌟", max: "💬", zara: "🎵" };
 
   page.innerHTML = `
-    <div class="prev-page">
-      <div class="prev-stage">
-        <div class="prev-wave-wrap">
-          <canvas class="prev-wave-canvas" data-preview-canvas width="600" height="120"></canvas>
-        </div>
-        <div class="prev-agent-badge" id="prev-agent-badge">
-          <div class="prev-agent-orb">OC</div>
-          <div>
-            <div class="prev-agent-name" id="prev-agent-name">${escapeHtml(firstAgent ? firstAgent.name : "No agent")}</div>
-            <div class="prev-agent-role" id="prev-agent-role">Voice AI Receptionist</div>
+    <div class="pv-shell">
+
+      <!-- LEFT: Controls panel -->
+      <div class="pv-controls">
+        <div class="pv-controls-inner">
+
+          ${agents.length > 0 ? `
+          <div class="pv-section">
+            <div class="pv-section-label"><i data-lucide="bot" class="icon"></i>Agent</div>
+            <div class="pv-agent-list">
+              ${agents.map((a, i) => `
+                <button class="pv-agent-btn ${i === 0 ? "sel" : ""}" data-agent-i="${i}">
+                  <div class="pv-agent-av">${escapeHtml((a.name||"?")[0].toUpperCase())}</div>
+                  <div class="pv-agent-info">
+                    <div class="pv-agent-name">${escapeHtml(a.name)}</div>
+                    <div class="pv-agent-sub">${a.is_active ? "● Live" : "○ Paused"}</div>
+                  </div>
+                  ${i === 0 ? `<i data-lucide="check" class="icon pv-check"></i>` : ""}
+                </button>`).join("")}
+            </div>
+          </div>` : ""}
+
+          <div class="pv-section">
+            <div class="pv-section-label"><i data-lucide="mic" class="icon"></i>Voice</div>
+            <div class="pv-voice-grid">
+              ${PREVIEW_VOICES.map((v, i) => `
+                <button class="pv-voice-card ${i === 0 ? "sel" : ""}" data-pvid="${v.id}">
+                  <div class="pv-voice-emoji">${VOICE_ICONS[v.id] || "🎙️"}</div>
+                  <div class="pv-voice-name">${escapeHtml(v.label)}</div>
+                  <div class="pv-voice-sub">${escapeHtml(v.sub)}</div>
+                </button>`).join("")}
+            </div>
           </div>
+
+          <div class="pv-section">
+            <div class="pv-section-label"><i data-lucide="globe" class="icon"></i>Language <span class="pv-lang-count">${PREVIEW_LANGS.length} available</span></div>
+            <div class="pv-lang-wrap">
+              ${PREVIEW_LANGS.map((l, i) => `
+                <button class="pv-lang-chip ${i === 0 ? "sel" : ""}" data-plang="${escapeHtml(l)}">${escapeHtml(l)}</button>
+              `).join("")}
+            </div>
+          </div>
+
         </div>
-        <button class="prev-play-btn" data-preview-play>
-          <i data-lucide="play" class="icon prev-play-icon" id="prev-play-icon"></i>
-          <span id="prev-play-lbl" data-preview-lbl>Play sample</span>
-        </button>
       </div>
 
-      <div class="prev-controls">
-        ${agents.length > 1 ? `
-        <div class="prev-ctrl-group">
-          <div class="prev-ctrl-label">Agent</div>
-          <div class="prev-ctrl-row">
-            ${agents.map((a, i) => `
-              <button class="prev-chip ${i === 0 ? 'sel' : ''}" data-agent-i="${i}">${escapeHtml(a.name)}</button>
-            `).join("")}
-          </div>
-        </div>` : ""}
+      <!-- RIGHT: Stage -->
+      <div class="pv-stage" id="pv-stage">
+        <div class="pv-stage-bg"></div>
+        <div class="pv-stage-content">
 
-        <div class="prev-ctrl-group">
-          <div class="prev-ctrl-label">Voice</div>
-          <div class="prev-ctrl-row">
-            ${PREVIEW_VOICES.map((v, i) => `
-              <button class="prev-chip ${i === 0 ? 'sel' : ''}" data-pvid="${v.id}">
-                ${escapeHtml(v.label)}
-                <span class="prev-chip-sub">${escapeHtml(v.sub)}</span>
-              </button>
-            `).join("")}
+          <div class="pv-orb-wrap">
+            <div class="pv-orb" id="pv-orb">
+              <span class="pv-orb-text">OC</span>
+              <div class="pv-orb-ring pv-orb-ring-1"></div>
+              <div class="pv-orb-ring pv-orb-ring-2"></div>
+              <div class="pv-orb-ring pv-orb-ring-3"></div>
+            </div>
           </div>
-        </div>
 
-        <div class="prev-ctrl-group">
-          <div class="prev-ctrl-label">Language <span class="prev-lang-count">(${PREVIEW_LANGS.length})</span></div>
-          <div class="prev-ctrl-row prev-lang-row">
-            ${PREVIEW_LANGS.map((l, i) => `
-              <button class="prev-chip ${i === 0 ? 'sel' : ''}" data-plang="${escapeHtml(l)}">${escapeHtml(l)}</button>
-            `).join("")}
+          <div class="pv-agent-label">
+            <div class="pv-agt-name" id="pv-agt-name">${escapeHtml(firstAgent ? firstAgent.name : "OneClerk AI")}</div>
+            <div class="pv-agt-role">Voice AI Receptionist</div>
           </div>
+
+          <canvas class="pv-wave" data-preview-canvas width="500" height="80"></canvas>
+
+          <div class="pv-play-row">
+            <button class="pv-play" data-preview-play>
+              <span class="pv-play-ic" id="pv-play-ic"><i data-lucide="play" class="icon"></i></span>
+              <span id="pv-play-lbl" data-preview-lbl>Play sample</span>
+            </button>
+          </div>
+
+          <div class="pv-status-row">
+            <span class="pv-status-dot" id="pv-status-dot"></span>
+            <span class="pv-status-txt" id="pv-status-txt">Ready to preview</span>
+          </div>
+
         </div>
       </div>
+
     </div>
   `;
   renderIcons(page);
@@ -3554,14 +3516,29 @@ route("preview", async () => {
   let selLang  = PREVIEW_LANGS[0];
   let selAgent = firstAgent;
 
+  function updateOrbName() {
+    const el = $("#pv-agt-name", page);
+    if (el) el.textContent = selAgent ? selAgent.name : "OneClerk AI";
+  }
+
   // Agent picker
   $$("[data-agent-i]", page).forEach(b => {
     b.addEventListener("click", () => {
-      $$("[data-agent-i]", page).forEach(x => x.classList.remove("sel"));
+      $$("[data-agent-i]", page).forEach(x => {
+        x.classList.remove("sel");
+        const chk = x.querySelector(".pv-check");
+        if (chk) chk.remove();
+      });
       b.classList.add("sel");
+      if (!b.querySelector(".pv-check")) {
+        const chk = document.createElement("i");
+        chk.setAttribute("data-lucide","check");
+        chk.className = "icon pv-check";
+        b.appendChild(chk);
+        renderIcons(b);
+      }
       selAgent = agents[+b.dataset.agentI];
-      const nameEl = $("#prev-agent-name", page);
-      if (nameEl) nameEl.textContent = selAgent ? selAgent.name : "—";
+      updateOrbName();
     });
   });
 
@@ -3580,11 +3557,13 @@ route("preview", async () => {
       $$("[data-plang]", page).forEach(x => x.classList.remove("sel"));
       b.classList.add("sel");
       selLang = b.dataset.plang;
+      const statusEl = $("#pv-status-txt", page);
+      if (statusEl) statusEl.textContent = `Language: ${selLang}`;
     });
   });
 
   // Waveform + TTS playback
-  const stageEl = page.querySelector(".prev-stage");
+  const stageEl = $("#pv-stage", page);
   mountVoicePreview(stageEl, selLang);
 
   return wrap;
