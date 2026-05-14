@@ -582,20 +582,22 @@ route("auth", async () => {
           <div class="lp-sub" id="lp-sub-rotate">
             <span id="lp-sub-text"></span><span class="caret"></span>
           </div>
-          <div class="lp-cta-row">
-            <button class="lp-cta-primary" data-open-auth="signup">
-              <span>Get started free</span><span class="arr">→</span>
-            </button>
-            <button class="lp-cta-secondary" data-scroll="lp-try">Hear it talk →</button>
-          </div>
-          <div class="lp-cta-logos" aria-label="Integrations">
-            <span class="lp-cta-logos-label">Works with</span>
-            <div class="lp-cta-logo-chip" title="WhatsApp">${brandSvg("whatsapp")}</div>
-            <div class="lp-cta-logo-chip" title="Gmail">${brandSvg("gmail")}</div>
-            <div class="lp-cta-logo-chip" title="Google Calendar">${brandSvg("gcal")}</div>
-            <div class="lp-cta-logo-chip" title="Phone">${brandSvg("phone")}</div>
-            <div class="lp-cta-logo-chip" title="Instagram">${brandSvg("ig")}</div>
-            <div class="lp-cta-logo-chip" title="Slack">${brandSvg("slack")}</div>
+          <div class="lp-cta-mega-row">
+            <div class="lp-cta-row">
+              <button class="lp-cta-primary" data-open-auth="signup">
+                <span>Get started free</span><span class="arr">→</span>
+              </button>
+              <button class="lp-cta-secondary" data-scroll="lp-try">Hear it talk →</button>
+            </div>
+            <div class="lp-cta-logos-inline" aria-label="Integrations">
+              <span class="lp-cta-logos-sep"></span>
+              <div class="lp-cta-logo-chip" title="WhatsApp">${brandSvg("whatsapp")}</div>
+              <div class="lp-cta-logo-chip" title="Gmail">${brandSvg("gmail")}</div>
+              <div class="lp-cta-logo-chip" title="Google Calendar">${brandSvg("gcal")}</div>
+              <div class="lp-cta-logo-chip" title="Phone">${brandSvg("phone")}</div>
+              <div class="lp-cta-logo-chip" title="Instagram">${brandSvg("ig")}</div>
+              <div class="lp-cta-logo-chip" title="Slack">${brandSvg("slack")}</div>
+            </div>
           </div>
 
           <!-- Glassmorphic plate of integrations (Phone, WhatsApp, IG, GCal, Gmail) -->
@@ -1919,10 +1921,11 @@ route("calls", async () => {
                 <span class="cl-bigcal-dot"></span>${escapeHtml((b.det.service || b.det.topic || 'Booking').slice(0, 18))}
               </div>`).join("")}
             ${dayBookings.length > 3 ? `<div class="cl-bigcal-more">+${dayBookings.length - 3} more</div>` : ""}
-            ${firstNote ? `
-              <div class="cl-bigcal-block cl-bigcal-usernote cl-bigcal-c-${noteCol}" title="${escapeHtml(firstNote.text)}">
-                <span class="cl-bigcal-dot"></span>${escapeHtml((firstNote.text || '').slice(0, 15))}${dayNotes.length > 1 ? `<span class="cl-bigcal-note-plus">+${dayNotes.length - 1}</span>` : ""}
-              </div>` : ""}
+            ${dayNotes.slice(0, 2).map((note, ni) => `
+              <div class="cl-bigcal-sn cl-bigcal-sn-${note.color || 'amber'}" data-note-key="${key}" data-note-i="${ni}" title="${escapeHtml(note.text)}">
+                ${escapeHtml((note.text || '').slice(0, 13))}${(note.text||'').length > 13 ? '…' : ''}
+              </div>`).join("")}
+            ${dayNotes.length > 2 ? `<div class="cl-bigcal-more">+${dayNotes.length - 2}</div>` : ""}
           </div>
         </div>`;
     }
@@ -1936,7 +1939,13 @@ route("calls", async () => {
       else { calState.m += nav; if (calState.m < 0) { calState.m = 11; calState.y--; } if (calState.m > 11) { calState.m = 0; calState.y++; } }
       renderBigCalendar();
     }));
-    bigEl.querySelectorAll("[data-key]").forEach(cell => cell.addEventListener("click", () => {
+    bigEl.querySelectorAll("[data-key]").forEach(cell => cell.addEventListener("click", (ev) => {
+      const noteEl = ev.target.closest("[data-note-key]");
+      if (noteEl) {
+        ev.stopPropagation();
+        openNoteEditPopup(noteEl.dataset.noteKey, +noteEl.dataset.noteI, () => renderBigCalendar());
+        return;
+      }
       openDayPopup(cell.dataset.key, cell.dataset.d, bk[cell.dataset.key] || [], () => renderBigCalendar());
     }));
   }
@@ -2095,15 +2104,43 @@ function openDayPopup(key, dayNum, bookings, onChange) {
       return;
     }
     listEl.innerHTML = notes.map((n, i) => `
-      <div class="cl-note-item">
+      <div class="cl-note-item" data-nii="${i}">
         <span class="cl-note-item-dot" style="background:var(--anime-c-${n.color || 'amber'})"></span>
         <span class="cl-note-item-text">${escapeHtml(n.text)}</span>
+        <button class="cl-note-item-edit" data-nie="${i}" title="Edit note">✎</button>
         <button class="cl-note-item-del" data-ni="${i}" title="Delete this note">×</button>
       </div>`).join("");
     listEl.querySelectorAll(".cl-note-item-del").forEach(btn => {
       btn.addEventListener("click", () => {
         notes.splice(+btn.dataset.ni, 1);
         persistNotes(); renderNoteList();
+      });
+    });
+    listEl.querySelectorAll(".cl-note-item-edit").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const idx = +btn.dataset.nie;
+        const n = notes[idx];
+        if (!n) return;
+        const itemEl = btn.closest(".cl-note-item");
+        if (itemEl.querySelector(".cl-note-inline-edit")) return;
+        const orig = itemEl.querySelector(".cl-note-item-text");
+        if (orig) orig.style.display = "none";
+        btn.style.display = "none";
+        const ta = document.createElement("textarea");
+        ta.className = "cl-note-inline-edit";
+        ta.value = n.text;
+        const saveBtn = document.createElement("button");
+        saveBtn.className = "cl-note-inline-save btn btn-sm btn-primary";
+        saveBtn.textContent = "Save";
+        saveBtn.addEventListener("click", () => {
+          const t = ta.value.trim();
+          if (!t) return;
+          notes[idx] = { ...n, text: t };
+          persistNotes(); renderNoteList();
+        });
+        itemEl.insertBefore(ta, btn.nextSibling);
+        itemEl.insertBefore(saveBtn, ta.nextSibling);
+        ta.focus(); ta.select();
       });
     });
     // Update header accent from first note
@@ -2129,6 +2166,76 @@ function openDayPopup(key, dayNum, bookings, onChange) {
 
   pop.style.setProperty("--note-accent", `var(--anime-c-${notes[0]?.color || chosenColor})`);
   renderIcons(pop);
+}
+
+function openNoteEditPopup(key, noteIdx, onChange) {
+  const allNotes = loadUserNotes();
+  const dayNotes = [...(allNotes[key] || [])];
+  const note = dayNotes[noteIdx];
+  if (!note) return;
+  const [yy, mm, dd] = key.split("-").map(Number);
+  const dateLabel = new Date(yy, mm, dd).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  const COLORS = ["green","amber","pink","blue","violet"];
+  let chosenColor = note.color || "amber";
+
+  const overlay = h(`<div class="cl-pop-overlay"></div>`);
+  const pop = h(`
+    <div class="cne-pop">
+      <div class="cne-header" style="--nc:var(--anime-c-${chosenColor})">
+        <div class="cne-dot"></div>
+        <div class="cne-date">${escapeHtml(dateLabel)}</div>
+        <button class="cne-close">×</button>
+      </div>
+      <div class="cne-body">
+        <textarea class="cne-ta" id="cne-ta">${escapeHtml(note.text)}</textarea>
+        <div class="cne-colors">
+          ${COLORS.map(c => `<button class="cne-color cne-c-${c} ${c === chosenColor ? "sel" : ""}" data-c="${c}"></button>`).join("")}
+        </div>
+        <div class="cne-actions">
+          <button class="cne-del btn btn-sm btn-danger" id="cne-del"><i data-lucide="trash-2" class="icon"></i>Delete note</button>
+          <button class="cne-save btn btn-sm btn-primary" id="cne-save"><i data-lucide="check" class="icon"></i>Save changes</button>
+        </div>
+      </div>
+    </div>`);
+
+  document.body.append(overlay, pop);
+  renderIcons(pop);
+
+  const close = () => { overlay.remove(); pop.remove(); };
+  overlay.addEventListener("click", close);
+  $(".cne-close", pop).addEventListener("click", close);
+
+  pop.querySelectorAll(".cne-color").forEach(b => b.addEventListener("click", () => {
+    chosenColor = b.dataset.c;
+    pop.querySelectorAll(".cne-color").forEach(x => x.classList.remove("sel"));
+    b.classList.add("sel");
+    pop.querySelector(".cne-dot").style.setProperty("background", `var(--anime-c-${chosenColor})`);
+  }));
+
+  $("#cne-save", pop).addEventListener("click", () => {
+    const text = $("#cne-ta", pop).value.trim();
+    if (!text) { $("#cne-ta", pop).style.borderColor = "#dc2626"; setTimeout(() => { const t = $("#cne-ta", pop); if (t) t.style.borderColor = ""; }, 700); return; }
+    dayNotes[noteIdx] = { ...note, text, color: chosenColor };
+    const all = loadUserNotes();
+    all[key] = dayNotes;
+    saveUserNotes(all);
+    onChange && onChange();
+    close();
+    toast("Note updated", "success");
+  });
+
+  $("#cne-del", pop).addEventListener("click", () => {
+    if (!confirm("Delete this note?")) return;
+    dayNotes.splice(noteIdx, 1);
+    const all = loadUserNotes();
+    if (dayNotes.length) all[key] = dayNotes; else delete all[key];
+    saveUserNotes(all);
+    onChange && onChange();
+    close();
+    toast("Note deleted", "success");
+  });
+
+  setTimeout(() => { const ta = $("#cne-ta", pop); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } }, 60);
 }
 
 function timeAgo(d) {
