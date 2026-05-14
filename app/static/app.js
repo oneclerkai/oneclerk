@@ -462,35 +462,27 @@ function mountVoicePreview(container, preselectedLang) {
   window.addEventListener("resize", resize);
 
   function drawWave() {
-    t += 0.038 * (0.6 + currentPitch * 0.4);
-    level += ((speaking ? 0.92 : 0.06) - level) * 0.055;
+    t += 0.04 * (0.7 + currentPitch * 0.3);
+    level += ((speaking ? 0.85 : 0.12) - level) * 0.08;
     const w = canvas.width, h = canvas.height;
     if (!w || !h) { raf = requestAnimationFrame(drawWave); return; }
     ctx.clearRect(0, 0, w, h);
-    const bars = 56;
+    const bars = 64;
     const bw = w / bars;
     const grd = ctx.createLinearGradient(0, 0, w, 0);
-    grd.addColorStop(0,   "rgba(120,80,255,0.85)");
-    grd.addColorStop(0.35,"rgba(180,80,255,0.92)");
-    grd.addColorStop(0.65,"rgba(255,80,180,0.92)");
-    grd.addColorStop(1,   "rgba(255,120,80,0.82)");
+    grd.addColorStop(0,   "rgba(255,205,92,0.9)");
+    grd.addColorStop(0.5, "rgba(255,138,61,0.95)");
+    grd.addColorStop(1,   "rgba(99,102,241,0.85)");
+    ctx.fillStyle = grd;
     for (let i = 0; i < bars; i++) {
-      const phase  = i * 0.38 + t;
-      const phase2 = i * 0.19 + t * 1.3;
-      const amp = Math.sin(phase)*0.42 + Math.sin(phase*1.6)*0.32 + Math.sin(phase2*0.8)*0.26;
-      const bh = Math.max(2*dpr, Math.abs(amp)*level*h*0.90);
-      const alpha = 0.70 + Math.abs(amp) * 0.28;
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = grd;
-      const bwPad = bw * 0.60;
-      const x = i * bw + (bw - bwPad) / 2;
+      const phase = i * 0.35 + t;
+      const amp = Math.sin(phase)*0.35 + Math.sin(phase*1.7)*0.35 + Math.sin(phase*0.7)*0.30;
+      const a = Math.abs(amp) * level;
+      const bh = Math.max(4*dpr, a * h * 0.9 * (0.6 + currentPitch * 0.4));
+      const x = i * bw + bw * 0.18;
       const y = (h - bh) / 2;
-      const r = Math.min(bwPad / 2, bh / 2, 4 * dpr);
-      ctx.beginPath();
-      ctx.roundRect(x, y, bwPad, bh, r);
-      ctx.fill();
+      ctx.fillRect(x, y, bw * 0.6, bh);
     }
-    ctx.globalAlpha = 1;
     raf = requestAnimationFrame(drawWave);
   }
   requestAnimationFrame(() => { resize(); drawWave(); });
@@ -586,8 +578,16 @@ route("auth", async () => {
           <div class="lp-cta-mega-row">
             <div class="lp-cta-with-icons">
               <div class="lp-cta-side-icons">
-                <span class="lp-cta-icon" title="WhatsApp">${brandSvg("whatsapp")}</span>
-                <span class="lp-cta-icon" title="Google Calendar">${brandSvg("gcal")}</span>
+                <div class="lp-cta-note" data-ni="0">
+                  <div class="lp-cta-note-tape"></div>
+                  <div class="lp-cta-note-num">01</div>
+                  <div class="lp-cta-note-title">Picks up 24/7</div>
+                </div>
+                <div class="lp-cta-note" data-ni="1">
+                  <div class="lp-cta-note-tape"></div>
+                  <div class="lp-cta-note-num">02</div>
+                  <div class="lp-cta-note-title">Books appts</div>
+                </div>
               </div>
               <div class="lp-cta-row">
                 <button class="lp-cta-primary" data-open-auth="signup">
@@ -596,8 +596,16 @@ route("auth", async () => {
                 <button class="lp-cta-secondary" data-scroll="lp-try">Hear it talk →</button>
               </div>
               <div class="lp-cta-side-icons">
-                <span class="lp-cta-icon" title="Gmail">${brandSvg("gmail")}</span>
-                <span class="lp-cta-icon" title="Phone">${brandSvg("phone")}</span>
+                <div class="lp-cta-note" data-ni="2">
+                  <div class="lp-cta-note-tape"></div>
+                  <div class="lp-cta-note-num">03</div>
+                  <div class="lp-cta-note-title">30+ languages</div>
+                </div>
+                <div class="lp-cta-note" data-ni="3">
+                  <div class="lp-cta-note-tape"></div>
+                  <div class="lp-cta-note-num">04</div>
+                  <div class="lp-cta-note-title">WhatsApp recap</div>
+                </div>
               </div>
             </div>
           </div>
@@ -1289,14 +1297,23 @@ function openAuthModal(initialMode = "login") {
     }
   });
 
-  // Highlight empty required fields on submit attempt
-  $("#m-form", modal).addEventListener("submit", () => {
-    const fields = modal.querySelectorAll(".field[required], .field");
+  // Validate all visible fields before submit — show red border on empty ones
+  $("#m-form", modal).addEventListener("submit", (e) => {
+    let blocked = false;
+    const fields = modal.querySelectorAll(".field");
     fields.forEach(f => {
-      if (f.offsetParent && !f.value.trim()) f.classList.add("field-error");
-      else f.classList.remove("field-error");
+      // Only validate fields that are currently visible (not in hidden rows)
+      const row = f.closest('[id$="-row"]');
+      const isHidden = row && row.classList.contains("hidden");
+      if (!isHidden && f.offsetParent !== null && !f.value.trim()) {
+        f.classList.add("field-error");
+        blocked = true;
+      } else {
+        f.classList.remove("field-error");
+      }
       f.addEventListener("input", () => f.classList.remove("field-error"), { once: true });
     });
+    if (blocked) e.stopImmediatePropagation();
   }, true);
 
   setTimeout(() => $("#m-email", modal).focus(), 50);
@@ -3677,15 +3694,13 @@ route("preview", async () => {
         </div>
       </div>
 
-      <!-- RIGHT: Full black stage -->
+      <!-- RIGHT: Demo-style voice agent stage -->
       <div class="pv2-stage" id="pv-stage">
         <div class="pv2-stage-content">
 
-          <div class="pv2-orb-wrap">
-            <div class="pv2-orb" id="pv-orb">
-              <div class="pv2-orb-ring pv2-orb-ring-1"></div>
-              <div class="pv2-orb-ring pv2-orb-ring-2"></div>
-            </div>
+          <div class="pv2-demo-avatar">
+            <div class="pv2-demo-avatar-ring"></div>
+            <div class="pv2-demo-avatar-dot"></div>
           </div>
 
           <div class="pv2-agent-label">
