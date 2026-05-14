@@ -1270,6 +1270,40 @@ function openAuthModal(initialMode = "login") {
   $("#m-form", modal).addEventListener("submit", async (e) => {
     e.preventDefault();
     const err = $("#m-err", modal); err.classList.add("hidden");
+
+    // Clear previous inline errors
+    modal.querySelectorAll(".field-error").forEach(el => el.remove());
+    modal.querySelectorAll(".field-invalid").forEach(el => el.classList.remove("field-invalid"));
+
+    let hasError = false;
+    const fieldErr = (inputEl, msg) => {
+      if (!inputEl) return;
+      inputEl.classList.add("field-invalid");
+      const tag = document.createElement("div");
+      tag.className = "field-error";
+      tag.textContent = msg;
+      inputEl.after(tag);
+      hasError = true;
+    };
+
+    if (mode === "signup") {
+      const nameEl  = $("#m-name", modal);
+      const emailEl = $("#m-email", modal);
+      const pwEl    = $("#m-password", modal);
+      if (!nameEl.value.trim())                                   fieldErr(nameEl,  "Please enter your name.");
+      if (!emailEl.value.trim())                                  fieldErr(emailEl, "Please enter your email address.");
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailEl.value.trim())) fieldErr(emailEl, "Please enter a valid email address.");
+      if (!pwEl.value)                                            fieldErr(pwEl,    "Please enter a password.");
+      else if (pwEl.value.length < 6)                            fieldErr(pwEl,    "Password must be at least 6 characters.");
+    } else {
+      const emailEl = $("#m-email", modal);
+      const pwEl    = $("#m-password", modal);
+      if (!emailEl.value.trim()) fieldErr(emailEl, "Please enter your email address.");
+      if (!pwEl.value)           fieldErr(pwEl,    "Please enter your password.");
+    }
+
+    if (hasError) return;
+
     const body = mode === "signup"
       ? {
           name: $("#m-name", modal).value,
