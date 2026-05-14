@@ -627,7 +627,7 @@ route("auth", async () => {
         <!-- Sticky-note SEQUENCE row (4 notes side-by-side BELOW the title) -->
         <div class="lp-notes-row">
           ${HERO_NOTES.map((n, i) => `
-            <div class="lp-note lp-note-3d" data-i="${i}">
+            <div class="lp-note lp-note-3d font-thin" data-i="${i}">
               <div class="lp-note-paper"></div>
               <div class="lp-note-tape"></div>
               <div class="lp-note-fold"></div>
