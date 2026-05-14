@@ -461,7 +461,7 @@ function mountVoicePreview(container, preselectedLang) {
   const canvas  = container.querySelector("[data-preview-canvas]");
   const playBtn = container.querySelector("[data-preview-play]");
   const lbl     = container.querySelector("[data-preview-lbl]");
-  if (!canvas || !playBtn) return;
+  if (!canvas || !playBtn) return {};
   const ctx = canvas.getContext("2d");
   let speaking = false, t = 0, level = 0.1, raf = null, currentPitch = 1.15;
   let selectedVoice = PREVIEW_VOICES[0];
@@ -490,8 +490,8 @@ function mountVoicePreview(container, preselectedLang) {
       const ratio = i / bars;
       const r2 = Math.round(255 - ratio*156);
       const g2 = Math.round(138 - ratio*36);
-      const b2 = Math.round(61  + ratio*180);
-      ctx.fillStyle = `rgba(${r2},${g2},${b2},0.88)`;
+      const b2 = Math.round(255 - ratio*200);
+      ctx.fillStyle = `rgba(${r2},${g2},${b2},0.92)`;
       ctx.fillRect(i*bw + bw*0.18, (h-bh)/2, bw*0.64, bh);
     }
     raf = requestAnimationFrame(drawWave);
@@ -537,6 +537,11 @@ function mountVoicePreview(container, preselectedLang) {
     u.onend = u.onerror = () => { speaking = false; lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); };
     try { window.speechSynthesis.speak(u); } catch { speaking = false; lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); }
   });
+
+  return {
+    setVoice(v) { selectedVoice = v; currentPitch = v.pitch; },
+    setLang(l) { selectedLang = l; },
+  };
 }
 
 route("auth", async () => {
@@ -583,20 +588,21 @@ route("auth", async () => {
             <span id="lp-sub-text"></span><span class="caret"></span>
           </div>
           <div class="lp-cta-mega-row">
-            <div class="lp-cta-row">
-              <button class="lp-cta-primary" data-open-auth="signup">
-                <span>Get started free</span><span class="arr">→</span>
-              </button>
-              <button class="lp-cta-secondary" data-scroll="lp-try">Hear it talk →</button>
-            </div>
-            <div class="lp-cta-logos-inline" aria-label="Integrations">
-              <span class="lp-cta-logos-sep"></span>
-              <div class="lp-cta-logo-chip" title="WhatsApp">${brandSvg("whatsapp")}</div>
-              <div class="lp-cta-logo-chip" title="Gmail">${brandSvg("gmail")}</div>
-              <div class="lp-cta-logo-chip" title="Google Calendar">${brandSvg("gcal")}</div>
-              <div class="lp-cta-logo-chip" title="Phone">${brandSvg("phone")}</div>
-              <div class="lp-cta-logo-chip" title="Instagram">${brandSvg("ig")}</div>
-              <div class="lp-cta-logo-chip" title="Slack">${brandSvg("slack")}</div>
+            <div class="lp-cta-with-icons">
+              <div class="lp-cta-side-icons">
+                <div class="lp-cta-logo-chip" title="WhatsApp">${brandSvg("whatsapp")}</div>
+                <div class="lp-cta-logo-chip" title="Gmail">${brandSvg("gmail")}</div>
+              </div>
+              <div class="lp-cta-row">
+                <button class="lp-cta-primary" data-open-auth="signup">
+                  <span>Get started free</span><span class="arr">→</span>
+                </button>
+                <button class="lp-cta-secondary" data-scroll="lp-try">Hear it talk →</button>
+              </div>
+              <div class="lp-cta-side-icons">
+                <div class="lp-cta-logo-chip" title="Google Calendar">${brandSvg("gcal")}</div>
+                <div class="lp-cta-logo-chip" title="Phone">${brandSvg("phone")}</div>
+              </div>
             </div>
           </div>
 
@@ -1115,6 +1121,13 @@ function initParabolaWord(root) {
   window.addEventListener("resize", update);
 }
 
+const BUSINESS_TYPES = [
+  "Restaurant / Café","Medical / Clinic","Dental","Legal / Law Firm","Real Estate",
+  "Hotel / Hospitality","Beauty / Salon / Spa","Auto / Car Dealership","Financial / Accounting",
+  "Retail / E-commerce","Fitness / Gym","Education / Tutoring","Construction / Trades",
+  "IT / Software","Marketing / Agency","Other",
+];
+
 function openAuthModal(initialMode = "login") {
   // remove any existing modal
   document.querySelectorAll(".auth-modal-backdrop").forEach(n => n.remove());
@@ -1129,6 +1142,13 @@ function openAuthModal(initialMode = "login") {
         <button class="x-close" aria-label="Close">×</button>
         <h2 id="m-title">Welcome back</h2>
         <div class="modal-sub" id="m-sub">Sign in to manage your agents and calls.</div>
+
+        <button class="auth-google-btn" id="m-google">
+          <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+          Continue with Google
+        </button>
+        <div class="auth-divider"><span>or</span></div>
+
         <div class="auth-tabs" id="m-tabs">
           <button class="${mode==='login'?'active':''}" data-mode="login">Sign in</button>
           <button class="${mode==='signup'?'active':''}" data-mode="signup">Create account</button>
@@ -1137,6 +1157,17 @@ function openAuthModal(initialMode = "login") {
           <div id="m-name-row" class="${mode==='signup'?'':'hidden'}">
             <label class="label">Your name</label>
             <input id="m-name" class="field" placeholder="Jane Cooper" autocomplete="name"/>
+          </div>
+          <div id="m-company-row" class="${mode==='signup'?'':'hidden'}">
+            <label class="label">Company name</label>
+            <input id="m-company" class="field" placeholder="City Dental" autocomplete="organization"/>
+          </div>
+          <div id="m-biztype-row" class="${mode==='signup'?'':'hidden'}">
+            <label class="label">What type of business?</label>
+            <select id="m-biztype" class="field">
+              <option value="">Select your industry…</option>
+              ${BUSINESS_TYPES.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join("")}
+            </select>
           </div>
           <div>
             <label class="label">Work email</label>
@@ -1171,14 +1202,51 @@ function openAuthModal(initialMode = "login") {
     }
   });
 
+  // Google sign-in
+  $("#m-google", modal).addEventListener("click", () => {
+    if (typeof google === "undefined" || !google.accounts) {
+      toast("Google Sign-in is not configured. Please use email/password.", "error");
+      return;
+    }
+    google.accounts.id.initialize({
+      client_id: window.GOOGLE_CLIENT_ID || "",
+      callback: async (response) => {
+        if (!response.credential) return;
+        const err = $("#m-err", modal);
+        err.classList.add("hidden");
+        try {
+          const r = await api("/auth/google", { method: "POST", body: { credential: response.credential }, auth: false });
+          Store.token = r.access_token;
+          const me = await api("/auth/me");
+          Store.user = me;
+          toast(`Welcome${me.name ? ", " + me.name.split(" ")[0] : ""}!`, "success");
+          close();
+          if (!me.onboarding_completed) navigate("#/onboarding");
+          else navigate("#/agents");
+        } catch (ex) {
+          if (ex.message && ex.message.toLowerCase().includes("no account")) {
+            err.textContent = "No account found for this Google email. Please create an account first.";
+          } else {
+            err.textContent = ex.message;
+          }
+          err.classList.remove("hidden");
+        }
+      },
+    });
+    google.accounts.id.prompt();
+  });
+
   const setMode = (m) => {
     mode = m;
     $$("#m-tabs button", modal).forEach(b => b.classList.toggle("active", b.dataset.mode === m));
-    $("#m-name-row", modal).classList.toggle("hidden", m !== "signup");
-    $("#m-name", modal).required = m === "signup";
-    $("#m-submit span", modal).textContent = m === "signup" ? "Create account" : "Continue";
-    $("#m-title", modal).textContent = m === "signup" ? "Create your account" : "Welcome back";
-    $("#m-sub", modal).textContent = m === "signup"
+    const isSignup = m === "signup";
+    ["#m-name-row","#m-company-row","#m-biztype-row"].forEach(sel => {
+      $(sel, modal).classList.toggle("hidden", !isSignup);
+    });
+    $("#m-name", modal).required = isSignup;
+    $("#m-submit span", modal).textContent = isSignup ? "Create account" : "Continue";
+    $("#m-title", modal).textContent = isSignup ? "Create your account" : "Welcome back";
+    $("#m-sub", modal).textContent = isSignup
       ? "Set up your AI receptionist in under twelve minutes."
       : "Sign in to manage your agents and calls.";
   };
@@ -1188,7 +1256,13 @@ function openAuthModal(initialMode = "login") {
     e.preventDefault();
     const err = $("#m-err", modal); err.classList.add("hidden");
     const body = mode === "signup"
-      ? { name: $("#m-name", modal).value, email: $("#m-email", modal).value, password: $("#m-password", modal).value }
+      ? {
+          name: $("#m-name", modal).value,
+          company_name: $("#m-company", modal).value,
+          business_type: $("#m-biztype", modal).value,
+          email: $("#m-email", modal).value,
+          password: $("#m-password", modal).value,
+        }
       : { email: $("#m-email", modal).value, password: $("#m-password", modal).value };
     try {
       const r = await api(`/auth/${mode}`, { method: "POST", body, auth: false });
@@ -1197,7 +1271,6 @@ function openAuthModal(initialMode = "login") {
       Store.user = me;
       toast(`Welcome${me.name ? ", " + me.name.split(" ")[0] : ""}!`, "success");
       close();
-      // First-time signup → onboarding QnA. Returning users skip straight to app.
       if (!me.onboarding_completed) {
         navigate("#/onboarding");
       } else {
@@ -3434,9 +3507,7 @@ route("agentSetup", async (id) => {
 
 function agentSubtabs(id, active) {
   const items = [
-    { k: "edit", label: "Profile", icon: "user", hash: `#/agents/${id}/edit` },
     { k: "flow", label: "Flow", icon: "git-branch", hash: `#/agents/${id}/flow` },
-    { k: "connect", label: "Connect", icon: "phone", hash: `#/agents/${id}/setup` },
   ];
   const wrap = h(`<div class="subtabs">${items.map(i =>
     `<button class="subtab ${active===i.k?'active':''}" data-h="${i.hash}"><i data-lucide="${i.icon}" class="icon"></i>${i.label}</button>`).join("")}</div>`);
@@ -3530,86 +3601,66 @@ route("preview", async () => {
   } catch (_) {}
 
   const firstAgent = agents[0] || null;
-  const VOICE_ICONS = { maya: "😊", echo: "🎙️", nova: "✨", aria: "🌟", max: "💬", zara: "🎵" };
 
   page.innerHTML = `
-    <div class="pv-shell">
+    <div class="pv2-shell">
 
-      <!-- LEFT: Controls panel -->
-      <div class="pv-controls">
-        <div class="pv-controls-inner">
+      <!-- LEFT: Slim controls -->
+      <div class="pv2-controls">
+        <div class="pv2-ctrl-section">
+          <div class="pv2-ctrl-label">Agent</div>
+          <select class="pv2-select" id="pv2-agent-sel">
+            ${agents.length
+              ? agents.map((a, i) => `<option value="${i}">${escapeHtml(a.name)}${a.is_active ? " ●" : ""}</option>`).join("")
+              : `<option value="-1">OneClerk AI (demo)</option>`}
+          </select>
+        </div>
 
-          ${agents.length > 0 ? `
-          <div class="pv-section">
-            <div class="pv-section-label"><i data-lucide="bot" class="icon"></i>Agent</div>
-            <div class="pv-agent-list">
-              ${agents.map((a, i) => `
-                <button class="pv-agent-btn ${i === 0 ? "sel" : ""}" data-agent-i="${i}">
-                  <div class="pv-agent-av">${escapeHtml((a.name||"?")[0].toUpperCase())}</div>
-                  <div class="pv-agent-info">
-                    <div class="pv-agent-name">${escapeHtml(a.name)}</div>
-                    <div class="pv-agent-sub">${a.is_active ? "● Live" : "○ Paused"}</div>
-                  </div>
-                  ${i === 0 ? `<i data-lucide="check" class="icon pv-check"></i>` : ""}
-                </button>`).join("")}
-            </div>
-          </div>` : ""}
+        <div class="pv2-ctrl-section">
+          <div class="pv2-ctrl-label">Voice</div>
+          <select class="pv2-select" id="pv2-voice-sel">
+            ${PREVIEW_VOICES.map((v, i) => `<option value="${i}">${escapeHtml(v.label)} — ${escapeHtml(v.sub)}</option>`).join("")}
+          </select>
+        </div>
 
-          <div class="pv-section">
-            <div class="pv-section-label"><i data-lucide="mic" class="icon"></i>Voice</div>
-            <div class="pv-voice-grid">
-              ${PREVIEW_VOICES.map((v, i) => `
-                <button class="pv-voice-card ${i === 0 ? "sel" : ""}" data-pvid="${v.id}">
-                  <div class="pv-voice-emoji">${VOICE_ICONS[v.id] || "🎙️"}</div>
-                  <div class="pv-voice-name">${escapeHtml(v.label)}</div>
-                  <div class="pv-voice-sub">${escapeHtml(v.sub)}</div>
-                </button>`).join("")}
-            </div>
-          </div>
-
-          <div class="pv-section">
-            <div class="pv-section-label"><i data-lucide="globe" class="icon"></i>Language <span class="pv-lang-count">${PREVIEW_LANGS.length} available</span></div>
-            <div class="pv-lang-wrap">
-              ${PREVIEW_LANGS.map((l, i) => `
-                <button class="pv-lang-chip ${i === 0 ? "sel" : ""}" data-plang="${escapeHtml(l)}">${escapeHtml(l)}</button>
-              `).join("")}
-            </div>
-          </div>
-
+        <div class="pv2-ctrl-section">
+          <div class="pv2-ctrl-label">Language <span class="pv2-lang-count">${PREVIEW_LANGS.length} available</span></div>
+          <select class="pv2-select pv2-select-lang" id="pv2-lang-sel">
+            ${PREVIEW_LANGS.map((l, i) => `<option value="${i}">${escapeHtml(l)}</option>`).join("")}
+          </select>
         </div>
       </div>
 
-      <!-- RIGHT: Stage -->
-      <div class="pv-stage" id="pv-stage">
-        <div class="pv-stage-bg"></div>
-        <div class="pv-stage-content">
+      <!-- RIGHT: Black stage with spotlight -->
+      <div class="pv2-stage" id="pv-stage">
+        <div class="pv2-spotlight" aria-hidden="true"></div>
+        <div class="pv2-stage-content">
 
-          <div class="pv-orb-wrap">
-            <div class="pv-orb" id="pv-orb">
-              <span class="pv-orb-text">OC</span>
-              <div class="pv-orb-ring pv-orb-ring-1"></div>
-              <div class="pv-orb-ring pv-orb-ring-2"></div>
-              <div class="pv-orb-ring pv-orb-ring-3"></div>
+          <div class="pv2-orb-wrap">
+            <div class="pv2-orb" id="pv-orb">
+              <span class="pv2-orb-text">OC</span>
+              <div class="pv2-orb-ring pv2-orb-ring-1"></div>
+              <div class="pv2-orb-ring pv2-orb-ring-2"></div>
             </div>
           </div>
 
-          <div class="pv-agent-label">
-            <div class="pv-agt-name" id="pv-agt-name">${escapeHtml(firstAgent ? firstAgent.name : "OneClerk AI")}</div>
-            <div class="pv-agt-role">Voice AI Receptionist</div>
+          <div class="pv2-agent-label">
+            <div class="pv2-agt-name" id="pv-agt-name">${escapeHtml(firstAgent ? firstAgent.name : "OneClerk AI")}</div>
+            <div class="pv2-agt-role">Voice AI Receptionist</div>
           </div>
 
-          <canvas class="pv-wave" data-preview-canvas width="500" height="80"></canvas>
+          <canvas class="pv2-wave" data-preview-canvas width="600" height="72"></canvas>
 
-          <div class="pv-play-row">
-            <button class="pv-play" data-preview-play>
-              <span class="pv-play-ic" id="pv-play-ic"><i data-lucide="play" class="icon"></i></span>
-              <span id="pv-play-lbl" data-preview-lbl>Play sample</span>
+          <div class="pv2-play-row">
+            <button class="pv2-play" data-preview-play>
+              <span class="pv2-play-ic"><i data-lucide="play" class="icon"></i></span>
+              <span data-preview-lbl>Play sample</span>
             </button>
           </div>
 
-          <div class="pv-status-row">
-            <span class="pv-status-dot" id="pv-status-dot"></span>
-            <span class="pv-status-txt" id="pv-status-txt">Ready to preview</span>
+          <div class="pv2-status-row">
+            <span class="pv2-status-dot" id="pv-status-dot"></span>
+            <span class="pv2-status-txt" id="pv-status-txt">Ready to preview</span>
           </div>
 
         </div>
@@ -3623,55 +3674,34 @@ route("preview", async () => {
   let selLang  = PREVIEW_LANGS[0];
   let selAgent = firstAgent;
 
-  function updateOrbName() {
+  function updateAgentName() {
     const el = $("#pv-agt-name", page);
     if (el) el.textContent = selAgent ? selAgent.name : "OneClerk AI";
   }
 
-  // Agent picker
-  $$("[data-agent-i]", page).forEach(b => {
-    b.addEventListener("click", () => {
-      $$("[data-agent-i]", page).forEach(x => {
-        x.classList.remove("sel");
-        const chk = x.querySelector(".pv-check");
-        if (chk) chk.remove();
-      });
-      b.classList.add("sel");
-      if (!b.querySelector(".pv-check")) {
-        const chk = document.createElement("i");
-        chk.setAttribute("data-lucide","check");
-        chk.className = "icon pv-check";
-        b.appendChild(chk);
-        renderIcons(b);
-      }
-      selAgent = agents[+b.dataset.agentI];
-      updateOrbName();
-    });
+  const agentSel = $("#pv2-agent-sel", page);
+  if (agentSel) agentSel.addEventListener("change", () => {
+    const i = +agentSel.value;
+    selAgent = agents[i] || null;
+    updateAgentName();
   });
 
-  // Voice picker
-  $$("[data-pvid]", page).forEach(b => {
-    b.addEventListener("click", () => {
-      $$("[data-pvid]", page).forEach(x => x.classList.remove("sel"));
-      b.classList.add("sel");
-      selVoice = PREVIEW_VOICES.find(v => v.id === b.dataset.pvid) || PREVIEW_VOICES[0];
-    });
-  });
-
-  // Language picker
-  $$("[data-plang]", page).forEach(b => {
-    b.addEventListener("click", () => {
-      $$("[data-plang]", page).forEach(x => x.classList.remove("sel"));
-      b.classList.add("sel");
-      selLang = b.dataset.plang;
-      const statusEl = $("#pv-status-txt", page);
-      if (statusEl) statusEl.textContent = `Language: ${selLang}`;
-    });
-  });
-
-  // Waveform + TTS playback
   const stageEl = $("#pv-stage", page);
-  mountVoicePreview(stageEl, selLang);
+  const pvCtrl = mountVoicePreview(stageEl, selLang);
+
+  const voiceSel = $("#pv2-voice-sel", page);
+  if (voiceSel && pvCtrl) voiceSel.addEventListener("change", () => {
+    selVoice = PREVIEW_VOICES[+voiceSel.value] || PREVIEW_VOICES[0];
+    pvCtrl.setVoice(selVoice);
+  });
+
+  const langSel = $("#pv2-lang-sel", page);
+  if (langSel && pvCtrl) langSel.addEventListener("change", () => {
+    selLang = PREVIEW_LANGS[+langSel.value] || PREVIEW_LANGS[0];
+    pvCtrl.setLang(selLang);
+    const statusEl = $("#pv-status-txt", page);
+    if (statusEl) statusEl.textContent = `Language: ${selLang}`;
+  });
 
   return wrap;
 });

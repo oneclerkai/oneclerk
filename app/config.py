@@ -59,6 +59,8 @@ class Settings(BaseSettings):
     VOICE_AR_FEMALE: str = "z9fAnlkpzviPz146aGWa"
     VOICE_ES_FEMALE: str = "MF3mGyEYCl7XYWbV9V6O"
 
+    GOOGLE_CLIENT_ID: str | None = None
+
     STRIPE_SECRET_KEY: str | None = None
     STRIPE_WEBHOOK_SECRET: str | None = None
     STRIPE_STARTER_PRICE_ID: str | None = None

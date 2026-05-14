@@ -364,6 +364,47 @@ async def me(current_user: User = Depends(get_current_user)) -> dict:
     return _user_dict(current_user)
 
 
+class GoogleAuthRequest(BaseModel):
+    credential: str
+
+
+@router.post("/google", response_model=TokenResponse)
+async def google_auth(data: GoogleAuthRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
+    import httpx
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://oauth2.googleapis.com/tokeninfo",
+                params={"id_token": data.credential},
+                timeout=10.0,
+            )
+        if resp.status_code != 200:
+            raise HTTPException(status_code=401, detail="Invalid Google token")
+        info = resp.json()
+        if "error" in info:
+            raise HTTPException(status_code=401, detail=f"Google token error: {info.get('error_description', info['error'])}")
+
+        email = (info.get("email") or "").lower().strip()
+        if not email:
+            raise HTTPException(status_code=400, detail="Google account has no email address")
+
+        existing = await db.execute(select(User).where(User.email == email))
+        user = existing.scalar_one_or_none()
+
+        if user is None:
+            raise HTTPException(
+                status_code=404,
+                detail="No account found for this Google email. Please create an account first.",
+            )
+
+        return TokenResponse(access_token=_create_access_token(user.id), user=_user_dict(user))
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Google sign-in failed: {exc}") from exc
+
+
 @router.post("/onboarding")
 async def save_onboarding(
     data: OnboardingRequest,

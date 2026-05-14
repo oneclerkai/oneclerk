@@ -5402,3 +5402,349 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
     inset 0 1px 0 rgba(255,255,255,0.8);
   transform: translateY(-1px);
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   CTA ICONS — 2 on each side of the CTA buttons
+═══════════════════════════════════════════════════════════════ */
+.lp-cta-with-icons {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.lp-cta-side-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   AUTH MODAL — Google button + divider
+═══════════════════════════════════════════════════════════════ */
+.auth-google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 18px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(180,180,200,0.45);
+  background: rgba(255,255,255,0.12);
+  backdrop-filter: blur(10px);
+  color: #f0f0f8;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 140ms, border-color 140ms, transform 120ms;
+  margin-bottom: 4px;
+}
+.auth-google-btn:hover {
+  background: rgba(255,255,255,0.22);
+  border-color: rgba(255,255,255,0.5);
+  transform: translateY(-1px);
+}
+.auth-google-btn:active { transform: translateY(0); }
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 8px;
+  color: rgba(231,234,243,0.4);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(231,234,243,0.2);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CALENDAR — Deep glassmorphism 3D style + square cells
+═══════════════════════════════════════════════════════════════ */
+.cl-bigcal {
+  background: linear-gradient(145deg,
+    rgba(255,255,255,0.14) 0%,
+    rgba(220,225,255,0.10) 50%,
+    rgba(190,200,255,0.08) 100%
+  ) !important;
+  backdrop-filter: blur(28px) saturate(1.6) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(1.6) !important;
+  border: 1px solid rgba(255,255,255,0.22) !important;
+  border-radius: 22px !important;
+  box-shadow:
+    0 32px 80px -20px rgba(15,15,40,0.38),
+    0 8px 24px -8px rgba(80,80,180,0.18),
+    inset 0 1px 0 rgba(255,255,255,0.32),
+    inset 0 -1px 0 rgba(0,0,0,0.12) !important;
+  padding: 20px 20px 24px !important;
+  transform: perspective(1000px) rotateX(0.4deg);
+  transform-origin: top center;
+}
+.cl-bigcal-head {
+  margin-bottom: 16px !important;
+}
+.cl-bigcal-title {
+  color: #0f0f14 !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+}
+.cl-bigcal-grid {
+  gap: 5px !important;
+}
+.cl-bigcal-cell {
+  aspect-ratio: 1 / 1 !important;
+  min-height: unset !important;
+  background: rgba(255,255,255,0.55) !important;
+  border: 1px solid rgba(200,200,220,0.35) !important;
+  border-radius: 12px !important;
+  box-shadow:
+    0 2px 8px rgba(15,15,40,0.06),
+    inset 0 1px 0 rgba(255,255,255,0.7) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  transition: all 180ms cubic-bezier(0.2,0.7,0.2,1) !important;
+  padding: 5px 5px 6px !important;
+}
+.cl-bigcal-cell:hover {
+  background: rgba(255,255,255,0.82) !important;
+  border-color: rgba(99,102,241,0.4) !important;
+  transform: translateY(-2px) scale(1.04) !important;
+  box-shadow:
+    0 8px 22px rgba(99,102,241,0.18),
+    inset 0 1px 0 rgba(255,255,255,0.85) !important;
+}
+.cl-bigcal-empty {
+  background: rgba(255,255,255,0.10) !important;
+  border: 1px dashed rgba(180,180,210,0.25) !important;
+  box-shadow: none !important;
+}
+.cl-bigcal-today {
+  background: linear-gradient(135deg, rgba(253,235,120,0.85), rgba(255,205,80,0.75)) !important;
+  border-color: rgba(240,195,60,0.6) !important;
+  box-shadow:
+    0 4px 16px rgba(240,195,60,0.28),
+    inset 0 1px 0 rgba(255,255,255,0.7) !important;
+}
+.cl-bigcal-today:hover {
+  background: linear-gradient(135deg, rgba(253,235,120,0.95), rgba(255,205,80,0.88)) !important;
+}
+.cl-bigcal-num {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PREVIEW v2 — Black stage with white spotlight
+═══════════════════════════════════════════════════════════════ */
+.pv2-shell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  height: calc(100vh - 128px);
+  min-height: 520px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+/* Left controls panel */
+.pv2-controls {
+  background: linear-gradient(160deg,
+    rgba(255,255,255,0.9) 0%,
+    rgba(245,244,255,0.88) 50%,
+    rgba(235,238,255,0.84) 100%
+  );
+  backdrop-filter: blur(20px) saturate(1.5);
+  border-right: 1px solid rgba(180,180,220,0.3);
+  padding: 24px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  overflow-y: auto;
+}
+.pv2-ctrl-section { display: flex; flex-direction: column; gap: 7px; }
+.pv2-ctrl-label {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: #6c6c80;
+  display: flex; align-items: center; gap: 6px;
+}
+.pv2-lang-count {
+  font-size: 10px; font-weight: 500;
+  color: #9898a8; letter-spacing: 0; text-transform: none;
+}
+.pv2-select {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(180,180,220,0.4);
+  background: rgba(255,255,255,0.75);
+  color: #0f0f14;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236c6c80' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 140ms, background 140ms;
+}
+.pv2-select:focus {
+  border-color: #6366f1;
+  background-color: #fff;
+}
+.pv2-select-lang { max-height: 160px; overflow-y: auto; }
+
+/* Right stage — black background with spotlight */
+.pv2-stage {
+  position: relative;
+  background: #050508;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.pv2-spotlight {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 30%, rgba(255,255,255,0.18) 0%, rgba(200,210,255,0.08) 45%, transparent 75%),
+    radial-gradient(ellipse 40% 30% at 50% 22%, rgba(255,255,255,0.28) 0%, transparent 60%);
+  pointer-events: none;
+}
+.pv2-stage-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 40px 20px;
+  width: 100%;
+  max-width: 560px;
+}
+
+/* Orb */
+.pv2-orb-wrap {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.pv2-orb {
+  width: 88px; height: 88px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%,
+    rgba(255,255,255,0.95) 0%,
+    rgba(200,210,255,0.75) 28%,
+    rgba(100,120,255,0.55) 60%,
+    rgba(60,80,200,0.38) 100%
+  );
+  box-shadow:
+    0 0 0 12px rgba(130,140,255,0.10),
+    0 0 0 24px rgba(130,140,255,0.06),
+    0 20px 50px rgba(80,100,255,0.38),
+    inset 0 2px 6px rgba(255,255,255,0.6);
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.pv2-orb-text {
+  font-weight: 900; font-size: 20px;
+  color: rgba(255,255,255,0.92);
+  letter-spacing: -0.02em;
+  text-shadow: 0 1px 4px rgba(60,80,255,0.5);
+  position: relative; z-index: 1;
+}
+.pv2-orb-ring {
+  position: absolute; border-radius: 50%;
+  border: 1px solid rgba(180,190,255,0.22);
+  animation: pv2OrbPulse 3.2s ease-in-out infinite;
+}
+.pv2-orb-ring-1 { width: 112px; height: 112px; animation-delay: 0s; }
+.pv2-orb-ring-2 { width: 140px; height: 140px; animation-delay: 0.8s; }
+@keyframes pv2OrbPulse {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.12; transform: scale(1.04); }
+}
+
+/* Agent label */
+.pv2-agent-label { text-align: center; }
+.pv2-agt-name {
+  font-size: 22px; font-weight: 800;
+  color: rgba(255,255,255,0.95);
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 16px rgba(180,190,255,0.4);
+}
+.pv2-agt-role {
+  font-size: 12.5px; font-weight: 500;
+  color: rgba(180,190,255,0.6);
+  margin-top: 3px;
+  letter-spacing: 0.04em;
+}
+
+/* Waveform canvas */
+.pv2-wave {
+  width: 100%;
+  max-width: 480px;
+  height: 72px;
+  display: block;
+  border-radius: 10px;
+}
+
+/* Play button */
+.pv2-play-row { display: flex; justify-content: center; }
+.pv2-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 32px;
+  border-radius: 50px;
+  border: none;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15), rgba(180,190,255,0.12));
+  backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(255,255,255,0.22);
+  color: rgba(255,255,255,0.92);
+  font-size: 14.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: all 180ms cubic-bezier(0.2,0.7,0.2,1);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.18);
+}
+.pv2-play:hover {
+  background: linear-gradient(135deg, rgba(255,255,255,0.25), rgba(180,190,255,0.2));
+  border-color: rgba(255,255,255,0.4);
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.1), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+.pv2-play.playing {
+  background: linear-gradient(135deg, rgba(220,30,60,0.35), rgba(180,20,40,0.22));
+  border-color: rgba(220,80,100,0.5);
+}
+.pv2-play-ic { display: flex; align-items: center; }
+.pv2-play-ic .icon { width: 18px; height: 18px; }
+
+/* Status */
+.pv2-status-row {
+  display: flex; align-items: center; gap: 7px;
+  color: rgba(180,190,220,0.6);
+  font-size: 12.5px; font-weight: 500;
+}
+.pv2-status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: rgba(80,220,120,0.5);
+}
+
+@media (max-width: 700px) {
+  .pv2-shell { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .pv2-controls { flex-direction: row; flex-wrap: wrap; padding: 14px; gap: 12px; }
+  .pv2-ctrl-section { min-width: 140px; flex: 1; }
+  .pv2-stage { min-height: 340px; }
+}
