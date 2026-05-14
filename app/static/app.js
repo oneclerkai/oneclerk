@@ -588,6 +588,15 @@ route("auth", async () => {
             </button>
             <button class="lp-cta-secondary" data-scroll="lp-try">Hear it talk →</button>
           </div>
+          <div class="lp-cta-logos" aria-label="Integrations">
+            <span class="lp-cta-logos-label">Works with</span>
+            <div class="lp-cta-logo-chip" title="WhatsApp">${brandSvg("whatsapp")}</div>
+            <div class="lp-cta-logo-chip" title="Gmail">${brandSvg("gmail")}</div>
+            <div class="lp-cta-logo-chip" title="Google Calendar">${brandSvg("gcal")}</div>
+            <div class="lp-cta-logo-chip" title="Phone">${brandSvg("phone")}</div>
+            <div class="lp-cta-logo-chip" title="Instagram">${brandSvg("ig")}</div>
+            <div class="lp-cta-logo-chip" title="Slack">${brandSvg("slack")}</div>
+          </div>
 
           <!-- Glassmorphic plate of integrations (Phone, WhatsApp, IG, GCal, Gmail) -->
           <div class="lp-glass-plate" aria-hidden="true">
@@ -3145,8 +3154,8 @@ route("agentNew", async () => {
         },
       },
     });
-    toast("Agent created — let's set it up!", "success");
-    navigate(`#/agents/${created.agent.id}/setup`);
+    toast("Agent created — let's build it!", "success");
+    navigate(`#/agents/${created.agent.id}/flow`);
   } catch (ex) {
     page.innerHTML = `<div class="card p-6 text-danger">${escapeHtml(ex.message)}</div>`;
   }
@@ -3683,16 +3692,377 @@ function defaultFlow() {
 }
 
 route("agentFlow", async (id) => {
-  const wrap = shell("agents", "Flow builder", "Drag steps onto the canvas. Connect them by dragging from the right dot to the next step.");
+  const wrap = shell("agents", "Agent Builder", "Drag integrations from the panel onto the canvas. Connect cards to build your agent's call flow.");
   const page = $("#page", wrap);
   page.innerHTML = skeleton(2);
+
+  let a;
   try {
-    const a = (await api(`/agents/${id}`)).agent;
+    a = (await api(`/agents/${id}`)).agent;
     if (!a) throw new Error("Agent not found");
-    const cfg = a.config || {};
-    let flow = (cfg.flow && (cfg.flow.nodes || []).length) ? cfg.flow : defaultFlow();
-    page.innerHTML = "";
-    page.appendChild(agentSubtabs(id, "flow"));
+  } catch (e) {
+    page.innerHTML = `<div class="text-danger">${escapeHtml(e.message)}</div>`;
+    return wrap;
+  }
+
+  const cfg = a.config || {};
+  page.innerHTML = "";
+  page.appendChild(agentSubtabs(id, "flow"));
+
+  const INT_CARDS = [
+    { type: "whatsapp",  label: "WhatsApp Live",    color: "#25D366", brandKey: "whatsapp", icon: "message-circle" },
+    { type: "gmail",     label: "Gmail",             color: "#EA4335", brandKey: "gmail",    icon: "mail"           },
+    { type: "gcal",      label: "Google Calendar",   color: "#1A73E8", brandKey: "gcal",     icon: "calendar"       },
+    { type: "info",      label: "Business Info",     color: "#6366F1", brandKey: null,       icon: "file-text"      },
+    { type: "phone",     label: "Phone Number",      color: "#0D6EFD", brandKey: "phone",    icon: "phone"          },
+    { type: "voice",     label: "Voice Type",        color: "#F59E0B", brandKey: null,       icon: "mic"            },
+    { type: "language",  label: "Languages",         color: "#10B981", brandKey: null,       icon: "globe"          },
+    { type: "slack",     label: "Slack Alerts",      color: "#4A154B", brandKey: "slack",    icon: "layers"         },
+  ];
+
+  const saved = (cfg.flow_v2 && cfg.flow_v2.cards) ? cfg.flow_v2 : { cards: [], edges: [] };
+  const state = { cards: saved.cards, edges: saved.edges, dragEdgeFrom: null, mouse: { x: 0, y: 0 } };
+  const CARD_W = 236, CARD_H = 136;
+
+  function genId() { return "c" + Math.random().toString(36).slice(2, 9); }
+  function cardMeta(type) { return INT_CARDS.find(c => c.type === type) || INT_CARDS[3]; }
+
+  const shellEl = h(`
+    <div class="fb-shell">
+      <div class="fb-canvas-area">
+        <div class="fb-canvas-bar">
+          <span class="fb-canvas-bar-title">Canvas · <span id="fb-cnt">0</span> cards</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-sm" id="fb-clear">Clear</button>
+            <button class="btn btn-primary btn-sm" id="fb-save"><i data-lucide="save" class="icon"></i>Save agent</button>
+          </div>
+        </div>
+        <div class="fb-canvas" id="fb-canvas">
+          <svg class="fb-svg" id="fb-svg" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:1"></svg>
+          <div class="fb-items" id="fb-items" style="position:absolute;inset:0;z-index:2"></div>
+          <div class="fb-empty-hint" id="fb-hint">
+            <div class="fb-hint-arrow">←</div>
+            <div>Drag integrations from the panel onto the canvas</div>
+          </div>
+        </div>
+      </div>
+      <aside class="fb-glass-panel">
+        <div class="fb-gp-scroll">
+          <div class="fb-gp-head">
+            <div class="fb-gp-title">Integrations</div>
+            <div class="fb-gp-sub">Drag to canvas · click to add</div>
+          </div>
+          <div class="fb-gp-list" id="fb-gp-list"></div>
+        </div>
+      </aside>
+    </div>
+  `);
+
+  const previewEl = h(`
+    <div class="fb-preview">
+      <canvas class="fb-wave" id="fb-wave"></canvas>
+      <div class="fb-preview-glow"></div>
+      <div class="fb-preview-content">
+        <div class="fb-preview-tag">Voice Preview</div>
+        <div class="fb-vpills" id="fb-vpills">
+          ${PREVIEW_VOICES.slice(0, 5).map(v => `
+            <button class="fb-vpill${v.id === "maya" ? " active" : ""}" data-voice="${v.id}">
+              <span class="fb-vpill-name">${v.label}</span>
+              <span class="fb-vpill-sub">${v.sub}</span>
+            </button>`).join("")}
+        </div>
+        <div class="fb-preview-controls">
+          <select class="fb-lang-sel" id="fb-lang-sel">
+            ${PREVIEW_LANGS.slice(0, 14).map(l => `<option>${escapeHtml(l)}</option>`).join("")}
+          </select>
+          <button class="fb-play" id="fb-play"><span id="fb-play-lbl">▶ Play sample</span></button>
+        </div>
+      </div>
+    </div>
+  `);
+
+  page.appendChild(shellEl);
+  page.appendChild(previewEl);
+  renderIcons(shellEl);
+
+  const canvasEl = $("#fb-canvas", shellEl);
+  const itemsEl  = $("#fb-items", shellEl);
+  const svgEl    = $("#fb-svg", shellEl);
+  const hintEl   = $("#fb-hint", shellEl);
+  const cntEl    = $("#fb-cnt", shellEl);
+  const gpList   = $("#fb-gp-list", shellEl);
+
+  // Build glass panel
+  gpList.innerHTML = INT_CARDS.map(c => `
+    <div class="fb-gpc" draggable="true" data-type="${c.type}" style="--cc:${c.color}">
+      <div class="fb-gpc-icon" style="background:${c.color}1a;border:1.5px solid ${c.color}55">
+        ${c.brandKey ? brandSvg(c.brandKey) : `<i data-lucide="${c.icon}" class="icon" style="color:${c.color};width:17px;height:17px"></i>`}
+      </div>
+      <div class="fb-gpc-label">${c.label}</div>
+      <div class="fb-gpc-drag">drag</div>
+    </div>`).join("");
+  renderIcons(gpList);
+
+  function cardBodyHTML(card) {
+    const c = card.config || {};
+    const ci = (ph, field, val) => `<input class="fb-ci" placeholder="${ph}" data-field="${field}" value="${escapeHtml(val || '')}" />`;
+    if (card.type === "voice") return `<select class="fb-ci" data-field="voice">${PREVIEW_VOICES.map(v => `<option value="${v.id}"${c.voice===v.id?" selected":""}>${v.label} — ${v.sub}</option>`).join("")}</select>`;
+    if (card.type === "language") return `<select class="fb-ci" data-field="language">${PREVIEW_LANGS.slice(0,15).map(l => `<option${c.language===l?" selected":""}>${l}</option>`).join("")}</select>`;
+    if (card.type === "phone") return ci("Forwarding number e.g. +1 555 0100", "phone", c.phone);
+    if (card.type === "whatsapp") return ci("WhatsApp number for summaries", "whatsapp", c.whatsapp);
+    if (card.type === "gmail") return ci("Gmail address", "email", c.email);
+    if (card.type === "gcal") return ci("Calendly or Google Calendar URL", "calendly", c.calendly);
+    if (card.type === "slack") return ci("Slack webhook URL", "webhook", c.webhook);
+    if (card.type === "info") return `
+      <textarea class="fb-ci" style="resize:vertical;min-height:54px" data-field="text" placeholder="Business hours, services, FAQs…">${escapeHtml(c.text||'')}</textarea>
+      ${ci("Website URL", "url", c.url)}
+      <label class="fb-file-btn"><input type="file" accept=".pdf,.txt,.docx" data-field="file" style="display:none"><span>📎 Upload file (PDF / TXT / DOCX)</span></label>`;
+    return "";
+  }
+
+  function portPos(card, side) {
+    return side === "out"
+      ? { x: card.x + CARD_W, y: card.y + CARD_H / 2 }
+      : { x: card.x,          y: card.y + CARD_H / 2 };
+  }
+
+  function bezier(sx, sy, tx, ty) {
+    const dx = Math.max(55, Math.abs(tx - sx) * 0.52);
+    return `M${sx} ${sy} C${sx+dx} ${sy},${tx-dx} ${ty},${tx} ${ty}`;
+  }
+
+  function renderEdges() {
+    svgEl.innerHTML = `<defs><marker id="fbarr" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0 .5 L6 3.5 L0 6.5z" fill="rgba(99,102,241,.75)"/></marker></defs>`;
+    state.edges.forEach((e, i) => {
+      const fc = state.cards.find(c => c.id === e.from);
+      const tc = state.cards.find(c => c.id === e.to);
+      if (!fc || !tc) return;
+      const s = portPos(fc, "out"), t = portPos(tc, "in");
+      const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      p.setAttribute("d", bezier(s.x, s.y, t.x, t.y));
+      p.setAttribute("class", "fb-edge");
+      p.setAttribute("marker-end", "url(#fbarr)");
+      p.dataset.idx = i;
+      p.style.pointerEvents = "stroke";
+      p.addEventListener("click", ev => { ev.stopPropagation(); if (confirm("Remove connection?")) { state.edges.splice(i,1); renderEdges(); } });
+      svgEl.appendChild(p);
+    });
+    if (state.dragEdgeFrom) {
+      const fc = state.cards.find(c => c.id === state.dragEdgeFrom);
+      if (fc) {
+        const s = portPos(fc, "out");
+        const gp = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        gp.setAttribute("d", bezier(s.x, s.y, state.mouse.x, state.mouse.y));
+        gp.setAttribute("class", "fb-edge fb-edge-ghost");
+        svgEl.appendChild(gp);
+      }
+    }
+  }
+
+  function renderCanvas() {
+    itemsEl.innerHTML = "";
+    state.cards.forEach(card => {
+      const meta = cardMeta(card.type);
+      const el = h(`
+        <div class="fb-card" data-cid="${card.id}" style="left:${card.x}px;top:${card.y}px;--cc:${meta.color}">
+          <div class="fb-port fb-port-in" data-card="${card.id}" title="Connect here"></div>
+          <div class="fb-card-head">
+            <div class="fb-card-ico" style="background:${meta.color}22">${meta.brandKey ? brandSvg(meta.brandKey) : `<i data-lucide="${meta.icon}" class="icon" style="color:${meta.color};width:14px;height:14px"></i>`}</div>
+            <span class="fb-card-name">${meta.label}</span>
+            <button class="fb-card-x" data-del="${card.id}">×</button>
+          </div>
+          <div class="fb-card-body">${cardBodyHTML(card)}</div>
+          <div class="fb-port fb-port-out" data-card="${card.id}" title="Drag to connect"></div>
+        </div>`);
+      renderIcons(el);
+      itemsEl.appendChild(el);
+
+      // Drag card by head
+      let ds = null;
+      const head = el.querySelector(".fb-card-head");
+      head.addEventListener("mousedown", ev => {
+        if (ev.target.closest(".fb-card-x")) return;
+        ds = { mx: ev.clientX, my: ev.clientY, ox: card.x, oy: card.y };
+        el.classList.add("fb-card-drag");
+        ev.preventDefault(); ev.stopPropagation();
+      });
+      const onMove = ev => {
+        if (!ds) return;
+        card.x = Math.max(0, ds.ox + ev.clientX - ds.mx);
+        card.y = Math.max(0, ds.oy + ev.clientY - ds.my);
+        el.style.left = card.x + "px";
+        el.style.top = card.y + "px";
+        renderEdges();
+      };
+      const onUp = () => { if (ds) { ds = null; el.classList.remove("fb-card-drag"); } };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+
+      // Delete
+      el.querySelector(".fb-card-x").addEventListener("click", ev => {
+        ev.stopPropagation();
+        state.cards = state.cards.filter(c => c.id !== card.id);
+        state.edges = state.edges.filter(e => e.from !== card.id && e.to !== card.id);
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+        renderCanvas();
+      });
+
+      // Field changes → sync preview
+      el.querySelectorAll("[data-field]").forEach(inp => {
+        const upd = () => { card.config = card.config || {}; card.config[inp.dataset.field] = inp.value; syncPreview(); };
+        inp.addEventListener("change", upd);
+        inp.addEventListener("input", upd);
+      });
+
+      // Out port → start edge drag
+      el.querySelector(".fb-port-out").addEventListener("mousedown", ev => {
+        ev.stopPropagation(); ev.preventDefault();
+        state.dragEdgeFrom = card.id;
+      });
+
+      // In port → complete edge
+      el.querySelector(".fb-port-in").addEventListener("mouseup", ev => {
+        if (state.dragEdgeFrom && state.dragEdgeFrom !== card.id) {
+          if (!state.edges.find(e => e.from === state.dragEdgeFrom && e.to === card.id))
+            state.edges.push({ from: state.dragEdgeFrom, to: card.id });
+          state.dragEdgeFrom = null;
+          renderEdges();
+          ev.stopPropagation();
+        }
+      });
+    });
+
+    cntEl.textContent = state.cards.length;
+    hintEl.style.display = state.cards.length ? "none" : "flex";
+    renderEdges();
+  }
+
+  // Mouse tracking for ghost edge
+  canvasEl.addEventListener("mousemove", ev => {
+    const r = canvasEl.getBoundingClientRect();
+    state.mouse = { x: ev.clientX - r.left, y: ev.clientY - r.top };
+    if (state.dragEdgeFrom) renderEdges();
+  });
+  canvasEl.addEventListener("mouseup", () => { if (state.dragEdgeFrom) { state.dragEdgeFrom = null; renderEdges(); } });
+  window.addEventListener("mouseup", () => { if (state.dragEdgeFrom) { state.dragEdgeFrom = null; renderEdges(); } });
+
+  // Drag from panel to canvas
+  gpList.querySelectorAll(".fb-gpc").forEach(gpc => {
+    gpc.addEventListener("dragstart", ev => ev.dataTransfer.setData("text/plain", gpc.dataset.type));
+    gpc.addEventListener("click", () => {
+      const x = 80 + (state.cards.length % 3) * 260;
+      const y = 60 + Math.floor(state.cards.length / 3) * 180;
+      state.cards.push({ id: genId(), type: gpc.dataset.type, x, y, config: {} });
+      renderCanvas();
+    });
+  });
+  canvasEl.addEventListener("dragover", ev => { ev.preventDefault(); canvasEl.classList.add("fb-canvas-over"); });
+  canvasEl.addEventListener("dragleave", () => canvasEl.classList.remove("fb-canvas-over"));
+  canvasEl.addEventListener("drop", ev => {
+    ev.preventDefault(); canvasEl.classList.remove("fb-canvas-over");
+    const type = ev.dataTransfer.getData("text/plain");
+    if (!type) return;
+    const r = canvasEl.getBoundingClientRect();
+    state.cards.push({ id: genId(), type, x: Math.max(10, ev.clientX - r.left - CARD_W / 2), y: Math.max(10, ev.clientY - r.top - 40), config: {} });
+    renderCanvas();
+  });
+
+  // Save
+  $("#fb-save", shellEl).addEventListener("click", async () => {
+    try {
+      const nc = { ...cfg, flow_v2: { cards: state.cards, edges: state.edges } };
+      state.cards.forEach(card => {
+        const c = card.config || {};
+        if (card.type === "voice" && c.voice) nc.voice_id = c.voice;
+        if (card.type === "language" && c.language) nc.language = c.language;
+        if (card.type === "phone" && c.phone) nc.forwarding_number = c.phone;
+        if (card.type === "gcal" && c.calendly) nc.calendly_url = c.calendly;
+        if (card.type === "whatsapp" && c.whatsapp) nc.owner_whatsapp = c.whatsapp;
+        if (card.type === "info") { if (c.text) nc.business_info = c.text; if (c.url) nc.business_url = c.url; }
+      });
+      await api(`/agents/${id}`, { method: "PUT", body: { name: a.name, twilio_number: a.twilio_number, forwarding_number: a.forwarding_number, voice_id: a.voice_id, language: a.language, config: nc } });
+      toast("Agent saved!", "success");
+    } catch (e) { toast(e.message, "error"); }
+  });
+
+  // Clear
+  $("#fb-clear", shellEl).addEventListener("click", () => {
+    if (state.cards.length && !confirm("Clear all cards and connections?")) return;
+    state.cards = []; state.edges = []; renderCanvas();
+  });
+
+  renderCanvas();
+
+  // Preview wave
+  setTimeout(() => {
+    const wc = document.getElementById("fb-wave");
+    if (!wc) return;
+    const ctx = wc.getContext("2d"), dpr = window.devicePixelRatio || 1;
+    let t = 0;
+    const resize = () => { const r = wc.getBoundingClientRect(); wc.width = r.width * dpr; wc.height = r.height * dpr; };
+    resize(); window.addEventListener("resize", resize);
+    (function draw() {
+      t += 0.022;
+      const w = wc.width, hh = wc.height;
+      ctx.clearRect(0, 0, w, hh);
+      const bars = 60;
+      const bw = w / bars;
+      for (let i = 0; i < bars; i++) {
+        const ph = i * 0.3 + t;
+        const amp = Math.sin(ph)*0.38 + Math.sin(ph*2.1)*0.31 + Math.sin(ph*0.6)*0.31;
+        const bh = Math.max(3*dpr, Math.abs(amp) * hh * 0.74);
+        const ratio = i / bars;
+        ctx.fillStyle = `rgba(${Math.round(140+ratio*115)},${Math.round(100+ratio*120)},255,0.62)`;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(i*bw+bw*0.2, (hh-bh)/2, bw*0.6, bh, 2);
+        else ctx.rect(i*bw+bw*0.2, (hh-bh)/2, bw*0.6, bh);
+        ctx.fill();
+      }
+      requestAnimationFrame(draw);
+    })();
+  }, 80);
+
+  // Voice pills
+  previewEl.querySelectorAll(".fb-vpill").forEach(btn =>
+    btn.addEventListener("click", () => {
+      previewEl.querySelectorAll(".fb-vpill").forEach(x => x.classList.remove("active"));
+      btn.classList.add("active");
+    })
+  );
+
+  // Play
+  const playBtn = document.getElementById("fb-play");
+  const playLbl = document.getElementById("fb-play-lbl");
+  if (playBtn) playBtn.addEventListener("click", () => {
+    if (window.speechSynthesis?.speaking) { window.speechSynthesis.cancel(); playLbl.textContent = "▶ Play sample"; return; }
+    const vid = previewEl.querySelector(".fb-vpill.active")?.dataset.voice || "maya";
+    const ls = document.getElementById("fb-lang-sel");
+    const lc = PREVIEW_LANG_MAP[ls?.value] || "en-US";
+    const vm = PREVIEW_VOICES.find(v => v.id === vid) || PREVIEW_VOICES[0];
+    const GREET = { "hi-IN": "नमस्ते, यहाँ OneClerk है। कैसे मदद करूँ?", "es-ES": "Hola, le habla OneClerk. ¿En qué le ayudo?", "ar-SA": "مرحبا، هذا OneClerk. كيف أساعدك؟", "zh-CN": "您好，这里是OneClerk。我能帮您什么？" };
+    const text = GREET[lc] || "Hi, this is your AI receptionist. How can I help you today?";
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lc; u.rate = vm.rate; u.pitch = vm.pitch;
+    playLbl.textContent = "⏹ Stop";
+    u.onend = u.onerror = () => { playLbl.textContent = "▶ Play sample"; };
+    try { window.speechSynthesis.speak(u); } catch { playLbl.textContent = "▶ Play sample"; }
+  });
+
+  function syncPreview() {
+    const vc = state.cards.find(c => c.type === "voice");
+    const lc = state.cards.find(c => c.type === "language");
+    if (vc?.config?.voice) { previewEl.querySelectorAll(".fb-vpill").forEach(x => x.classList.remove("active")); const p = previewEl.querySelector(`[data-voice="${vc.config.voice}"]`); if (p) p.classList.add("active"); }
+    if (lc?.config?.language) { const s = document.getElementById("fb-lang-sel"); if (s) s.value = lc.config.language; }
+  }
+
+  renderIcons(page);
+  return wrap;
+
+  /* eslint-disable no-unreachable */
+  if (false) {
+    const cfg2 = a.config || {};
+    let flow = (cfg2.flow && (cfg2.flow.nodes || []).length) ? cfg2.flow : defaultFlow();
 
     const shellEl = h(`
       <div class="flow-shell">
@@ -4089,12 +4459,10 @@ route("agentFlow", async (id) => {
 
     // First paint
     setTimeout(() => {
-      $("#t-fit", shellEl).click();
-      redraw();
       renderInspector();
     }, 30);
-  } catch (e) { page.innerHTML = `<div class="text-danger">${escapeHtml(e.message)}</div>`; }
-  return wrap;
+  }
+  /* eslint-enable no-unreachable */
 });
 
 // --- Render dispatcher ---
