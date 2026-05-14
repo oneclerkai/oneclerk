@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -13,6 +13,7 @@ from app.config import settings
 from app.database import get_db
 from app.models import Agent, Call, User
 from app.routes.auth import get_current_user
+from app.services.billing_calculator import calculate_usage
 
 logger = logging.getLogger("oneclerk.dashboard")
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -173,3 +174,133 @@ async def voice_preview(
     except Exception as exc:
         logger.exception("Voice preview synthesis failed")
         raise HTTPException(status_code=502, detail=f"Synthesis error: {exc}") from exc
+
+
+# ---------------------------------------------------------------------------
+# Additional dashboard endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/calls-today")
+async def calls_today(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return today's call count and total duration."""
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    count = (
+        await db.execute(
+            select(func.count(Call.id)).where(
+                Call.user_id == current_user.id,
+                Call.created_at >= today_start,
+            )
+        )
+    ).scalar_one()
+
+    duration_raw = (
+        await db.execute(
+            select(func.coalesce(func.sum(Call.duration_seconds), 0)).where(
+                Call.user_id == current_user.id,
+                Call.created_at >= today_start,
+            )
+        )
+    ).scalar_one() or 0
+
+    return {
+        "calls_today": int(count),
+        "duration_seconds_today": int(duration_raw),
+        "duration_minutes_today": round(int(duration_raw) / 60, 1),
+    }
+
+
+@router.get("/usage")
+async def usage_stats(
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Return minutes used, rollover, and overage for the current billing period."""
+    plan_key = current_user.plan or "trial"
+    usage = calculate_usage(
+        plan=plan_key,
+        minutes_used=current_user.minutes_used_this_month or 0,
+        rollover_minutes=current_user.rollover_minutes or 0,
+        rollover_expires_at=current_user.rollover_expires_at,
+    )
+    return {
+        "plan": plan_key,
+        "minutes_used": usage.minutes_used,
+        "minutes_included": usage.included_minutes,
+        "rollover_minutes": usage.rollover_minutes,
+        "total_available": usage.total_available,
+        "minutes_remaining": usage.minutes_remaining,
+        "overage_minutes": usage.overage_minutes,
+        "overage_cost_inr": usage.overage_cost_inr,
+        "pct_used": round(usage.pct_used, 1),
+        "alert_80": usage.alert_80,
+        "alert_100": usage.alert_100,
+        "allow_overage": usage.allow_overage,
+    }
+
+
+@router.get("/revenue")
+async def revenue_stats(
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Return Stripe revenue and overage charges for the current user."""
+    plan_key = current_user.plan or "trial"
+    plan_prices = {"trial": 0, "starter": 39, "growth": 99, "scale": 149}
+    monthly_revenue = plan_prices.get(plan_key, 0)
+
+    usage = calculate_usage(
+        plan=plan_key,
+        minutes_used=current_user.minutes_used_this_month or 0,
+        rollover_minutes=current_user.rollover_minutes or 0,
+        rollover_expires_at=current_user.rollover_expires_at,
+    )
+
+    return {
+        "plan": plan_key,
+        "monthly_revenue_usd": monthly_revenue,
+        "overage_cost_inr": usage.overage_cost_inr,
+        "stripe_customer_id": current_user.stripe_customer_id,
+        "subscription_status": current_user.subscription_status or ("trialing" if plan_key == "trial" else "active"),
+        "stripe_configured": bool(settings.STRIPE_SECRET_KEY),
+    }
+
+
+@router.get("/alerts")
+async def usage_alerts(
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Return usage threshold warnings (80% and 100% alerts)."""
+    plan_key = current_user.plan or "trial"
+    usage = calculate_usage(
+        plan=plan_key,
+        minutes_used=current_user.minutes_used_this_month or 0,
+        rollover_minutes=current_user.rollover_minutes or 0,
+        rollover_expires_at=current_user.rollover_expires_at,
+    )
+
+    alerts = []
+    if usage.alert_100:
+        alerts.append({
+            "level": "critical",
+            "type": "usage_100",
+            "message": f"You've used all {usage.included_minutes} included minutes this month. Overage charges apply.",
+        })
+    elif usage.alert_80:
+        alerts.append({
+            "level": "warning",
+            "type": "usage_80",
+            "message": f"You've used {round(usage.pct_used)}% of your {usage.included_minutes} included minutes.",
+        })
+
+    if current_user.trial_ends_at:
+        days_left = (current_user.trial_ends_at - datetime.utcnow()).days
+        if plan_key == "trial" and days_left <= 3:
+            alerts.append({
+                "level": "warning",
+                "type": "trial_expiring",
+                "message": f"Your free trial expires in {max(0, days_left)} day(s). Upgrade to keep your agent live.",
+            })
+
+    return {"alerts": alerts, "has_alerts": len(alerts) > 0}

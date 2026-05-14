@@ -253,6 +253,153 @@ async def get_agent(
     return {"agent": _agent_dict(agent)}
 
 
+class TestVoiceRequest(BaseModel):
+    text: str | None = None
+    language: str | None = None
+    voice_id: str | None = None
+
+
+class ConfigurePhoneRequest(BaseModel):
+    phone_number: str
+
+
+class WorkflowRequest(BaseModel):
+    flow: dict  # { nodes: [...], edges: [...] }
+
+
+@router.post("/{agent_id}/test-voice")
+async def test_voice(
+    agent_id: str,
+    data: TestVoiceRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Synthesize a short sample using the agent's configured voice and return an audio URL."""
+    agent = await _get_owned_agent(db, current_user, agent_id)
+    if not settings.ELEVENLABS_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="ElevenLabs is not configured. Set ELEVENLABS_API_KEY.",
+        )
+    cfg = agent.config or {}
+    business_name = cfg.get("business_name") or agent.name
+    agent_name = cfg.get("agent_name") or agent.name
+    text = (data.text or f"Hello! I'm {agent_name}, the AI receptionist for {business_name}. How can I help you today?").strip()[:200]
+    language = data.language or agent.language or "english"
+    voice_id = data.voice_id or agent.voice_id or None
+
+    try:
+        from app.services.synthesis import synthesize
+        audio_url = await synthesize(text=text, language=language, gender="female", voice_id=voice_id)
+        if not audio_url:
+            raise HTTPException(status_code=502, detail="Synthesis returned empty audio")
+        return {"audio_url": audio_url, "text": text}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Voice synthesis error: {exc}") from exc
+
+
+@router.get("/{agent_id}/voices")
+async def list_voices(
+    agent_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return available ElevenLabs voices for this agent's language."""
+    agent = await _get_owned_agent(db, current_user, agent_id)
+    language = (agent.language or "english").lower()
+
+    # Built-in voice options per language
+    voice_options = {
+        "english": [
+            {"id": settings.VOICE_EN_FEMALE, "name": "Rachel (Female)", "language": "english", "gender": "female"},
+            {"id": settings.VOICE_EN_MALE, "name": "Antoni (Male)", "language": "english", "gender": "male"},
+        ],
+        "hindi": [
+            {"id": settings.VOICE_HI_FEMALE, "name": "Priya (Female)", "language": "hindi", "gender": "female"},
+        ],
+        "arabic": [
+            {"id": settings.VOICE_AR_FEMALE, "name": "Layla (Female)", "language": "arabic", "gender": "female"},
+        ],
+        "spanish": [
+            {"id": settings.VOICE_ES_FEMALE, "name": "Lucia (Female)", "language": "spanish", "gender": "female"},
+        ],
+        "tamil": [
+            {"id": settings.VOICE_EN_FEMALE, "name": "Ananya (Female)", "language": "tamil", "gender": "female"},
+        ],
+    }
+
+    voices = voice_options.get(language, voice_options["english"])
+    return {"voices": voices, "current_voice_id": agent.voice_id}
+
+
+@router.post("/{agent_id}/configure-phone")
+async def configure_phone(
+    agent_id: str,
+    data: ConfigurePhoneRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Set a custom phone number on the agent (e.g. a Twilio or Telnyx number)."""
+    agent = await _get_owned_agent(db, current_user, agent_id)
+    phone = data.phone_number.strip()
+    if not phone:
+        raise HTTPException(status_code=400, detail="phone_number is required")
+    agent.twilio_number = phone
+    await db.commit()
+    await db.refresh(agent)
+    return {"agent": _agent_dict(agent), "phone_number": phone}
+
+
+@router.get("/{agent_id}/phone-status")
+async def phone_status(
+    agent_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return the phone number configuration status for this agent."""
+    agent = await _get_owned_agent(db, current_user, agent_id)
+    phone = agent.telnyx_phone or agent.twilio_number
+    return {
+        "has_phone": bool(phone),
+        "phone_number": phone,
+        "telnyx_phone": agent.telnyx_phone,
+        "twilio_number": agent.twilio_number,
+        "is_active": agent.is_active,
+        "status": agent.status,
+    }
+
+
+@router.post("/{agent_id}/workflow")
+async def save_workflow(
+    agent_id: str,
+    data: WorkflowRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Save the drag-and-drop workflow canvas (nodes + edges) for this agent."""
+    agent = await _get_owned_agent(db, current_user, agent_id)
+    cfg = dict(agent.config or {})
+    cfg["flow"] = data.flow
+    agent.config = cfg
+    flag_modified(agent, "config")
+    await db.commit()
+    await db.refresh(agent)
+    return {"agent": _agent_dict(agent), "flow": data.flow}
+
+
+@router.get("/{agent_id}/preview")
+async def agent_preview(
+    agent_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return the agent config for preview (same as GET /{agent_id} but explicit)."""
+    agent = await _get_owned_agent(db, current_user, agent_id)
+    return {"agent": _agent_dict(agent)}
+
+
 @router.post("/{agent_id}/test-chat")
 async def test_chat(
     agent_id: str,

@@ -52,6 +52,11 @@ def _email_link_html(verification_link: str) -> str:
 
 
 async def send_email_otp(email: str, otp: str) -> bool:
+    # Try Gmail first if configured
+    if settings.MAIL_PASSWORD:
+        from app.services.email_service import send_otp_email
+        return await send_otp_email(email, otp)
+
     if not settings.RESEND_API_KEY:
         return False
     if resend is None:
@@ -73,29 +78,18 @@ async def send_email_otp(email: str, otp: str) -> bool:
 
 
 async def send_sms_otp(phone_number: str, otp: str) -> bool:
-    if not (
-        settings.TWILIO_ACCOUNT_SID
-        and settings.TWILIO_AUTH_TOKEN
-        and settings.TWILIO_PHONE_NUMBER
-    ):
-        return False
-    if TwilioClient is None:
-        raise RuntimeError("twilio package is not installed")
-
-    def _send() -> None:
-        client = TwilioClient(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-        client.messages.create(
-            body=f"Your OneClerk verification code is {otp}. It expires in 5 minutes.",
-            from_=settings.TWILIO_PHONE_NUMBER,
-            to=phone_number,
-        )
-
-    await asyncio.to_thread(_send)
-    return True
+    # Delegate to the dedicated SMS service
+    from app.services.sms_service import send_otp_sms
+    return await send_otp_sms(phone_number, otp)
 
 
 async def send_email_verification_link(email: str, verification_link: str) -> bool:
     """Send a verification link instead of OTP for email verification."""
+    # Try Gmail first if configured
+    if settings.MAIL_PASSWORD:
+        from app.services.email_service import send_verification_email
+        return await send_verification_email(email, verification_link)
+
     if not settings.RESEND_API_KEY:
         return False
     if resend is None:

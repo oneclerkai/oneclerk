@@ -17,6 +17,7 @@ from app.models import Agent, Call, CallStatus, ConversationTurn, User
 from app.services import ai_brain, synthesis, telnyx_handler, whatsapp
 from app.services.redis_client import get_redis
 from app.services.transcription import resolve_transcript
+from app.services.voice_agent import process_voice_turn
 from app.tasks.background import process_completed_call
 
 try:
@@ -279,16 +280,32 @@ async def handle_gather_ended(data: dict, db: AsyncSession):
         if telnyx is not None:
             telnyx.Call.playback_start(call_control_id, audio_url=clarify_url)
         return
+
+    # Log the user's turn
     turn = ConversationTurn(call_id=call.id, role="user", content=transcription)
     db.add(turn)
     history = await get_conversation_history(db, call.id)
-    ai_result = await ai_brain.get_ai_response(transcription, history, agent)
-    response_text = ai_result.get("response", "I'll have someone call you back.")
-    should_escalate = ai_result.get("escalate", False)
-    booking_detected = ai_result.get("booking_detected", False)
+
+    # ── Voice agent pipeline: OpenAI → ElevenLabs ────────────────────────────
+    voice_result = await process_voice_turn(
+        transcription=transcription,
+        agent=agent,
+        conversation_history=history,
+        call_context={"call_id": str(call.id), "caller_number": call.caller_number},
+    )
+
+    response_text = voice_result.get("response_text", "I'll have someone call you back.")
+    should_escalate = voice_result.get("escalate", False)
+    booking_detected = voice_result.get("booking_detected", False)
+
+    # Log the assistant's turn
     ai_turn = ConversationTurn(call_id=call.id, role="assistant", content=response_text)
     db.add(ai_turn)
-    call.conversation = [*history, {"role": "user", "content": transcription}, {"role": "assistant", "content": response_text}]
+    call.conversation = [
+        *history,
+        {"role": "user", "content": transcription},
+        {"role": "assistant", "content": response_text},
+    ]
     await db.commit()
     if should_escalate:
         call.escalated = True
@@ -325,7 +342,7 @@ async def handle_gather_ended(data: dict, db: AsyncSession):
                 (agent.config or {}).get("business_name"),
                 agent.name,
                 (agent.config or {}).get("calendly_url"),
-                ai_result.get("booking_service"),
+                voice_result.get("booking_service"),
             )
         )
     # Barge-in: stop any currently playing audio before responding
@@ -335,20 +352,32 @@ async def handle_gather_ended(data: dict, db: AsyncSession):
         except Exception:
             pass
 
-    # Stream response sentences for low latency
-    first = True
-    async for url in synthesis.synthesize_sentences(response_text, language=agent.language):
+    # Play the pre-synthesized audio from the voice agent pipeline.
+    # If the voice_agent already produced an audio_url, use it directly.
+    # Otherwise stream sentence-by-sentence for low latency.
+    audio_url = voice_result.get("audio_url", "")
+    if audio_url:
         if telnyx is not None:
             telnyx.Call.playback_start(
                 call_control_id,
-                audio_url=url,
-                overlay=not first,
+                audio_url=audio_url,
                 client_state="response_playing",
             )
-        first = False
-    if first:
-        # No audio generated — fall back to gather
-        await handle_playback_ended(data, db)
+    else:
+        # Fallback: stream sentences individually
+        first = True
+        async for url in synthesis.synthesize_sentences(response_text, language=agent.language):
+            if telnyx is not None:
+                telnyx.Call.playback_start(
+                    call_control_id,
+                    audio_url=url,
+                    overlay=not first,
+                    client_state="response_playing",
+                )
+            first = False
+        if first:
+            # No audio generated — fall back to gather
+            await handle_playback_ended(data, db)
 
 
 async def handle_speak_ended(data: dict, db: AsyncSession):

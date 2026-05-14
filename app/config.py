@@ -60,6 +60,14 @@ class Settings(BaseSettings):
     VOICE_ES_FEMALE: str = "MF3mGyEYCl7XYWbV9V6O"
 
     GOOGLE_CLIENT_ID: str | None = None
+    GOOGLE_CLIENT_SECRET: str | None = None
+
+    # Gmail SMTP (App Password) for sending verification emails
+    MAIL_PASSWORD: str | None = None
+    MAIL_FROM: str = "noreply@oneclerk.ai"
+
+    # Vapi / phone line
+    VAPI_API_KEY: str | None = None
 
     STRIPE_SECRET_KEY: str | None = None
     STRIPE_WEBHOOK_SECRET: str | None = None
@@ -90,6 +98,7 @@ class Settings(BaseSettings):
             "jwt": bool(self.JWT_SECRET_KEY),
             "telnyx": bool(self.TELNYX_API_KEY and self.TELNYX_PUBLIC_KEY),
             "resend": bool(self.RESEND_API_KEY),
+            "gmail": bool(self.MAIL_PASSWORD),
             "twilio": bool(
                 self.TWILIO_ACCOUNT_SID
                 and self.TWILIO_AUTH_TOKEN
@@ -100,6 +109,8 @@ class Settings(BaseSettings):
             "elevenlabs": bool(self.ELEVENLABS_API_KEY),
             "stripe": bool(self.STRIPE_SECRET_KEY),
             "whatsapp": bool(self.WHATSAPP_FROM and self.WHATSAPP_API_URL),
+            "google_oauth": bool(self.GOOGLE_CLIENT_ID and self.GOOGLE_CLIENT_SECRET),
+            "vapi": bool(self.VAPI_API_KEY),
         }
 
     def missing_critical_settings(self) -> list[str]:

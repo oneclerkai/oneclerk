@@ -33,6 +33,15 @@ async def serve_audio_legacy(filename: str) -> FileResponse:
     )
 
 
+@router.get("/list")
+async def list_calls(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Alias for /recent — returns the 20 most recent calls."""
+    return await recent_calls(current_user=current_user, db=db)
+
+
 @router.get("/recent")
 async def recent_calls(
     current_user: User = Depends(get_current_user),

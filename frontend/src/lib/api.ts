@@ -90,6 +90,22 @@ export const auth = {
     });
   },
 
+  /** Google OAuth — pass the ID token from @react-oauth/google */
+  googleLogin: async (idToken: string) => {
+    return apiFetch('/api/auth/google-login', {
+      method: 'POST',
+      body: JSON.stringify({ id_token: idToken }),
+    });
+  },
+
+  /** Legacy Google auth endpoint — accepts 'credential' field */
+  googleAuth: async (credential: string) => {
+    return apiFetch('/api/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential }),
+    });
+  },
+
   sendEmailOtp: async (email: string) => {
     return apiFetch('/api/auth/send-email-otp', {
       method: 'POST',
@@ -102,6 +118,25 @@ export const auth = {
       method: 'POST',
       body: JSON.stringify({ email }),
     });
+  },
+
+  /** Send verification email to the currently logged-in user */
+  sendVerificationEmail: async () => {
+    return apiFetch('/api/auth/send-verification-email', {
+      method: 'POST',
+    });
+  },
+
+  /** Resend verification email to the currently logged-in user */
+  resendVerificationEmail: async () => {
+    return apiFetch('/api/auth/resend-verification-email', {
+      method: 'POST',
+    });
+  },
+
+  /** Verify email token for already-registered users (GET endpoint) */
+  verifyEmail: async (token: string, userId: string) => {
+    return apiFetch(`/api/auth/verify-email?token=${encodeURIComponent(token)}&user_id=${encodeURIComponent(userId)}`);
   },
 
   verifyEmailOtpAndSignup: async (data: {
@@ -148,10 +183,16 @@ export const auth = {
     return apiFetch('/api/auth/me');
   },
 
-  logout: () => {
-    clearToken();
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
+  logout: async () => {
+    try {
+      await apiFetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Ignore errors — we always clear the token locally
+    } finally {
+      clearToken();
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
     }
   },
 
@@ -167,6 +208,27 @@ export const auth = {
 export const dashboard = {
   overview: async () => {
     return apiFetch('/api/dashboard/stats');
+  },
+
+  callsToday: async () => {
+    return apiFetch('/api/dashboard/calls-today');
+  },
+
+  usage: async () => {
+    return apiFetch('/api/dashboard/usage');
+  },
+
+  revenue: async () => {
+    return apiFetch('/api/dashboard/revenue');
+  },
+
+  alerts: async () => {
+    return apiFetch('/api/dashboard/alerts');
+  },
+
+  /** @deprecated Use overview() — kept for backward compatibility */
+  calls: async () => {
+    return apiFetch('/api/calls/list').catch(() => ({ calls: [] }));
   },
 
   voicePreview: async (text: string, language: string = 'english', voice_id?: string) => {
@@ -262,5 +324,87 @@ export const agents = {
 
   setupInstructions: async (agent_id: string, carrier: string = 'generic') => {
     return apiFetch(`/api/agents/${agent_id}/setup-instructions?carrier=${carrier}`);
+  },
+
+  /** Test voice synthesis for an agent */
+  testVoice: async (agent_id: string, text?: string, language?: string, voice_id?: string) => {
+    return apiFetch(`/api/agents/${agent_id}/test-voice`, {
+      method: 'POST',
+      body: JSON.stringify({ text, language, voice_id }),
+    });
+  },
+
+  /** List available voices for an agent */
+  voices: async (agent_id: string) => {
+    return apiFetch(`/api/agents/${agent_id}/voices`);
+  },
+
+  /** Configure a phone number for an agent */
+  configurePhone: async (agent_id: string, phone_number: string) => {
+    return apiFetch(`/api/agents/${agent_id}/configure-phone`, {
+      method: 'POST',
+      body: JSON.stringify({ phone_number }),
+    });
+  },
+
+  /** Get phone number status for an agent */
+  phoneStatus: async (agent_id: string) => {
+    return apiFetch(`/api/agents/${agent_id}/phone-status`);
+  },
+
+  /** Save workflow (drag-and-drop canvas) for an agent */
+  saveWorkflow: async (agent_id: string, flow: { nodes: unknown[]; edges: unknown[] }) => {
+    return apiFetch(`/api/agents/${agent_id}/workflow`, {
+      method: 'POST',
+      body: JSON.stringify({ flow }),
+    });
+  },
+
+  /** Get agent config for preview */
+  preview: async (agent_id: string) => {
+    return apiFetch(`/api/agents/${agent_id}/preview`);
+  },
+
+  /** Test chat with an agent (text-based, same AI brain as voice) */
+  testChat: async (agent_id: string, message: string, history: { role: string; content: string }[] = []) => {
+    return apiFetch(`/api/agents/${agent_id}/test-chat`, {
+      method: 'POST',
+      body: JSON.stringify({ message, history }),
+    });
+  },
+
+  /** Provision a Telnyx phone number for an agent */
+  getTelnyxNumber: async (agent_id: string) => {
+    return apiFetch(`/api/agents/${agent_id}/get-telnyx-number`, {
+      method: 'POST',
+    });
+  },
+};
+
+// Integrations API
+export const integrations = {
+  googleCalendar: {
+    connect: async () => {
+      return apiFetch('/api/integrations/google-calendar/connect', {
+        method: 'POST',
+      });
+    },
+
+    status: async () => {
+      return apiFetch('/api/integrations/google-calendar/status');
+    },
+  },
+
+  whatsapp: {
+    connect: async (phone_number: string) => {
+      return apiFetch('/api/integrations/whatsapp/connect', {
+        method: 'POST',
+        body: JSON.stringify({ phone_number }),
+      });
+    },
+
+    status: async () => {
+      return apiFetch('/api/integrations/whatsapp/status');
+    },
   },
 };

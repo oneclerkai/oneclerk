@@ -4,7 +4,7 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
-import { auth } from '../../../lib/api'
+import { auth, integrations } from '../../../lib/api'
 
 interface User {
   id: string
@@ -21,6 +21,12 @@ export default function SettingsPage() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Integration state
+  const [gcalStatus, setGcalStatus] = useState<{ connected: boolean } | null>(null)
+  const [waStatus, setWaStatus] = useState<{ connected: boolean; phone_number: string | null } | null>(null)
+  const [gcalLoading, setGcalLoading] = useState(false)
+  const [integrationsLoading, setIntegrationsLoading] = useState(true)
+
   // Phone OTP state
   const [phone, setPhone] = useState('')
   const [otpSent, setOtpSent] = useState(false)
@@ -33,6 +39,14 @@ export default function SettingsPage() {
 
   useEffect(() => {
     auth.me().then(setUser).catch(() => {}).finally(() => setLoading(false))
+    // Load integration statuses
+    Promise.all([
+      integrations.googleCalendar.status().catch(() => null),
+      integrations.whatsapp.status().catch(() => null),
+    ]).then(([gcal, wa]) => {
+      if (gcal) setGcalStatus(gcal)
+      if (wa) setWaStatus(wa)
+    }).finally(() => setIntegrationsLoading(false))
   }, [])
 
   const sendPhoneOtp = async () => {
@@ -196,6 +210,70 @@ export default function SettingsPage() {
             )}
           </div>
         )}
+      </div>
+
+      {/* Integrations */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+        <h2 className="text-sm font-semibold text-gray-700">Integrations</h2>
+
+        {/* Google Calendar */}
+        <div className="flex items-center justify-between py-3 border-b border-gray-50">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-sm">📅</div>
+            <div>
+              <p className="text-sm font-medium text-gray-800">Google Calendar</p>
+              <p className="text-xs text-gray-500">Auto-create calendar events from bookings</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {gcalStatus?.connected && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Connected</span>
+            )}
+            <button
+              onClick={async () => {
+                setGcalLoading(true)
+                try {
+                  const res = await integrations.googleCalendar.connect()
+                  if (res?.auth_url) window.location.href = res.auth_url
+                } catch (e: any) {
+                  alert(e.message || 'Failed to connect Google Calendar')
+                } finally {
+                  setGcalLoading(false)
+                }
+              }}
+              disabled={gcalLoading || integrationsLoading}
+              className="text-xs font-semibold px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              {gcalLoading ? 'Connecting…' : gcalStatus?.connected ? 'Reconnect' : 'Connect'}
+            </button>
+          </div>
+        </div>
+
+        {/* WhatsApp */}
+        <div className="flex items-center justify-between py-3">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center text-sm">💬</div>
+            <div>
+              <p className="text-sm font-medium text-gray-800">WhatsApp Notifications</p>
+              <p className="text-xs text-gray-500">
+                {waStatus?.connected
+                  ? `Sending to ${waStatus.phone_number}`
+                  : 'Receive call summaries and urgent alerts'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {waStatus?.connected && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Active</span>
+            )}
+            <a
+              href="#phone-verification"
+              className="text-xs font-semibold px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              {waStatus?.connected ? 'Update' : 'Setup'}
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* Logout */}

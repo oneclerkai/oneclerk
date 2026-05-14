@@ -38,9 +38,9 @@ export function useAuth() {
     return result
   }
 
-  const logout = () => {
+  const logout = async () => {
     setUser(null)
-    auth.logout()
+    await auth.logout()
   }
 
   const refreshUser = async () => {

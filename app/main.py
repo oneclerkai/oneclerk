@@ -11,7 +11,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.config import settings
 from app.database import init_models
-from app.routes import agents, auth, billing, calls, dashboard, webhooks
+from app.routes import agents, auth, billing, calls, dashboard, integrations, webhooks
 from app.startup_check import check_all_services
 from app.services.redis_client import ping_redis
 from app.services.synthesis import cleanup_audio_files
@@ -79,6 +79,7 @@ app.include_router(agents.router, prefix="/api")
 app.include_router(calls.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(billing.router, prefix="/api")
+app.include_router(integrations.router, prefix="/api")
 
 _STATIC_DIR = Path(__file__).parent / "static"
 _HAS_STATIC = _STATIC_DIR.exists()

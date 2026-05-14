@@ -324,13 +324,14 @@ async def send_phone_otp_route(
         raise HTTPException(status_code=400, detail="Phone number is required")
 
     otp = _otp()
-    await safe_setex(_phone_key(phone_number), 300, otp)
+    # Store with 10-minute TTL (600 seconds) per spec
+    await safe_setex(_phone_key(phone_number), 600, otp)
     try:
         sent = await send_sms_otp(phone_number, otp)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Could not send phone OTP: {exc}") from exc
 
-    response = {"sent": sent, "expires_in_seconds": 300}
+    response: dict = {"sent": sent, "expires_in_seconds": 600}
     if not (
         settings.TWILIO_ACCOUNT_SID
         and settings.TWILIO_AUTH_TOKEN
@@ -368,34 +369,64 @@ class GoogleAuthRequest(BaseModel):
     credential: str
 
 
-@router.post("/google", response_model=TokenResponse)
-async def google_auth(data: GoogleAuthRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
+class GoogleLoginRequest(BaseModel):
+    id_token: str
+
+
+async def _verify_google_token(id_token_str: str) -> dict:
+    """Verify a Google ID token and return the token info dict."""
     import httpx
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.get(
+            "https://oauth2.googleapis.com/tokeninfo",
+            params={"id_token": id_token_str},
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    info = resp.json()
+    if "error" in info:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Google token error: {info.get('error_description', info['error'])}",
+        )
+
+    # Verify audience if GOOGLE_CLIENT_ID is configured
+    if settings.GOOGLE_CLIENT_ID:
+        aud = info.get("aud", "")
+        if aud != settings.GOOGLE_CLIENT_ID:
+            raise HTTPException(status_code=401, detail="Google token audience mismatch")
+
+    return info
+
+
+async def _google_auth_flow(id_token_str: str, db: AsyncSession) -> TokenResponse:
+    """Shared logic for both /google and /google-login endpoints."""
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                "https://oauth2.googleapis.com/tokeninfo",
-                params={"id_token": data.credential},
-                timeout=10.0,
-            )
-        if resp.status_code != 200:
-            raise HTTPException(status_code=401, detail="Invalid Google token")
-        info = resp.json()
-        if "error" in info:
-            raise HTTPException(status_code=401, detail=f"Google token error: {info.get('error_description', info['error'])}")
+        info = await _verify_google_token(id_token_str)
 
         email = (info.get("email") or "").lower().strip()
         if not email:
             raise HTTPException(status_code=400, detail="Google account has no email address")
 
+        name = info.get("name") or info.get("given_name") or None
+
         existing = await db.execute(select(User).where(User.email == email))
         user = existing.scalar_one_or_none()
 
         if user is None:
-            raise HTTPException(
-                status_code=404,
-                detail="No account found for this Google email. Please create an account first.",
+            # Auto-create account for Google OAuth users (email already verified by Google)
+            user = User(
+                email=email,
+                hashed_password=_hash_password(secrets.token_urlsafe(32)),
+                name=name,
+                email_verified=True,
             )
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
 
         return TokenResponse(access_token=_create_access_token(user.id), user=_user_dict(user))
 
@@ -403,6 +434,119 @@ async def google_auth(data: GoogleAuthRequest, db: AsyncSession = Depends(get_db
         raise
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Google sign-in failed: {exc}") from exc
+
+
+@router.post("/google", response_model=TokenResponse)
+async def google_auth(data: GoogleAuthRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
+    """Legacy endpoint — accepts 'credential' field from @react-oauth/google."""
+    return await _google_auth_flow(data.credential, db)
+
+
+@router.post("/google-login", response_model=TokenResponse)
+async def google_login(data: GoogleLoginRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
+    """Google OAuth login — accepts 'id_token' field from frontend."""
+    return await _google_auth_flow(data.id_token, db)
+
+
+@router.post("/logout")
+async def logout() -> dict:
+    """Logout endpoint — client should clear the token on their side."""
+    return {"logged_out": True}
+
+
+@router.post("/send-verification-email")
+async def send_verification_email_route(
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Send a verification email to the currently logged-in user.
+
+    Used when a user is already logged in but hasn't verified their email yet.
+    """
+    if current_user.email_verified:
+        return {"sent": False, "message": "Email is already verified"}
+
+    _ensure_redis()
+    verification_token = secrets.token_urlsafe(32)
+    redis_key = f"email_verify_user:{current_user.id}"
+    await safe_setex(redis_key, 86400, verification_token)
+
+    frontend_url = settings.FRONTEND_URL or "http://localhost:3000"
+    verification_link = (
+        f"{frontend_url}/verify-email"
+        f"?token={verification_token}&user_id={current_user.id}&mode=verify"
+    )
+
+    try:
+        sent = await send_email_verification_link(current_user.email, verification_link)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Could not send verification email: {exc}") from exc
+
+    response: dict = {"sent": sent, "expires_in_seconds": 86400}
+    if not (settings.RESEND_API_KEY or settings.MAIL_PASSWORD):
+        response["dev_link"] = verification_link
+    return response
+
+
+@router.get("/verify-email")
+async def verify_email_token(
+    token: str,
+    user_id: str | None = None,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Verify email via JWT token for already-registered users.
+
+    Called when a logged-in user clicks the verification link in their email.
+    """
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id is required")
+
+    redis_key = f"email_verify_user:{user_id}"
+    stored_raw = await safe_get(redis_key)
+    stored = _decode_redis(stored_raw)
+    if not stored or stored != token.strip():
+        raise HTTPException(status_code=400, detail="Invalid or expired verification link")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.email_verified = True
+    await db.commit()
+    await db.refresh(user)
+    await safe_delete(redis_key)
+
+    return {"verified": True, "user": _user_dict(user)}
+
+
+@router.post("/resend-verification-email")
+async def resend_verification_email_route(
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Resend the verification email to the currently logged-in user."""
+    if current_user.email_verified:
+        return {"sent": False, "message": "Email is already verified"}
+
+    _ensure_redis()
+    verification_token = secrets.token_urlsafe(32)
+    redis_key = f"email_verify_user:{current_user.id}"
+    await safe_setex(redis_key, 86400, verification_token)
+
+    frontend_url = settings.FRONTEND_URL or "http://localhost:3000"
+    verification_link = (
+        f"{frontend_url}/verify-email"
+        f"?token={verification_token}&user_id={current_user.id}&mode=verify"
+    )
+
+    try:
+        sent = await send_email_verification_link(current_user.email, verification_link)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Could not resend verification email: {exc}") from exc
+
+    response: dict = {"sent": sent, "expires_in_seconds": 86400}
+    if not (settings.RESEND_API_KEY or settings.MAIL_PASSWORD):
+        response["dev_link"] = verification_link
+    return response
 
 
 @router.post("/onboarding")

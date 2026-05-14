@@ -70,19 +70,22 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null)
   const [agentList, setAgentList] = useState<Agent[]>([])
+  const [alerts, setAlerts] = useState<{ level: string; message: string }[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [statsData, billingData, agentsData] = await Promise.all([
+        const [statsData, billingData, agentsData, alertsData] = await Promise.all([
           dashboard.overview().catch(() => null),
           billing.status().catch(() => null),
           agents.list().catch(() => ({ agents: [] })),
+          dashboard.alerts().catch(() => ({ alerts: [] })),
         ])
         if (statsData) setStats(statsData)
         if (billingData) setBillingStatus(billingData)
         setAgentList(agentsData?.agents ?? [])
+        setAlerts(alertsData?.alerts ?? [])
       } finally {
         setLoading(false)
       }
@@ -110,6 +113,25 @@ export default function DashboardPage() {
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-sm text-gray-500 mt-1">Your AI receptionist at a glance</p>
       </div>
+
+      {/* Alerts */}
+      {alerts.length > 0 && (
+        <div className="space-y-2">
+          {alerts.map((alert, i) => (
+            <div
+              key={i}
+              className={`flex items-start gap-3 px-4 py-3 rounded-xl text-sm border ${
+                alert.level === 'critical'
+                  ? 'bg-red-50 border-red-200 text-red-800'
+                  : 'bg-yellow-50 border-yellow-200 text-yellow-800'
+              }`}
+            >
+              <span>{alert.level === 'critical' ? '🚨' : '⚠️'}</span>
+              <p>{alert.message}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
