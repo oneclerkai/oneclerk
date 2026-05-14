@@ -3441,18 +3441,18 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   filter: drop-shadow(0 8px 14px rgba(15,15,20,0.22));
   display: block;
 }
-/* Pull floats DOWN to the level of the comic-notes row, 2 on each side, fully visible */
-.lp-floats .lp-float[data-k="whatsapp"] { top: 470px; left: 24px;  transform: rotate(-9deg); }
-.lp-floats .lp-float[data-k="gmail"]    { top: 660px; left: 24px;  transform: rotate(7deg); }
-.lp-floats .lp-float[data-k="gcal"]     { top: 470px; right: 24px; transform: rotate(9deg); }
-.lp-floats .lp-float[data-k="phone"]    { top: 660px; right: 24px; transform: rotate(-7deg); perspective: 600px; }
+/* Pull floats behind the notes row, 2 on each side — closer inward */
+.lp-floats .lp-float[data-k="whatsapp"] { top: 460px; left: 40px;  transform: rotate(-9deg); }
+.lp-floats .lp-float[data-k="gmail"]    { top: 640px; left: 40px;  transform: rotate(7deg); }
+.lp-floats .lp-float[data-k="gcal"]     { top: 460px; right: 40px; transform: rotate(9deg); }
+.lp-floats .lp-float[data-k="phone"]    { top: 640px; right: 40px; transform: rotate(-7deg); perspective: 600px; }
 @media (max-width: 1280px) {
   .lp-floats .lp-float-brand { width: 96px !important; height: 96px !important; padding: 10px; }
   .lp-floats .lp-float-brand svg { width: 70px; height: 70px; }
   .lp-floats .lp-float[data-k="whatsapp"],
-  .lp-floats .lp-float[data-k="gcal"]   { top: 440px; }
+  .lp-floats .lp-float[data-k="gcal"]   { top: 430px; left: 20px; right: 20px; }
   .lp-floats .lp-float[data-k="gmail"],
-  .lp-floats .lp-float[data-k="phone"]  { top: 600px; }
+  .lp-floats .lp-float[data-k="phone"]  { top: 590px; left: 20px; right: 20px; }
 }
 @media (max-width: 900px) {
   .lp-floats { display: none; }
@@ -5431,9 +5431,9 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   padding: 11px 18px;
   border-radius: 12px;
   border: 1.5px solid rgba(180,180,200,0.45);
-  background: rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.96);
   backdrop-filter: blur(10px);
-  color: #f0f0f8;
+  color: #1a1a2e !important;
   font-size: 14px;
   font-weight: 600;
   font-family: inherit;
@@ -5442,8 +5442,8 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   margin-bottom: 4px;
 }
 .auth-google-btn:hover {
-  background: rgba(255,255,255,0.22);
-  border-color: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,1);
+  border-color: rgba(255,255,255,0.9);
   transform: translateY(-1px);
 }
 .auth-google-btn:active { transform: translateY(0); }
@@ -5748,3 +5748,93 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   .pv2-ctrl-section { min-width: 140px; flex: 1; }
   .pv2-stage { min-height: 340px; }
 }
+
+/* ── Field error (red border) ─────────────────────────────────── */
+.field.field-error {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.18) !important;
+  animation: shakeField 0.3s ease;
+}
+@keyframes shakeField {
+  0%,100% { transform: translateX(0); }
+  25%      { transform: translateX(-4px); }
+  75%      { transform: translateX(4px); }
+}
+
+/* ── Preview: no-agent state ──────────────────────────────────── */
+.pv2-no-agent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: calc(100vh - 180px);
+  min-height: 360px;
+  gap: 12px;
+  padding: 40px 24px;
+}
+.pv2-no-agent-icon { font-size: 0; margin-bottom: 8px; }
+.pv2-no-agent-icon .icon { width: 56px; height: 56px; color: var(--muted); opacity: 0.6; }
+.pv2-no-agent-title { font-size: 22px; font-weight: 700; }
+.pv2-no-agent-sub { font-size: 14px; color: var(--muted); max-width: 380px; line-height: 1.6; }
+
+/* ── Preview stage: true black background ─────────────────────── */
+.pv2-stage { background: #000 !important; }
+.pv2-spotlight {
+  background:
+    radial-gradient(ellipse 58% 50% at 50% 28%, rgba(255,255,255,0.22) 0%, rgba(200,215,255,0.09) 45%, transparent 72%),
+    radial-gradient(ellipse 36% 28% at 50% 18%, rgba(255,255,255,0.32) 0%, transparent 58%) !important;
+}
+
+/* ── Preview wave: vivid aurora colours ──────────────────────── */
+.pv2-wave { filter: drop-shadow(0 0 10px rgba(140,80,255,0.55)); }
+
+/* ── Call card: improved layout ───────────────────────────────── */
+.cl-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  transition: box-shadow 140ms, border-color 140ms, transform 100ms;
+  margin-bottom: 8px;
+}
+.cl-card:hover {
+  border-color: rgba(99,102,241,0.35);
+  box-shadow: 0 4px 18px rgba(99,102,241,0.12);
+  transform: translateY(-1px);
+}
+.cl-card-avatar {
+  flex-shrink: 0;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700; color: #fff;
+  letter-spacing: -0.5px;
+}
+.cl-card-avatar.av-urgent { background: linear-gradient(135deg,#ef4444,#dc2626); }
+.cl-card-avatar.av-booked { background: linear-gradient(135deg,#10b981,#059669); }
+.cl-card-body { flex: 1; min-width: 0; }
+.cl-card-toprow {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 3px;
+}
+.cl-card-caller-name { font-weight: 600; font-size: 13.5px; }
+.cl-card-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 8px; border-radius: 20px; font-size: 11px; font-weight: 600;
+}
+.cl-card-badge.badge-urgent { background: rgba(239,68,68,0.12); color: #ef4444; }
+.cl-card-badge.badge-booked { background: rgba(16,185,129,0.12); color: #10b981; }
+.cl-card-badge.badge-handled { background: rgba(100,116,139,0.12); color: #64748b; }
+.cl-card-phone-num { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.cl-card-summ { font-size: 12.5px; color: var(--muted); line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.cl-card-meta { flex-shrink: 0; text-align: right; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+.cl-card-time-lbl { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.cl-card-dur-lbl { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }

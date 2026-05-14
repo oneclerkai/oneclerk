@@ -196,20 +196,6 @@ const LANDING_PLANS = [
 ];
 
 // QnA section (better written, no image — pure CSS gradient panel)
-const LANDING_QNA = [
-  { q: "Will my callers actually believe it's a real person?",
-    a: "Yes. We clone your existing front-desk voice from a 30-second sample. In our pilot data, 94% of callers never asked if they were speaking to AI — and the ones who did asked it nicely, then continued the conversation." },
-  { q: "What happens on the call I really care about — an emergency?",
-    a: "OneClerk is trained to detect urgency the way a paramedic would. Chest pain, water leak, locked-out customer — it stays on the line, follows your escalation script, and pings you on WhatsApp within seconds." },
-  { q: "How long until my agent is actually live on my number?",
-    a: "Twelve minutes is the median. You drag your tools onto a canvas, drop in a few PDFs and FAQs, point your business line's call-forwarding at our number, and OneClerk picks up the next ring." },
-  { q: "Does it actually book into my calendar, or just take messages?",
-    a: "Real bookings. Live two-way sync with Google Calendar, Calendly and Square. The AI sees real availability, offers real slots, writes real events back, and sends the customer a confirmation text." },
-  { q: "What if a caller asks something the AI doesn't know?",
-    a: "It politely takes a message, summarises it, flags it as 'follow-up needed' and texts you the context. You get a one-tap link to call them back from the dashboard with the full transcript already loaded." },
-  { q: "Is my customer data and call audio stored safely?",
-    a: "All audio and transcripts are encrypted at rest and in transit. We're SOC2 Type II in audit, HIPAA-ready on Scale and above, and we never train shared models on your data — ever." },
-];
 
 // 7 product mockup frames — SVG illustrations as data URIs
 function makeFrameSvg(bg, content) {
@@ -554,7 +540,6 @@ route("auth", async () => {
           <a data-scroll="lp-cases">Use cases</a>
           <a data-scroll="lp-try">Try it live</a>
           <a data-scroll="lp-billing">Pricing</a>
-          <a data-scroll="lp-qna">FAQ</a>
         </div>
         <div class="lp-cta">
           <button class="lp-signin" data-open-auth="login">Sign in</button>
@@ -588,21 +573,11 @@ route("auth", async () => {
             <span id="lp-sub-text"></span><span class="caret"></span>
           </div>
           <div class="lp-cta-mega-row">
-            <div class="lp-cta-with-icons">
-              <div class="lp-cta-side-icons">
-                <div class="lp-cta-logo-chip" title="WhatsApp">${brandSvg("whatsapp")}</div>
-                <div class="lp-cta-logo-chip" title="Gmail">${brandSvg("gmail")}</div>
-              </div>
-              <div class="lp-cta-row">
-                <button class="lp-cta-primary" data-open-auth="signup">
-                  <span>Get started free</span><span class="arr">→</span>
-                </button>
-                <button class="lp-cta-secondary" data-scroll="lp-try">Hear it talk →</button>
-              </div>
-              <div class="lp-cta-side-icons">
-                <div class="lp-cta-logo-chip" title="Google Calendar">${brandSvg("gcal")}</div>
-                <div class="lp-cta-logo-chip" title="Phone">${brandSvg("phone")}</div>
-              </div>
+            <div class="lp-cta-row">
+              <button class="lp-cta-primary" data-open-auth="signup">
+                <span>Get started free</span><span class="arr">→</span>
+              </button>
+              <button class="lp-cta-secondary" data-scroll="lp-try">Hear it talk →</button>
             </div>
           </div>
 
@@ -734,23 +709,6 @@ route("auth", async () => {
       <!-- soft gradient -->
       <div class="lp-grad-soft" aria-hidden="true"></div>
 
-      <!-- QNA (gradient panel, no image) -->
-      <section class="lp-qna" id="lp-qna">
-        <div class="lp-qna-bg"></div>
-        <div class="lp-qna-head">
-          <span class="eb">FREQUENTLY ASKED</span>
-          <h2>The questions <em>everyone</em> asks before signing up.</h2>
-        </div>
-        <div class="lp-qna-list" id="lp-qna-list">
-          ${LANDING_QNA.map((qa, i) => `
-            <details class="lp-qna-item" ${i === 0 ? "open" : ""}>
-              <summary><span>${escapeHtml(qa.q)}</span><span class="lp-qna-chev">+</span></summary>
-              <div class="lp-qna-a">${escapeHtml(qa.a)}</div>
-            </details>
-          `).join("")}
-        </div>
-      </section>
-
       <!-- GRADIENT TRANSITION: → billing -->
       <div class="lp-grad-cream" aria-hidden="true"></div>
 
@@ -795,7 +753,7 @@ route("auth", async () => {
           </div>
           <div class="lp-footer-col">
             <h4>Product</h4>
-            <a data-scroll="lp-cases">Features</a><a data-scroll="lp-billing">Pricing</a><a data-scroll="lp-try">Try it live</a><a data-scroll="lp-qna">FAQ</a>
+            <a data-scroll="lp-cases">Features</a><a data-scroll="lp-billing">Pricing</a><a data-scroll="lp-try">Try it live</a>
           </div>
           <div class="lp-footer-col">
             <h4>Company</h4>
@@ -1224,10 +1182,13 @@ function openAuthModal(initialMode = "login") {
           if (!me.onboarding_completed) navigate("#/onboarding");
           else navigate("#/agents");
         } catch (ex) {
-          if (ex.message && ex.message.toLowerCase().includes("no account")) {
-            err.textContent = "No account found for this Google email. Please create an account first.";
+          const msg = (ex.message || "").toLowerCase();
+          if (msg.includes("no account") || msg.includes("not found") || msg.includes("not registered")) {
+            err.innerHTML = `No OneClerk account found for this Google email. <a href="#" id="m-gg-signup" style="color:#f97316;text-decoration:underline;">Create your account now →</a>`;
+            const sw = $("#m-gg-signup", modal);
+            if (sw) sw.addEventListener("click", (ev) => { ev.preventDefault(); setMode("signup"); err.classList.add("hidden"); });
           } else {
-            err.textContent = ex.message;
+            err.textContent = ex.message || "Google sign-in failed. Please try again.";
           }
           err.classList.remove("hidden");
         }
@@ -1277,9 +1238,35 @@ function openAuthModal(initialMode = "login") {
         navigate("#/agents");
       }
     } catch (ex) {
-      err.textContent = ex.message; err.classList.remove("hidden");
+      const msg = (ex.message || "").toLowerCase();
+      if (msg.includes("invalid") || msg.includes("credentials") || msg.includes("password") || msg.includes("incorrect")) {
+        err.textContent = mode === "login"
+          ? "Wrong email or password. Please try again."
+          : ex.message;
+      } else if (msg.includes("not found") || msg.includes("no account") || msg.includes("does not exist")) {
+        err.innerHTML = `No account found with this email. <a href="#" id="m-switch-signup" style="color:#f97316;text-decoration:underline;">Create your account now →</a>`;
+        const sw = $("#m-switch-signup", modal);
+        if (sw) sw.addEventListener("click", (ev) => { ev.preventDefault(); setMode("signup"); err.classList.add("hidden"); });
+      } else if (msg.includes("already") || msg.includes("exists") || msg.includes("duplicate")) {
+        err.innerHTML = `An account with this email already exists. <a href="#" id="m-switch-login" style="color:#f97316;text-decoration:underline;">Sign in instead →</a>`;
+        const sw = $("#m-switch-login", modal);
+        if (sw) sw.addEventListener("click", (ev) => { ev.preventDefault(); setMode("login"); err.classList.add("hidden"); });
+      } else {
+        err.textContent = ex.message || "Something went wrong. Please try again.";
+      }
+      err.classList.remove("hidden");
     }
   });
+
+  // Highlight empty required fields on submit attempt
+  $("#m-form", modal).addEventListener("submit", () => {
+    const fields = modal.querySelectorAll(".field[required], .field");
+    fields.forEach(f => {
+      if (f.offsetParent && !f.value.trim()) f.classList.add("field-error");
+      else f.classList.remove("field-error");
+      f.addEventListener("input", () => f.classList.remove("field-error"), { once: true });
+    });
+  }, true);
 
   setTimeout(() => $("#m-email", modal).focus(), 50);
 }
@@ -1830,10 +1817,10 @@ route("dashboard", async () => {
 // === Calls page — three-column layout: agent history (left) · call cards (center)
 //     · calendar + comic notes (right). Click any call → paper-textured detail popup. ===
 // Per-day custom notes — stored locally so the user can scribble plans on the calendar.
-const CL_NOTES_KEY = "oc_cal_notes_v1";
+function clNotesKey() { return "oc_cal_notes_v1_" + (Store.user?.id || "guest"); }
 function loadUserNotes() {
   try {
-    const raw = JSON.parse(localStorage.getItem(CL_NOTES_KEY) || "{}");
+    const raw = JSON.parse(localStorage.getItem(clNotesKey()) || "{}");
     // Migrate old single-note format { text, color } → array [{ id, text, color }]
     const result = {};
     for (const [k, v] of Object.entries(raw)) {
@@ -1845,7 +1832,7 @@ function loadUserNotes() {
     return result;
   } catch { return {}; }
 }
-function saveUserNotes(map) { localStorage.setItem(CL_NOTES_KEY, JSON.stringify(map)); }
+function saveUserNotes(map) { localStorage.setItem(clNotesKey(), JSON.stringify(map)); }
 
 route("calls", async () => {
   const wrap = shell("calls", "Calls", "Every call, every booking, every reminder — in one place.");
@@ -1941,7 +1928,6 @@ route("calls", async () => {
   }
 
   // --- BIG CALENDAR with month navigation + booking blocks + user notes ---
-  const userNotes = loadUserNotes();
   const calState = { y: new Date().getFullYear(), m: new Date().getMonth() };
   const bigEl = $("#cl-bigcal", page);
 
@@ -1960,6 +1946,7 @@ route("calls", async () => {
   }
 
   function renderBigCalendar() {
+    const userNotes = loadUserNotes();
     const { y, m } = calState;
     const monthName = new Date(y, m, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
     const startDow = new Date(y, m, 1).getDay();
@@ -2062,23 +2049,23 @@ route("calls", async () => {
       const ag = lookup(c.agent_id) || {};
       const company = ag.config?.business_name || "";
       const name = c.caller_name || (c.booking_details && c.booking_details.name) || "Unknown caller";
+      const initials = name.split(/\s+/).map(s => s[0] || "").slice(0, 2).join("").toUpperCase() || "?";
+      const dur = c.duration_seconds ? (c.duration_seconds >= 60 ? `${Math.floor(c.duration_seconds/60)}m ${c.duration_seconds%60}s` : `${c.duration_seconds}s`) : "";
       return `
         <button class="cl-card cl-card-${status}" data-id="${c.id}">
-          <div class="cl-card-left">
-            <div class="cl-card-status">
-              <span class="dot ${c.is_urgent ? 'dot-danger' : c.booking_made ? 'dot-success' : 'dot-muted'}"></span>
-              <span class="cl-card-status-label">${status}</span>
-              ${company ? `<span class="cl-card-co">· ${escapeHtml(company)}</span>` : ''}
+          <div class="cl-card-avatar ${status === 'urgent' ? 'av-urgent' : status === 'booked' ? 'av-booked' : ''}">${escapeHtml(initials)}</div>
+          <div class="cl-card-body">
+            <div class="cl-card-toprow">
+              <span class="cl-card-caller-name">${escapeHtml(name)}</span>
+              <span class="cl-card-badge badge-${status}">${status}</span>
+              ${company ? `<span class="cl-card-badge" style="background:rgba(99,102,241,0.1);color:#6366f1">${escapeHtml(company)}</span>` : ''}
             </div>
-            <div class="cl-card-num">
-              <span class="cl-card-phone">${escapeHtml(c.caller_number || "Unknown")}</span>
-              <span class="cl-card-name">${escapeHtml(name)}</span>
-            </div>
-            <div class="cl-card-summary">${escapeHtml((c.summary || "").slice(0, 160) || "Tap to read the full transcript and a 5-line summary.")}</div>
+            <div class="cl-card-phone-num">${escapeHtml(c.caller_number || "Unknown number")}</div>
+            <div class="cl-card-summ">${escapeHtml((c.summary || "Tap to read the full transcript and summary.").slice(0, 120))}</div>
           </div>
-          <div class="cl-card-right">
-            <div class="cl-card-time">${escapeHtml(ago)}</div>
-            <div class="cl-card-dur">${c.duration_seconds || 0}s</div>
+          <div class="cl-card-meta">
+            <div class="cl-card-time-lbl">${escapeHtml(ago)}</div>
+            ${dur ? `<div class="cl-card-dur-lbl">${escapeHtml(dur)}</div>` : ""}
           </div>
         </button>`;
     }).join("");
@@ -3600,7 +3587,37 @@ route("preview", async () => {
     agents = r.agents || [];
   } catch (_) {}
 
-  const firstAgent = agents[0] || null;
+  // If no agents exist, show a friendly prompt
+  if (!agents.length) {
+    page.innerHTML = `
+      <div class="pv2-no-agent">
+        <div class="pv2-no-agent-icon"><i data-lucide="bot" class="icon"></i></div>
+        <div class="pv2-no-agent-title">No agent created yet</div>
+        <div class="pv2-no-agent-sub">Build your first AI agent and come back here to hear it speak in any of 30+ languages.</div>
+        <button class="btn btn-primary mt-6" onclick="location.hash='#/agents'">Create your first agent →</button>
+      </div>`;
+    renderIcons(page);
+    return wrap;
+  }
+
+  const firstAgent = agents[0];
+
+  // Helper: match agent config to PREVIEW_VOICES/PREVIEW_LANGS indexes
+  function agentVoiceIdx(agent) {
+    const v = agent?.config?.voice;
+    if (!v) return 0;
+    const idx = PREVIEW_VOICES.findIndex(x => x.id === v || x.label.toLowerCase() === v.toLowerCase());
+    return idx >= 0 ? idx : 0;
+  }
+  function agentLangIdx(agent) {
+    const l = agent?.config?.language;
+    if (!l) return 0;
+    const idx = PREVIEW_LANGS.findIndex(x => x.toLowerCase().startsWith(l.toLowerCase()) || l.toLowerCase().startsWith(x.split(" ")[0].toLowerCase()));
+    return idx >= 0 ? idx : 0;
+  }
+
+  let initVoiceIdx = agentVoiceIdx(firstAgent);
+  let initLangIdx  = agentLangIdx(firstAgent);
 
   page.innerHTML = `
     <div class="pv2-shell">
@@ -3610,28 +3627,26 @@ route("preview", async () => {
         <div class="pv2-ctrl-section">
           <div class="pv2-ctrl-label">Agent</div>
           <select class="pv2-select" id="pv2-agent-sel">
-            ${agents.length
-              ? agents.map((a, i) => `<option value="${i}">${escapeHtml(a.name)}${a.is_active ? " ●" : ""}</option>`).join("")
-              : `<option value="-1">OneClerk AI (demo)</option>`}
+            ${agents.map((a, i) => `<option value="${i}">${escapeHtml(a.name)}${a.is_active ? " ●" : ""}</option>`).join("")}
           </select>
         </div>
 
         <div class="pv2-ctrl-section">
           <div class="pv2-ctrl-label">Voice</div>
           <select class="pv2-select" id="pv2-voice-sel">
-            ${PREVIEW_VOICES.map((v, i) => `<option value="${i}">${escapeHtml(v.label)} — ${escapeHtml(v.sub)}</option>`).join("")}
+            ${PREVIEW_VOICES.map((v, i) => `<option value="${i}" ${i===initVoiceIdx?'selected':''}>${escapeHtml(v.label)} — ${escapeHtml(v.sub)}</option>`).join("")}
           </select>
         </div>
 
         <div class="pv2-ctrl-section">
           <div class="pv2-ctrl-label">Language <span class="pv2-lang-count">${PREVIEW_LANGS.length} available</span></div>
           <select class="pv2-select pv2-select-lang" id="pv2-lang-sel">
-            ${PREVIEW_LANGS.map((l, i) => `<option value="${i}">${escapeHtml(l)}</option>`).join("")}
+            ${PREVIEW_LANGS.map((l, i) => `<option value="${i}" ${i===initLangIdx?'selected':''}>${escapeHtml(l)}</option>`).join("")}
           </select>
         </div>
       </div>
 
-      <!-- RIGHT: Black stage with spotlight -->
+      <!-- RIGHT: Full black stage with spotlight -->
       <div class="pv2-stage" id="pv-stage">
         <div class="pv2-spotlight" aria-hidden="true"></div>
         <div class="pv2-stage-content">
@@ -3645,7 +3660,7 @@ route("preview", async () => {
           </div>
 
           <div class="pv2-agent-label">
-            <div class="pv2-agt-name" id="pv-agt-name">${escapeHtml(firstAgent ? firstAgent.name : "OneClerk AI")}</div>
+            <div class="pv2-agt-name" id="pv-agt-name">${escapeHtml(firstAgent.name)}</div>
             <div class="pv2-agt-role">Voice AI Receptionist</div>
           </div>
 
@@ -3670,8 +3685,8 @@ route("preview", async () => {
   `;
   renderIcons(page);
 
-  let selVoice = PREVIEW_VOICES[0];
-  let selLang  = PREVIEW_LANGS[0];
+  let selVoice = PREVIEW_VOICES[initVoiceIdx];
+  let selLang  = PREVIEW_LANGS[initLangIdx];
   let selAgent = firstAgent;
 
   function updateAgentName() {
@@ -3684,10 +3699,21 @@ route("preview", async () => {
     const i = +agentSel.value;
     selAgent = agents[i] || null;
     updateAgentName();
+    // Update voice/lang dropdowns to match the selected agent's config
+    const vi = agentVoiceIdx(selAgent);
+    const li = agentLangIdx(selAgent);
+    const vs = $("#pv2-voice-sel", page);
+    const ls = $("#pv2-lang-sel", page);
+    if (vs) vs.value = vi;
+    if (ls) ls.value = li;
+    selVoice = PREVIEW_VOICES[vi];
+    selLang  = PREVIEW_LANGS[li];
+    if (pvCtrl) { pvCtrl.setVoice(selVoice); pvCtrl.setLang(selLang); }
   });
 
   const stageEl = $("#pv-stage", page);
   const pvCtrl = mountVoicePreview(stageEl, selLang);
+  if (pvCtrl) pvCtrl.setVoice(selVoice);
 
   const voiceSel = $("#pv2-voice-sel", page);
   if (voiceSel && pvCtrl) voiceSel.addEventListener("change", () => {
