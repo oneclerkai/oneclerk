@@ -74,5 +74,193 @@ async function apiFetch(path: string, options: RequestInit = {}) {
   }
 }
 
-// ... rest of your auth, agents, dashboard exports stay exactly the same ...
-// Keep the exports (auth, agents, dashboard, billing) as they are in your file.
+// Auth API
+export const auth = {
+  login: async (email: string, password: string) => {
+    return apiFetch('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  },
+
+  signup: async (email: string, password: string, name?: string, whatsapp_number?: string) => {
+    return apiFetch('/api/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, name, whatsapp_number }),
+    });
+  },
+
+  sendEmailOtp: async (email: string) => {
+    return apiFetch('/api/auth/send-email-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  sendEmailVerificationLink: async (email: string) => {
+    return apiFetch('/api/auth/send-email-verification-link', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  verifyEmailOtpAndSignup: async (data: {
+    email: string;
+    password: string;
+    otp: string;
+    name?: string;
+    whatsapp_number?: string;
+  }) => {
+    return apiFetch('/api/auth/verify-email-otp-and-signup', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  verifyEmailLink: async (data: {
+    token: string;
+    email: string;
+    password: string;
+    name?: string;
+    whatsapp_number?: string;
+  }) => {
+    return apiFetch('/api/auth/verify-email-link', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  sendPhoneOtp: async (phone_number: string) => {
+    return apiFetch('/api/auth/send-phone-otp', {
+      method: 'POST',
+      body: JSON.stringify({ phone_number }),
+    });
+  },
+
+  verifyPhoneOtp: async (phone_number: string, otp: string) => {
+    return apiFetch('/api/auth/verify-phone-otp', {
+      method: 'POST',
+      body: JSON.stringify({ phone_number, otp }),
+    });
+  },
+
+  me: async () => {
+    return apiFetch('/api/auth/me');
+  },
+
+  logout: () => {
+    clearToken();
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
+  },
+
+  saveOnboarding: async (profile: Record<string, unknown>, completed: boolean = true) => {
+    return apiFetch('/api/auth/onboarding', {
+      method: 'POST',
+      body: JSON.stringify({ profile, completed }),
+    });
+  },
+};
+
+// Dashboard API
+export const dashboard = {
+  overview: async () => {
+    return apiFetch('/api/dashboard/stats');
+  },
+
+  voicePreview: async (text: string, language: string = 'english', voice_id?: string) => {
+    return apiFetch('/api/dashboard/voice-preview', {
+      method: 'POST',
+      body: JSON.stringify({ text, language, voice_id }),
+    });
+  },
+};
+
+// Billing API
+export const billing = {
+  plans: async () => {
+    return apiFetch('/api/billing/plans');
+  },
+
+  status: async () => {
+    return apiFetch('/api/billing/status');
+  },
+
+  createCheckout: async (plan: string) => {
+    return apiFetch('/api/billing/create-checkout', {
+      method: 'POST',
+      body: JSON.stringify({ plan }),
+    });
+  },
+
+  createPortal: async () => {
+    return apiFetch('/api/billing/create-portal', {
+      method: 'POST',
+    });
+  },
+};
+
+// Agents API
+export const agents = {
+  list: async () => {
+    return apiFetch('/api/agents/list');
+  },
+
+  create: async (data: {
+    name: string;
+    config: Record<string, unknown>;
+    forwarding_number?: string;
+    twilio_number?: string;
+    voice_id?: string;
+    language?: string;
+  }) => {
+    return apiFetch('/api/agents/create', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  get: async (agent_id: string) => {
+    return apiFetch(`/api/agents/${agent_id}`);
+  },
+
+  update: async (
+    agent_id: string,
+    data: {
+      name: string;
+      config: Record<string, unknown>;
+      forwarding_number?: string;
+      twilio_number?: string;
+      voice_id?: string;
+      language?: string;
+    }
+  ) => {
+    return apiFetch(`/api/agents/${agent_id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  activate: async (agent_id: string) => {
+    return apiFetch(`/api/agents/${agent_id}/activate`, {
+      method: 'POST',
+    });
+  },
+
+  deactivate: async (agent_id: string) => {
+    return apiFetch(`/api/agents/${agent_id}/deactivate`, {
+      method: 'POST',
+    });
+  },
+
+  delete: async (agent_id: string) => {
+    return apiFetch(`/api/agents/${agent_id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  setupInstructions: async (agent_id: string, carrier: string = 'generic') => {
+    return apiFetch(`/api/agents/${agent_id}/setup-instructions?carrier=${carrier}`);
+  },
+};

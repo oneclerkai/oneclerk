@@ -64,9 +64,7 @@ app = FastAPI(
 
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
-allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
-if settings.FRONTEND_URL:
-    allowed_origins.append(settings.FRONTEND_URL)
+allowed_origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,

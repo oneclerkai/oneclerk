@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.models import User
-from app.services.notifications import send_email_otp, send_sms_otp
+from app.services.notifications import send_email_otp, send_email_verification_link, send_sms_otp
 from app.services.redis_client import get_redis, safe_delete, safe_get, safe_setex
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -53,6 +53,14 @@ class VerifyEmailOtpSignupRequest(SignupRequest):
     otp: str
 
 
+class VerifyEmailLinkRequest(BaseModel):
+    token: str
+    email: EmailStr
+    password: str
+    name: str | None = None
+    whatsapp_number: str | None = None
+
+
 class SendPhoneOtpRequest(BaseModel):
     phone_number: str
 
@@ -60,6 +68,10 @@ class SendPhoneOtpRequest(BaseModel):
 class VerifyPhoneOtpRequest(BaseModel):
     phone_number: str
     otp: str
+
+
+class SendEmailVerificationLinkRequest(BaseModel):
+    email: EmailStr
 
 
 class TokenResponse(BaseModel):
@@ -92,6 +104,10 @@ def _email_key(email: str) -> str:
 
 def _phone_key(phone_number: str) -> str:
     return f"phone_otp:{phone_number.strip()}"
+
+
+def _email_verification_link_key(email: str) -> str:
+    return f"email_verification_link:{email.strip().lower()}"
 
 
 def _ensure_redis() -> None:
@@ -164,6 +180,68 @@ async def send_email_otp_route(
     if not settings.RESEND_API_KEY:
         response["dev_otp"] = otp
     return response
+
+
+@router.post("/send-email-verification-link")
+async def send_email_verification_link_route(
+    data: SendEmailVerificationLinkRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Send a verification link instead of OTP for email verification."""
+    email = data.email.lower()
+    existing = await db.execute(select(User).where(User.email == email))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    _ensure_redis()
+    # Generate a verification token
+    verification_token = secrets.token_urlsafe(32)
+    await safe_setex(_email_verification_link_key(email), 86400, verification_token)  # 24 hours
+    
+    # Build verification link pointing to frontend
+    frontend_url = settings.FRONTEND_URL or "http://localhost:3000"
+    verification_link = f"{frontend_url}/verify-email?token={verification_token}&email={email}"
+    
+    try:
+        sent = await send_email_verification_link(email, verification_link)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Could not send email verification link: {exc}") from exc
+
+    response = {"sent": sent, "expires_in_seconds": 86400}
+    if not settings.RESEND_API_KEY:
+        response["dev_link"] = verification_link
+    return response
+
+
+@router.post("/verify-email-link", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+async def verify_email_link_and_signup(
+    data: VerifyEmailLinkRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Verify email via link and create account."""
+    email = data.email.lower()
+    stored = _decode_redis(await safe_get(_email_verification_link_key(email)))
+    if not stored or stored != data.token.strip():
+        raise HTTPException(status_code=400, detail="Invalid or expired verification link")
+
+    existing = await db.execute(select(User).where(User.email == email))
+    if existing.scalar_one_or_none():
+        await safe_delete(_email_verification_link_key(email))
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    user = User(
+        email=email,
+        hashed_password=_hash_password(data.password),
+        name=data.name,
+        whatsapp_number=data.whatsapp_number,
+        email_verified=True,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    await safe_delete(_email_verification_link_key(email))
+
+    return TokenResponse(access_token=_create_access_token(user.id), user=_user_dict(user))
 
 
 @router.post(
