@@ -462,24 +462,35 @@ function mountVoicePreview(container, preselectedLang) {
   window.addEventListener("resize", resize);
 
   function drawWave() {
-    t += 0.035 * (0.7 + currentPitch * 0.3);
-    level += ((speaking ? 0.88 : 0.08) - level) * 0.06;
+    t += 0.038 * (0.6 + currentPitch * 0.4);
+    level += ((speaking ? 0.92 : 0.06) - level) * 0.055;
     const w = canvas.width, h = canvas.height;
     if (!w || !h) { raf = requestAnimationFrame(drawWave); return; }
     ctx.clearRect(0, 0, w, h);
-    const bars = 44;
+    const bars = 56;
     const bw = w / bars;
+    const grd = ctx.createLinearGradient(0, 0, w, 0);
+    grd.addColorStop(0,   "rgba(120,80,255,0.85)");
+    grd.addColorStop(0.35,"rgba(180,80,255,0.92)");
+    grd.addColorStop(0.65,"rgba(255,80,180,0.92)");
+    grd.addColorStop(1,   "rgba(255,120,80,0.82)");
     for (let i = 0; i < bars; i++) {
-      const phase = i * 0.4 + t;
-      const amp = Math.sin(phase)*0.35 + Math.sin(phase*1.7)*0.35 + Math.sin(phase*0.6)*0.3;
-      const bh = Math.max(3*dpr, Math.abs(amp)*level*h*0.88);
-      const ratio = i / bars;
-      const r2 = Math.round(255 - ratio*156);
-      const g2 = Math.round(138 - ratio*36);
-      const b2 = Math.round(255 - ratio*200);
-      ctx.fillStyle = `rgba(${r2},${g2},${b2},0.92)`;
-      ctx.fillRect(i*bw + bw*0.18, (h-bh)/2, bw*0.64, bh);
+      const phase  = i * 0.38 + t;
+      const phase2 = i * 0.19 + t * 1.3;
+      const amp = Math.sin(phase)*0.42 + Math.sin(phase*1.6)*0.32 + Math.sin(phase2*0.8)*0.26;
+      const bh = Math.max(2*dpr, Math.abs(amp)*level*h*0.90);
+      const alpha = 0.70 + Math.abs(amp) * 0.28;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = grd;
+      const bwPad = bw * 0.60;
+      const x = i * bw + (bw - bwPad) / 2;
+      const y = (h - bh) / 2;
+      const r = Math.min(bwPad / 2, bh / 2, 4 * dpr);
+      ctx.beginPath();
+      ctx.roundRect(x, y, bwPad, bh, r);
+      ctx.fill();
     }
+    ctx.globalAlpha = 1;
     raf = requestAnimationFrame(drawWave);
   }
   requestAnimationFrame(() => { resize(); drawWave(); });
@@ -573,11 +584,21 @@ route("auth", async () => {
             <span id="lp-sub-text"></span><span class="caret"></span>
           </div>
           <div class="lp-cta-mega-row">
-            <div class="lp-cta-row">
-              <button class="lp-cta-primary" data-open-auth="signup">
-                <span>Get started free</span><span class="arr">→</span>
-              </button>
-              <button class="lp-cta-secondary" data-scroll="lp-try">Hear it talk →</button>
+            <div class="lp-cta-with-icons">
+              <div class="lp-cta-side-icons">
+                <span class="lp-cta-icon" title="WhatsApp">${brandSvg("whatsapp")}</span>
+                <span class="lp-cta-icon" title="Google Calendar">${brandSvg("gcal")}</span>
+              </div>
+              <div class="lp-cta-row">
+                <button class="lp-cta-primary" data-open-auth="signup">
+                  <span>Get started free</span><span class="arr">→</span>
+                </button>
+                <button class="lp-cta-secondary" data-scroll="lp-try">Hear it talk →</button>
+              </div>
+              <div class="lp-cta-side-icons">
+                <span class="lp-cta-icon" title="Gmail">${brandSvg("gmail")}</span>
+                <span class="lp-cta-icon" title="Phone">${brandSvg("phone")}</span>
+              </div>
             </div>
           </div>
 
@@ -1127,9 +1148,23 @@ function openAuthModal(initialMode = "login") {
               ${BUSINESS_TYPES.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join("")}
             </select>
           </div>
+          <div id="m-role-row" class="${mode==='signup'?'':'hidden'}">
+            <label class="label">Your role</label>
+            <select id="m-role" class="field">
+              <option value="">Select your role…</option>
+              <option value="Founder">Founder</option>
+              <option value="Owner">Owner</option>
+              <option value="CEO">CEO / MD</option>
+              <option value="Manager">Manager</option>
+              <option value="Sales">Sales</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Operations">Operations</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
           <div>
-            <label class="label">Work email</label>
-            <input id="m-email" type="email" class="field" placeholder="you@business.com" autocomplete="email" required/>
+            <label class="label">Gmail</label>
+            <input id="m-email" type="email" class="field" placeholder="you@gmail.com" autocomplete="email" required/>
           </div>
           <div>
             <label class="label">Password</label>
@@ -1179,8 +1214,7 @@ function openAuthModal(initialMode = "login") {
           Store.user = me;
           toast(`Welcome${me.name ? ", " + me.name.split(" ")[0] : ""}!`, "success");
           close();
-          if (!me.onboarding_completed) navigate("#/onboarding");
-          else navigate("#/agents");
+          navigate("#/agents");
         } catch (ex) {
           const msg = (ex.message || "").toLowerCase();
           if (msg.includes("no account") || msg.includes("not found") || msg.includes("not registered")) {
@@ -1201,7 +1235,7 @@ function openAuthModal(initialMode = "login") {
     mode = m;
     $$("#m-tabs button", modal).forEach(b => b.classList.toggle("active", b.dataset.mode === m));
     const isSignup = m === "signup";
-    ["#m-name-row","#m-company-row","#m-biztype-row"].forEach(sel => {
+    ["#m-name-row","#m-company-row","#m-biztype-row","#m-role-row"].forEach(sel => {
       $(sel, modal).classList.toggle("hidden", !isSignup);
     });
     $("#m-name", modal).required = isSignup;
@@ -1221,6 +1255,7 @@ function openAuthModal(initialMode = "login") {
           name: $("#m-name", modal).value,
           company_name: $("#m-company", modal).value,
           business_type: $("#m-biztype", modal).value,
+          role: $("#m-role", modal).value,
           email: $("#m-email", modal).value,
           password: $("#m-password", modal).value,
         }
@@ -1232,11 +1267,7 @@ function openAuthModal(initialMode = "login") {
       Store.user = me;
       toast(`Welcome${me.name ? ", " + me.name.split(" ")[0] : ""}!`, "success");
       close();
-      if (!me.onboarding_completed) {
-        navigate("#/onboarding");
-      } else {
-        navigate("#/agents");
-      }
+      navigate("#/agents");
     } catch (ex) {
       const msg = (ex.message || "").toLowerCase();
       if (msg.includes("invalid") || msg.includes("credentials") || msg.includes("password") || msg.includes("incorrect")) {
@@ -3646,14 +3677,12 @@ route("preview", async () => {
         </div>
       </div>
 
-      <!-- RIGHT: Full black stage with spotlight -->
+      <!-- RIGHT: Full black stage -->
       <div class="pv2-stage" id="pv-stage">
-        <div class="pv2-spotlight" aria-hidden="true"></div>
         <div class="pv2-stage-content">
 
           <div class="pv2-orb-wrap">
             <div class="pv2-orb" id="pv-orb">
-              <span class="pv2-orb-text">OC</span>
               <div class="pv2-orb-ring pv2-orb-ring-1"></div>
               <div class="pv2-orb-ring pv2-orb-ring-2"></div>
             </div>
@@ -4640,10 +4669,7 @@ async function render() {
     return;
   }
 
-  if (Store.user && Store.user.onboarding_completed === false && r.path !== "/onboarding") {
-    location.hash = "#/onboarding";
-    return; // hashchange will re-trigger render()
-  }
+  // Onboarding removed — new users go directly to dashboard
 
   let view;
   if (r.path === "/login" || r.path === "/signup") { view = await routes.auth(); }
