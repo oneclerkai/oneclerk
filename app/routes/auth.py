@@ -20,7 +20,6 @@ security = HTTPBearer(auto_error=False)
 
 
 def _hash_password(password: str) -> str:
-    # bcrypt has a hard 72-byte limit on the password input.
     raw = password.encode("utf-8")[:72]
     return bcrypt.hashpw(raw, bcrypt.gensalt()).decode("utf-8")
 
@@ -78,6 +77,19 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: dict
+
+
+class VerifyTokenRequest(BaseModel):
+    """Request model for token verification endpoint."""
+    token: str
+    email: EmailStr
+
+
+class VerifyTokenResponse(BaseModel):
+    """Response model for successful token verification."""
+    success: bool
+    message: str
+    user: dict | None = None
 
 
 def _create_access_token(subject: str) -> str:
@@ -194,14 +206,12 @@ async def send_email_verification_link_route(
         raise HTTPException(status_code=400, detail="Email already registered")
 
     _ensure_redis()
-    # Generate a verification token
     verification_token = secrets.token_urlsafe(32)
-    await safe_setex(_email_verification_link_key(email), 86400, verification_token)  # 24 hours
-    
-    # Build verification link pointing to frontend
+    await safe_setex(_email_verification_link_key(email), 86400, verification_token)
+
     frontend_url = settings.FRONTEND_URL or "http://localhost:3000"
     verification_link = f"{frontend_url}/verify-email?token={verification_token}&email={email}"
-    
+
     try:
         sent = await send_email_verification_link(email, verification_link)
     except Exception as exc:
@@ -311,6 +321,85 @@ async def get_current_user(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     return user
+
+
+@router.post("/verify", response_model=VerifyTokenResponse)
+async def verify_token(
+    data: VerifyTokenRequest,
+    db: AsyncSession = Depends(get_db),
+) -> VerifyTokenResponse:
+    """Secure token verification endpoint for email/profile verification.
+    
+    Accepts a cryptographic verification token and email, validates token expiration,
+    marks user as verified, and returns structured JSON response with updated user data.
+    Implements proper error handling with distinct HTTP status codes for each failure mode.
+    
+    Args:
+        data: VerifyTokenRequest containing token and email
+        db: AsyncSession database connection
+    
+    Returns:
+        VerifyTokenResponse: success status, message, and updated user payload
+    
+    Raises:
+        HTTPException 400: Invalid/expired token or missing required fields
+        HTTPException 401: Token does not match stored value (unauthorized)
+        HTTPException 404: User not found in database
+        HTTPException 500: Database or verification operation failed
+    """
+    email = data.email.lower().strip()
+    token = data.token.strip()
+    
+    if not email or not token:
+        raise HTTPException(
+            status_code=400,
+            detail="Email and token are required"
+        )
+    
+    _ensure_redis()
+    
+    stored_token = _decode_redis(await safe_get(_email_verification_link_key(email)))
+    
+    if not stored_token:
+        raise HTTPException(
+            status_code=400,
+            detail="Verification token expired or not found"
+        )
+    
+    if stored_token != token:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid verification token"
+        )
+    
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    
+    if user is None:
+        await safe_delete(_email_verification_link_key(email))
+        raise HTTPException(
+            status_code=404,
+            detail="User not found. Please complete signup first."
+        )
+    
+    try:
+        user.email_verified = True
+        await db.commit()
+        await db.refresh(user)
+        
+        await safe_delete(_email_verification_link_key(email))
+        
+        return VerifyTokenResponse(
+            success=True,
+            message="Email verified successfully",
+            user=_user_dict(user)
+        )
+    except Exception as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Verification failed: {str(exc)}"
+        ) from exc
 
 
 @router.post("/send-phone-otp")

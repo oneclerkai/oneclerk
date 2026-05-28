@@ -40,10 +40,8 @@ def _normalize_url(url: str) -> tuple[str, dict]:
     if sslmode in {"require", "verify-ca", "verify-full"}:
         connect_args["ssl"] = True
     elif sslmode in {"disable", "allow", "prefer"}:
-        # Default is no TLS for asyncpg; allow/prefer behave best-effort.
         pass
 
-    # asyncpg doesn't recognise libpq-only options
     for key in ("channel_binding", "options", "application_name"):
         query.pop(key, None)
 
@@ -62,8 +60,9 @@ def _init_engine() -> None:
         url,
         echo=False,
         future=True,
-        pool_pre_ping=True,
         pool_size=10,
+        max_overflow=20,
+        pool_pre_ping=True,
         pool_recycle=1800,
         connect_args=connect_args,
     )
@@ -81,11 +80,13 @@ async def safe_db_operation():
 
     WebSocket handlers and background tasks cannot use FastAPI's Depends() injection.
     This wrapper ensures the session is always closed even if an exception occurs.
+    Auto-commits on success and automatically rolls back on exceptions.
 
     Usage::
 
         async with safe_db_operation() as db:
             result = await db.execute(...)
+            # auto-committed on context exit
     """
     _init_engine()
     if AsyncSessionLocal is None:
@@ -101,8 +102,6 @@ async def safe_db_operation():
         await session.close()
 
 
-# Idempotent column additions for tables that already exist from earlier runs.
-# SQLAlchemy's create_all only creates missing tables, never alters existing ones.
 _LIGHTWEIGHT_MIGRATIONS: tuple[str, ...] = (
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS name VARCHAR",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR",
@@ -150,7 +149,6 @@ _LIGHTWEIGHT_MIGRATIONS: tuple[str, ...] = (
     "ALTER TABLE calls ADD COLUMN IF NOT EXISTS started_at TIMESTAMP",
     "ALTER TABLE calls ADD COLUMN IF NOT EXISTS ended_at TIMESTAMP",
     "ALTER TABLE calls ADD COLUMN IF NOT EXISTS created_at TIMESTAMP",
-    # Rollover / billing alert columns
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS rollover_minutes INTEGER DEFAULT 0",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS rollover_expires_at TIMESTAMP",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS usage_alert_80_sent BOOLEAN DEFAULT FALSE",
@@ -164,8 +162,7 @@ async def init_models() -> None:
     _init_engine()
     if engine is None:
         return
-    # Import models so they are registered with Base.metadata
-    from app import models  # noqa: F401
+    from app import models
     from sqlalchemy import text
 
     async with engine.begin() as conn:
@@ -173,7 +170,7 @@ async def init_models() -> None:
         for stmt in _LIGHTWEIGHT_MIGRATIONS:
             try:
                 await conn.execute(text(stmt))
-            except Exception:  # pragma: no cover - best-effort, never block startup
+            except Exception:
                 pass
 
 
