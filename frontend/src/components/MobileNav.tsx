@@ -1,6 +1,6 @@
 /**
- * MobileNav — fixed bottom navigation bar shown only on mobile (< lg breakpoint).
- * On desktop the sidebar handles navigation.
+ * MobileNav — fixed bottom navigation for small screens and a static desktop
+ * sidebar for larger displays.
  */
 import React from 'react'
 
@@ -55,28 +55,55 @@ interface MobileNavProps {
 
 export default function MobileNav({ currentPath }: MobileNavProps) {
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 lg:hidden"
-      aria-label="Mobile navigation"
-    >
-      <div className="flex items-center justify-around h-16 px-2">
-        {NAV_ITEMS.map((item) => {
-          const isActive = currentPath.startsWith(item.href)
-          return (
-            <a
-              key={item.href}
-              href={item.href}
-              className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-xs font-medium transition-colors ${
-                isActive ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
-              }`}
-              aria-current={isActive ? 'page' : undefined}
-            >
-              <span className={isActive ? 'text-blue-600' : 'text-gray-400'}>{item.icon}</span>
-              {item.label}
-            </a>
-          )
-        })}
-      </div>
-    </nav>
+    <>
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:h-screen lg:fixed lg:top-0 lg:left-0 lg:border-r lg:border-gray-200 lg:bg-white lg:py-8 lg:px-4">
+        <div className="mb-8 px-2">
+          <h2 className="text-lg font-semibold text-gray-900">OneClerk</h2>
+          <p className="text-xs text-gray-500 mt-1">AI voice reception for your business</p>
+        </div>
+        <nav className="space-y-1" aria-label="Desktop navigation">
+          {NAV_ITEMS.map((item) => {
+            const isActive = currentPath.startsWith(item.href)
+            return (
+              <a
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition-colors ${
+                  isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                }`}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                <span className="text-gray-500">{item.icon}</span>
+                {item.label}
+              </a>
+            )
+          })}
+        </nav>
+      </aside>
+
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 lg:hidden"
+        aria-label="Mobile navigation"
+      >
+        <div className="flex items-center justify-around h-16 px-2">
+          {NAV_ITEMS.map((item) => {
+            const isActive = currentPath.startsWith(item.href)
+            return (
+              <a
+                key={item.href}
+                href={item.href}
+                className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-xs font-medium transition-colors ${
+                  isActive ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                }`}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                <span className={isActive ? 'text-blue-600' : 'text-gray-400'}>{item.icon}</span>
+                {item.label}
+              </a>
+            )
+          })}
+        </div>
+      </nav>
+    </>
   )
 }

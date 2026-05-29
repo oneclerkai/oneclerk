@@ -203,6 +203,10 @@ async def handle_call_answered(data: dict, db: AsyncSession):
         gender="female",
     ):
         if telnyx is not None:
+            try:
+                telnyx.Call.playback_stop(call_control_id)
+            except Exception:
+                pass
             telnyx.Call.playback_start(
                 call_control_id,
                 audio_url=url,
@@ -285,7 +289,8 @@ async def handle_gather_ended(data: dict, db: AsyncSession):
     ai_result = await ai_brain.get_ai_response(transcription, history, agent)
     response_text = ai_result.get("response", "I'll have someone call you back.")
     should_escalate = ai_result.get("escalate", False)
-    booking_detected = ai_result.get("booking_detected", False)
+    booking_step = ai_result.get("booking_step")
+    booking_detected = bool(ai_result.get("booking_detected", False)) and booking_step == "confirm"
     ai_turn = ConversationTurn(call_id=call.id, role="assistant", content=response_text)
     db.add(ai_turn)
     call.conversation = [*history, {"role": "user", "content": transcription}, {"role": "assistant", "content": response_text}]

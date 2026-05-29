@@ -167,6 +167,11 @@ async def synthesize(
     return audio_url
 
 
+def _sentence_cache_key(sentence: str, voice_id: str | None) -> str:
+    fingerprint = f"{sentence.strip().lower()}:{voice_id or ''}"
+    return f"audio_sentence:{hash(fingerprint)}"
+
+
 async def synthesize_sentences(
     text: str,
     language: str = "english",
@@ -194,12 +199,20 @@ async def synthesize_sentences(
         return
 
     for sentence in sentences:
+        cache_key = _sentence_cache_key(sentence, selected_voice)
+        cached_url = await safe_get(cache_key)
+        if cached_url:
+            url = cached_url.decode() if isinstance(cached_url, bytes) else str(cached_url)
+            yield url
+            continue
+
         mp3_bytes = await _fetch_elevenlabs(sentence, selected_voice)
         if not mp3_bytes:
             continue
         audio_bytes = _mp3_to_ulaw(mp3_bytes)
         ext = _audio_extension()
         url = await _save_audio(audio_bytes, ext)
+        await safe_setex(cache_key, 86400, url)
         yield url
 
 

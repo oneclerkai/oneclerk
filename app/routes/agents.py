@@ -11,6 +11,7 @@ from app.database import get_db
 from app.models import Agent, Call, User
 from app.routes.auth import get_current_user
 from app.services.ai_brain import get_ai_response
+from app.services.booking import get_calendly_link
 from app.services.forwarding import get_forwarding_instructions
 from app.services.telnyx_handler import get_or_create_phone_number
 
@@ -38,8 +39,12 @@ class AgentConfig(BaseModel):
     owner_whatsapp: str = ""
     language: str = "English"
     calendly_url: str = ""
+    google_credentials: dict[str, Any] | None = None
+    google_calendar_connected: bool = False
+    gmail_connected: bool = False
     # Visual flow builder data: { nodes: [...], edges: [...] }
     flow: dict[str, Any] | None = None
+    builder_layout: dict[str, Any] | None = None
 
 
 class CreateAgentRequest(BaseModel):
@@ -59,12 +64,14 @@ class TestChatRequest(BaseModel):
 def _connection_status(agent: Agent) -> dict:
     cfg = agent.config or {}
     return {
-        "phone": bool(agent.telnyx_phone or agent.twilio_number),
+        "phone": bool(agent.telnyx_phone or agent.twilio_number or cfg.get("owner_whatsapp")),
         "whatsapp": bool(cfg.get("owner_whatsapp")),
         "ai_brain": bool(settings.OPENAI_API_KEY),
         "voice": bool(settings.ELEVENLABS_API_KEY),
         "telnyx": bool(settings.TELNYX_API_KEY and settings.TELNYX_PUBLIC_KEY),
-        "booking": bool(cfg.get("calendly_url")),
+        "booking": bool(cfg.get("calendly_url") or cfg.get("google_credentials")),
+        "google_calendar": bool(cfg.get("google_credentials")),
+        "gmail": bool(cfg.get("google_credentials")),
         "flow_configured": bool((cfg.get("flow") or {}).get("nodes")),
     }
 
@@ -103,6 +110,16 @@ def _agent_dict(agent: Agent) -> dict:
     }
 
 
+def _normalize_agent_config(config: dict[str, Any] | None) -> dict[str, Any]:
+    cfg = config.copy() if isinstance(config, dict) else {}
+    if cfg.get("builder_layout") and cfg.get("flow") is None:
+        cfg["flow"] = cfg["builder_layout"]
+    if cfg.get("google_credentials"):
+        cfg["google_calendar_connected"] = True
+        cfg["gmail_connected"] = True
+    return cfg
+
+
 @router.post("/create", status_code=201)
 async def create_agent(
     data: CreateAgentRequest,
@@ -114,7 +131,7 @@ async def create_agent(
         name=data.name,
         forwarding_number=data.forwarding_number,
         twilio_number=data.twilio_number,
-        config=data.config.model_dump(),
+        config=_normalize_agent_config(data.config.model_dump()),
         voice_id=data.voice_id or settings.VOICE_EN_FEMALE,
         language=data.language or "english",
         is_active=False,
@@ -156,7 +173,7 @@ async def update_agent(
 ) -> dict:
     agent = await _get_owned_agent(db, current_user, agent_id)
     agent.name = data.name
-    agent.config = data.config.model_dump()
+    agent.config = _normalize_agent_config(data.config.model_dump())
     flag_modified(agent, "config")
     if data.forwarding_number is not None:
         agent.forwarding_number = data.forwarding_number
@@ -253,6 +270,67 @@ async def get_agent(
     return {"agent": _agent_dict(agent)}
 
 
+class GoogleCalendarConnectRequest(BaseModel):
+    credentials: dict[str, Any]
+    calendar_id: str | None = "primary"
+
+
+async def _verify_google_calendar_credentials(credentials: dict[str, Any]) -> dict[str, Any]:
+    try:
+        from google.oauth2.credentials import Credentials
+        from googleapiclient.discovery import build
+    except ImportError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Google API dependencies are not installed. Install google-api-python-client and google-auth.",
+        ) from exc
+
+    if not credentials.get("token"):
+        raise HTTPException(status_code=400, detail="Google credentials must include an access token")
+
+    creds = Credentials(**credentials)
+    service = build("calendar", "v3", credentials=creds, cache_discovery=False)
+    result = service.calendarList().list(maxResults=1).execute()
+    calendars = result.get("items", [])
+    return {"verified": True, "calendar_id": calendars[0].get("id") if calendars else "primary"}
+
+
+@router.post("/{agent_id}/google-calendar/connect")
+async def connect_google_calendar(
+    agent_id: str,
+    data: GoogleCalendarConnectRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    agent = await _get_owned_agent(db, current_user, agent_id)
+    cfg = agent.config or {}
+    cfg["google_credentials"] = data.credentials
+    cfg["google_calendar_id"] = data.calendar_id or "primary"
+    cfg["google_calendar_connected"] = True
+    cfg["gmail_connected"] = True
+    cfg = _normalize_agent_config(cfg)
+    agent.config = cfg
+    flag_modified(agent, "config")
+    await db.commit()
+    await db.refresh(agent)
+    return {"agent": _agent_dict(agent)}
+
+
+@router.post("/{agent_id}/google-calendar/verify")
+async def verify_google_calendar(
+    agent_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    agent = await _get_owned_agent(db, current_user, agent_id)
+    cfg = agent.config or {}
+    credentials = cfg.get("google_credentials")
+    if not credentials:
+        raise HTTPException(status_code=400, detail="Google Calendar is not configured for this agent")
+    result = await _verify_google_calendar_credentials(credentials)
+    return {"verified": True, "calendar_id": result["calendar_id"]}
+
+
 @router.post("/{agent_id}/test-chat")
 async def test_chat(
     agent_id: str,
@@ -271,6 +349,34 @@ async def test_chat(
         call_context={"channel": "voice"},
     )
     return {"reply": reply.get("response", "")}
+
+
+class PreviewRequest(BaseModel):
+    text: str
+
+
+@router.post("/{agent_id}/preview")
+async def preview_agent_audio(
+    agent_id: str,
+    data: PreviewRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Synthesize a short preview audio clip for the agent and return a public URL.
+
+    This endpoint is intended for dashboard preview playback; it uses the same
+    synthesis service the live telephony loop uses and caches hot audio.
+    """
+    agent = await _get_owned_agent(db, current_user, agent_id)
+    from app.services.synthesis import synthesize
+
+    text = data.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Preview text required")
+    url = await synthesize(text, language=(agent.language or "english"), gender="female", voice_id=agent.voice_id or None)
+    if not url:
+        raise HTTPException(status_code=503, detail="Synthesis service not available")
+    return {"audio_url": url}
 
 
 @router.get("/{agent_id}/calls")

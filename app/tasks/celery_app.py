@@ -22,8 +22,9 @@ celery_app.conf.beat_schedule = {
     },
     "calculate-monthly-rollover": {
         "task": "app.tasks.background.calculate_monthly_rollover",
-        # Run just after midnight on the last day of the month (day 28 covers all months)
-        "schedule": crontab(day_of_month=28, hour=23, minute=55),
+        # Run at the beginning of the first day of each month to evaluate the
+        # previous month's usage window and preserve all final calendar days.
+        "schedule": crontab(day_of_month="1", hour=0, minute=0),
     },
     "cleanup-audio": {
         "task": "app.tasks.background.cleanup_audio_files",

@@ -129,6 +129,7 @@ def calculate_monthly_rollover():
                     minutes_used=user.minutes_used_this_month or 0,
                     rollover_minutes=user.rollover_minutes or 0,
                     rollover_expires_at=user.rollover_expires_at,
+                    created_at=user.created_at,
                 )
                 user.rollover_minutes = new_rollover
                 user.rollover_expires_at = new_expires

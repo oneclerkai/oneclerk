@@ -109,6 +109,7 @@ async def answer_and_say(call_control_id: str, text: str, language: str = "engli
     telnyx.Call.answer(call_control_id)
     audio_url = await synthesize(text, language=language)
     if audio_url:
+        await _stop_playback(call_control_id)
         telnyx.Call.playback_start(call_control_id, audio_url=audio_url, overlay=False)
     return True
 
@@ -125,6 +126,7 @@ async def answer_call(call_control_id: str, agent: Agent) -> bool:
         language=_language_name(agent),
         gender="female",
     ):
+        await _stop_playback(call_control_id)
         telnyx.Call.playback_start(
             call_control_id,
             audio_url=url,

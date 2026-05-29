@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+env/
+venv/
+.venv/
+
+# Virtual environment
+venv/
+VENV/
+
+# Environment files
+.env
+backend/.env
+frontend/.env.local
+*.env.local
+.env.*
+
+# Node modules and build artifacts
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+*.tsbuildinfo
+
+# IDE/editor
+.vscode/
+.idea/
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Pytest
+.pytest_cache/
+
+# Local system files
+Thumbs.db

@@ -1,266 +1,111 @@
-// 1. Sanitized Base URL logic
-const getBaseUrl = () => {
-  let url = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-  // Remove trailing slash if present to prevent // double slashes
-  return url.endsWith('/') ? url.slice(0, -1) : url;
-};
+﻿import axios from 'axios';
 
-const API_URL = getBaseUrl();
+// 1. Get the Backend URL from your environment variables
+// It defaults to localhost if the variable isn't found
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-export const getToken = () => {
-  if (typeof window === 'undefined') return null;
-  // Standardized key name for the whole project
-  return localStorage.getItem('oneclerk_token');
-};
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-export const setToken = (t: string) => localStorage.setItem('oneclerk_token', t);
-export const clearToken = () => localStorage.removeItem('oneclerk_token');
-
-/** Helper to extract readable error messages from the backend */
-function apiErrorMessage(payload: any, fallback: string) {
-  const detail = payload?.detail ?? payload?.message ?? payload?.error;
-  if (!detail) return fallback;
-  if (typeof detail === 'string') return detail;
-  if (Array.isArray(detail)) {
-    return detail.map((item) => item?.msg || item?.message || JSON.stringify(item)).join('; ');
-  }
-  return detail.message || JSON.stringify(detail);
-}
-
-function notifyError(message: string) {
+// 2. Request Interceptor: Automatically attach your JWT Token to every call
+api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('oneclerk:error', { detail: message }));
-    console.error(`[API Error]: ${message}`);
+    const token = localStorage.getItem('oneclerk_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
-}
+  return config;
+});
 
-async function apiFetch(path: string, options: RequestInit = {}) {
-  const token = getToken();
-  
-  // Ensure path starts with a slash
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  const fullUrl = `${API_URL}${cleanPath}`;
-
-  try {
-    const res = await fetch(fullUrl, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...options.headers,
-      },
-    });
-
-    if (res.status === 401) {
-      clearToken();
-      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        window.location.href = '/login';
+// 3. Response Interceptor: Catch "Unauthorized" errors (token expired)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      console.warn("Session expired. Redirecting to login...");
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('oneclerk_token');
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
-      throw new Error('Unauthorized');
     }
+    return Promise.reject(error);
+  }
+);
 
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({ detail: 'Request failed' }));
-      const message = apiErrorMessage(error, `Request failed (${res.status})`);
-      notifyError(message);
-      throw new Error(message);
-    }
-
-    if (res.status === 204) return null;
-    return res.json();
-  } catch (err: any) {
-    console.error(`Fetch failed for ${fullUrl}:`, err);
-    throw err;
+export function setToken(token: string) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('oneclerk_token', token);
   }
 }
 
-// Auth API
+export function getToken() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  return localStorage.getItem('oneclerk_token');
+}
+
+export function clearToken() {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('oneclerk_token');
+  }
+}
+
 export const auth = {
-  login: async (email: string, password: string) => {
-    return apiFetch('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
+  login: (data: any, password?: string) => {
+    const payload = typeof data === 'string' && password ? { email: data, password } : data
+    return api.post('/api/auth/login', payload).then((res) => res.data)
   },
-
-  signup: async (email: string, password: string, name?: string, whatsapp_number?: string) => {
-    return apiFetch('/api/auth/signup', {
-      method: 'POST',
-      body: JSON.stringify({ email, password, name, whatsapp_number }),
-    });
-  },
-
-  sendEmailOtp: async (email: string) => {
-    return apiFetch('/api/auth/send-email-otp', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    });
-  },
-
-  sendEmailVerificationLink: async (email: string) => {
-    return apiFetch('/api/auth/send-email-verification-link', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    });
-  },
-
-  verifyEmailOtpAndSignup: async (data: {
-    email: string;
-    password: string;
-    otp: string;
-    name?: string;
-    whatsapp_number?: string;
-  }) => {
-    return apiFetch('/api/auth/verify-email-otp-and-signup', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  },
-
-  verifyEmailLink: async (data: {
-    token: string;
-    email: string;
-    password: string;
-    name?: string;
-    whatsapp_number?: string;
-  }) => {
-    return apiFetch('/api/auth/verify-email-link', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  },
-
-  sendPhoneOtp: async (phone_number: string) => {
-    return apiFetch('/api/auth/send-phone-otp', {
-      method: 'POST',
-      body: JSON.stringify({ phone_number }),
-    });
-  },
-
-  verifyPhoneOtp: async (phone_number: string, otp: string) => {
-    return apiFetch('/api/auth/verify-phone-otp', {
-      method: 'POST',
-      body: JSON.stringify({ phone_number, otp }),
-    });
-  },
-
-  me: async () => {
-    return apiFetch('/api/auth/me');
-  },
-
+  signup: (data: any) => api.post('/api/auth/signup', data).then((res) => res.data),
+  me: () => api.get('/api/auth/me').then((res) => res.data),
   logout: () => {
     clearToken();
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
-    }
+    return Promise.resolve({ logged_out: true });
   },
-
-  saveOnboarding: async (profile: Record<string, unknown>, completed: boolean = true) => {
-    return apiFetch('/api/auth/onboarding', {
-      method: 'POST',
-      body: JSON.stringify({ profile, completed }),
-    });
-  },
+  sendEmailOtp: (email: string) => api.post('/api/auth/send-email-otp', { email }).then((res) => res.data),
+  sendEmailVerificationLink: (email: string) => api.post('/api/auth/send-email-verification-link', { email }).then((res) => res.data),
+  verifyEmailOtpAndSignup: (data: any) => api.post('/api/auth/verify-email-otp-and-signup', data).then((res) => res.data),
+  verifyEmailLink: (data: any) => api.post('/api/auth/verify-email-link', data).then((res) => res.data),
+  sendPhoneOtp: (phone: string) => api.post('/api/auth/send-phone-otp', { phone_number: phone }).then((res) => res.data),
+  verifyPhoneOtp: (phone: string, otp: string) => api.post('/api/auth/verify-phone-otp', { phone_number: phone, otp }).then((res) => res.data),
+  google: (credential: string) => api.post('/api/auth/google', { credential }).then((res) => res.data),
 };
 
-// Dashboard API
-export const dashboard = {
-  overview: async () => {
-    return apiFetch('/api/dashboard/stats');
-  },
-
-  voicePreview: async (text: string, language: string = 'english', voice_id?: string) => {
-    return apiFetch('/api/dashboard/voice-preview', {
-      method: 'POST',
-      body: JSON.stringify({ text, language, voice_id }),
-    });
-  },
-};
-
-// Billing API
-export const billing = {
-  plans: async () => {
-    return apiFetch('/api/billing/plans');
-  },
-
-  status: async () => {
-    return apiFetch('/api/billing/status');
-  },
-
-  createCheckout: async (plan: string) => {
-    return apiFetch('/api/billing/create-checkout', {
-      method: 'POST',
-      body: JSON.stringify({ plan }),
-    });
-  },
-
-  createPortal: async () => {
-    return apiFetch('/api/billing/create-portal', {
-      method: 'POST',
-    });
-  },
-};
-
-// Agents API
 export const agents = {
-  list: async () => {
-    return apiFetch('/api/agents/list');
-  },
-
-  create: async (data: {
-    name: string;
-    config: Record<string, unknown>;
-    forwarding_number?: string;
-    twilio_number?: string;
-    voice_id?: string;
-    language?: string;
-  }) => {
-    return apiFetch('/api/agents/create', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  },
-
-  get: async (agent_id: string) => {
-    return apiFetch(`/api/agents/${agent_id}`);
-  },
-
-  update: async (
-    agent_id: string,
-    data: {
-      name: string;
-      config: Record<string, unknown>;
-      forwarding_number?: string;
-      twilio_number?: string;
-      voice_id?: string;
-      language?: string;
-    }
-  ) => {
-    return apiFetch(`/api/agents/${agent_id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  },
-
-  activate: async (agent_id: string) => {
-    return apiFetch(`/api/agents/${agent_id}/activate`, {
-      method: 'POST',
-    });
-  },
-
-  deactivate: async (agent_id: string) => {
-    return apiFetch(`/api/agents/${agent_id}/deactivate`, {
-      method: 'POST',
-    });
-  },
-
-  delete: async (agent_id: string) => {
-    return apiFetch(`/api/agents/${agent_id}`, {
-      method: 'DELETE',
-    });
-  },
-
-  setupInstructions: async (agent_id: string, carrier: string = 'generic') => {
-    return apiFetch(`/api/agents/${agent_id}/setup-instructions?carrier=${carrier}`);
-  },
+  list: () => api.get('/api/agents/list').then((res) => res.data),
+  create: (data: any) => api.post('/api/agents/create', data).then((res) => res.data),
+  update: (id: string, data: any) => api.put(`/api/agents/${id}`, data).then((res) => res.data),
+  get: (id: string) => api.get(`/api/agents/${id}`).then((res) => res.data),
+  delete: (id: string) => api.delete(`/api/agents/${id}`).then((res) => res.data),
+  activate: (id: string) => api.post(`/api/agents/${id}/activate`).then((res) => res.data),
+  deactivate: (id: string) => api.post(`/api/agents/${id}/deactivate`).then((res) => res.data),
+  getTelnyxNumber: (id: string) => api.post(`/api/agents/${id}/get-telnyx-number`).then((res) => res.data),
+  connectGoogleCalendar: (id: string, credentials: any) => api.post(`/api/agents/${id}/google-calendar/connect`, { credentials }).then((res) => res.data),
+  verifyGoogleCalendar: (id: string) => api.post(`/api/agents/${id}/google-calendar/verify`).then((res) => res.data),
+  testChat: (id: string, message: string, history: any) => api.post(`/api/agents/${id}/test-chat`, { message, history }).then((res) => res.data),
+  preview: (id: string, text: string) => api.post(`/api/agents/${id}/preview`, { text }).then((res) => res.data),
 };
+
+export const dashboard = {
+  overview: () => api.get('/api/dashboard/overview').then((res) => res.data),
+  calls: () => api.get('/api/dashboard/calls').then((res) => res.data),
+  usage: () => api.get('/api/dashboard/usage').then((res) => res.data),
+  voicePreview: (text: string, language: string) => api.post('/api/dashboard/voice-preview', { text, language }).then((res) => res.data),
+};
+
+export const billing = {
+  status: () => api.get('/api/billing/status').then((res) => res.data),
+  plans: () => api.get('/api/billing/plans').then((res) => res.data),
+  createCheckout: (planId: string) => api.post('/api/billing/create-checkout', { plan_id: planId }).then((res) => res.data),
+  createPortal: () => api.post('/api/billing/create-portal').then((res) => res.data),
+};
+
+export default api;
+

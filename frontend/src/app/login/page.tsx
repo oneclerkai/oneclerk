@@ -17,7 +17,7 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const result = await auth.login(email, password)
+      const result = await auth.login({ email, password })
       setToken(result.access_token)
       window.location.href = '/dashboard'
     } catch (err: any) {

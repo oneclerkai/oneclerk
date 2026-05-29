@@ -32,7 +32,7 @@ export function useAuth() {
   }, [])
 
   const login = async (email: string, password: string) => {
-    const result = await auth.login(email, password)
+    const result = await auth.login({ email, password })
     setToken(result.access_token)
     setUser(result.user as AuthUser)
     return result

@@ -8,6 +8,7 @@ from jose import JWTError, jwt
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Literal
 
 from app.config import settings
 from app.database import get_db
@@ -145,9 +146,56 @@ def _user_dict(user: User) -> dict:
     }
 
 
+class VerifyAuthTokenRequest(BaseModel):
+    token: str
+    token_type: Literal["email", "phone"]
+
+
 class OnboardingRequest(BaseModel):
     profile: dict
     completed: bool = True
+
+
+@router.post("/verify", status_code=status.HTTP_200_OK)
+async def verify_token(
+    data: VerifyAuthTokenRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    try:
+        payload = jwt.decode(data.token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired verification token")
+
+    token_type = payload.get("type")
+    if data.token_type == "email" and token_type != "email_verification":
+        raise HTTPException(status_code=400, detail="Invalid token purpose")
+    if data.token_type == "phone" and token_type != "phone_verification":
+        raise HTTPException(status_code=400, detail="Invalid token purpose")
+
+    if data.token_type == "email":
+        email = payload.get("sub")
+        if not email:
+            raise HTTPException(status_code=400, detail="Token missing email subject")
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        user.email_verified = True
+        await db.commit()
+        await safe_delete(_email_key(email))
+        return {"verified": True, "email": email}
+
+    phone_number = payload.get("phone_number")
+    if not phone_number:
+        raise HTTPException(status_code=400, detail="Token missing phone number")
+    result = await db.execute(select(User).where(User.whatsapp_number == phone_number))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.phone_verified = True
+    await db.commit()
+    await safe_delete(_phone_key(phone_number))
+    return {"verified": True, "phone_number": phone_number}
 
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -323,83 +371,49 @@ async def get_current_user(
     return user
 
 
-@router.post("/verify", response_model=VerifyTokenResponse)
-async def verify_token(
+@router.post("/verify-email-token", response_model=VerifyTokenResponse)
+async def verify_email_token(
     data: VerifyTokenRequest,
     db: AsyncSession = Depends(get_db),
 ) -> VerifyTokenResponse:
-    """Secure token verification endpoint for email/profile verification.
-    
-    Accepts a cryptographic verification token and email, validates token expiration,
-    marks user as verified, and returns structured JSON response with updated user data.
-    Implements proper error handling with distinct HTTP status codes for each failure mode.
-    
-    Args:
-        data: VerifyTokenRequest containing token and email
-        db: AsyncSession database connection
-    
-    Returns:
-        VerifyTokenResponse: success status, message, and updated user payload
-    
-    Raises:
-        HTTPException 400: Invalid/expired token or missing required fields
-        HTTPException 401: Token does not match stored value (unauthorized)
-        HTTPException 404: User not found in database
-        HTTPException 500: Database or verification operation failed
+    """Secure email verification token endpoint.
+
+    Accepts a verification token and email, validates the stored link token,
+    marks the user's email as verified, and returns structured JSON.
     """
     email = data.email.lower().strip()
     token = data.token.strip()
-    
+
     if not email or not token:
-        raise HTTPException(
-            status_code=400,
-            detail="Email and token are required"
-        )
-    
+        raise HTTPException(status_code=400, detail="Email and token are required")
+
     _ensure_redis()
-    
+
     stored_token = _decode_redis(await safe_get(_email_verification_link_key(email)))
-    
     if not stored_token:
-        raise HTTPException(
-            status_code=400,
-            detail="Verification token expired or not found"
-        )
-    
+        raise HTTPException(status_code=400, detail="Verification token expired or not found")
     if stored_token != token:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid verification token"
-        )
-    
+        raise HTTPException(status_code=401, detail="Invalid verification token")
+
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
-    
     if user is None:
         await safe_delete(_email_verification_link_key(email))
-        raise HTTPException(
-            status_code=404,
-            detail="User not found. Please complete signup first."
-        )
-    
+        raise HTTPException(status_code=404, detail="User not found. Please complete signup first.")
+
     try:
         user.email_verified = True
         await db.commit()
         await db.refresh(user)
-        
         await safe_delete(_email_verification_link_key(email))
-        
         return VerifyTokenResponse(
             success=True,
             message="Email verified successfully",
-            user=_user_dict(user)
+            user=_user_dict(user),
         )
     except Exception as exc:
         await db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Verification failed: {str(exc)}"
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"Verification failed: {str(exc)}") from exc
 
 
 @router.post("/send-phone-otp")

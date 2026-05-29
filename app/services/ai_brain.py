@@ -14,16 +14,31 @@ try:
 except ImportError:  # pragma: no cover
     AsyncOpenAI = None  # type: ignore[assignment]
 
-# Use Replit AI Integrations (no personal API key required) if available,
-# otherwise fall back to the user-supplied OPENAI_API_KEY.
-_ai_base_url = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
-_ai_key = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY") or settings.OPENAI_API_KEY
+# Initialize an AsyncOpenAI client that can point to OpenAI or OpenRouter
+def _init_client() -> "AsyncOpenAI" | None:
+    if AsyncOpenAI is None:
+        return None
 
-client = (
-    AsyncOpenAI(api_key=_ai_key, base_url=_ai_base_url or None)
-    if AsyncOpenAI is not None and _ai_key
-    else None
-)
+    # Prefer an explicit OpenRouter key if provided
+    if settings.OPENROUTER_API_KEY:
+        return AsyncOpenAI(
+            api_key=settings.OPENROUTER_API_KEY,
+            base_url="https://openrouter.ai/api/v1",
+            default_headers={
+                "HTTP-Referer": "https://oneclerk.ai",
+                "X-Title": "OneClerk Voice Agent Pipeline",
+            },
+        )
+
+    # Fallback to a generic base URL or the built-in OpenAI key
+    _ai_base_url = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
+    _ai_key = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY") or settings.OPENAI_API_KEY
+    if _ai_key:
+        return AsyncOpenAI(api_key=_ai_key, base_url=_ai_base_url or None)
+    return None
+
+
+client = _init_client()
 
 URGENT_WORDS: tuple[str, ...] = (
     "emergency",
@@ -104,9 +119,9 @@ FAQS:
 BOOKING RULES (TWO-STEP — CRITICAL):
 Step 1: When the caller asks to book, FIRST check availability and propose exactly TWO specific
         time slots in {timezone_str} timezone (e.g. "I have Tuesday 3 PM or Wednesday 10 AM").
-        Set booking_step="propose" in your response.
+        Set booking_step=\"propose\" in your response.
 Step 2: Only after the caller confirms one slot, confirm the booking.
-        Set booking_detected=true and booking_step="confirm" in your response.
+        Set booking_detected=true and booking_step=\"confirm\" in your response.
 Never book without explicit caller confirmation of a specific slot.
 
 RULES (CRITICAL - follow exactly):
@@ -122,6 +137,30 @@ RESPONSE FORMAT - Always respond with ONLY this JSON:
 {{"response": "your spoken response here", "escalate": false, "booking_detected": false, "booking_service": null, "booking_step": null}}"""
 
 
+def _normalize_ai_response(result: dict) -> dict:
+    if not isinstance(result, dict):
+        return {
+            "response": "I have your request and someone will follow up shortly. What else can I note for you?",
+            "escalate": False,
+            "booking_detected": False,
+            "booking_service": None,
+            "booking_step": None,
+        }
+
+    booking_step = str(result.get("booking_step") or "").lower()
+    if booking_step not in ("propose", "confirm"):
+        booking_step = None
+
+    booking_detected = bool(result.get("booking_detected")) and booking_step == "confirm"
+    return {
+        "response": str(result.get("response") or "I have your request and someone will follow up shortly. What else can I note for you?"),
+        "escalate": bool(result.get("escalate")),
+        "booking_detected": booking_detected,
+        "booking_service": result.get("booking_service"),
+        "booking_step": booking_step,
+    }
+
+
 async def get_ai_response(
     user_message: str,
     conversation_history: list,
@@ -134,6 +173,7 @@ async def get_ai_response(
             "escalate": False,
             "booking_detected": False,
             "booking_service": None,
+            "booking_step": None,
         }
 
     cache_key = f"ai_resp:{agent.id}:{hashlib.md5(user_message.lower().encode()).hexdigest()}"
@@ -153,7 +193,8 @@ async def get_ai_response(
         temperature=0.3,
         response_format={"type": "json_object"},
     )
-    result = json.loads(response.choices[0].message.content or "{}")
+    raw = json.loads(response.choices[0].message.content or "{}")
+    result = _normalize_ai_response(raw)
     if not result.get("escalate") and not result.get("booking_detected"):
         await safe_setex(cache_key, 3600, json.dumps(result))
     return result

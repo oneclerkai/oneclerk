@@ -127,6 +127,7 @@ async def billing_status(
         minutes_used=current_user.minutes_used_this_month or 0,
         rollover_minutes=current_user.rollover_minutes or 0,
         rollover_expires_at=current_user.rollover_expires_at,
+        created_at=current_user.created_at,
     )
 
     return {

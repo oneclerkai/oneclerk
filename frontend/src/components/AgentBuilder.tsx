@@ -13,6 +13,7 @@ import React, { useEffect, useState } from 'react'
 // ---------------------------------------------------------------------------
 
 interface AgentConfig {
+  id?: string
   name: string
   business_name: string
   language: string
@@ -29,13 +30,19 @@ interface AgentBuilderProps {
   initial?: Partial<AgentConfig>
   onSave: (config: AgentConfig) => Promise<void>
   isSaving?: boolean
+  // preview props
+  previewText?: string
+  setPreviewText?: (s: string) => void
+  previewUrl?: string | null
+  isPreviewing?: boolean
+  doPreview?: (agentId?: string) => Promise<void>
 }
 
 // ---------------------------------------------------------------------------
 // Mobile form
 // ---------------------------------------------------------------------------
 
-function AgentForm({ initial, onSave, isSaving }: AgentBuilderProps) {
+function AgentForm({ initial, onSave, isSaving, previewText, setPreviewText, previewUrl, isPreviewing, doPreview }: AgentBuilderProps) {
   const [form, setForm] = useState<AgentConfig>({
     name: '',
     business_name: '',
@@ -173,6 +180,29 @@ function AgentForm({ initial, onSave, isSaving }: AgentBuilderProps) {
       >
         {isSaving ? 'Saving…' : 'Save Agent'}
       </button>
+
+      <div className="mt-3 space-y-2">
+        <label className="block text-sm font-medium text-gray-700">Preview text</label>
+        <div className="flex gap-2">
+          <input
+            value={previewText}
+            onChange={(e) => setPreviewText?.(e.target.value)}
+            placeholder="Type a short greeting to preview"
+            className="input flex-1"
+          />
+          <button
+            type="button"
+            disabled={!initial || !(initial as any).id || isPreviewing}
+            onClick={() => doPreview?.((initial as any)?.id)}
+            className="py-2 px-4 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md"
+          >
+            {isPreviewing ? 'Previewing…' : 'Preview'}
+          </button>
+        </div>
+        {previewUrl && (
+          <audio className="w-full mt-2" controls src={previewUrl} />
+        )}
+      </div>
     </form>
   )
 }
@@ -193,7 +223,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
 // Desktop canvas (drag-and-drop node editor)
 // ---------------------------------------------------------------------------
 
-function AgentCanvas({ initial, onSave, isSaving }: AgentBuilderProps) {
+function AgentCanvas({ initial, onSave, isSaving, previewText, setPreviewText, previewUrl, isPreviewing, doPreview }: AgentBuilderProps) {
   // Minimal canvas implementation — extend with react-flow or similar library
   const [nodes, setNodes] = useState([
     { id: 'greeting', label: 'Greeting', x: 80, y: 80, type: 'start' },
@@ -232,7 +262,23 @@ function AgentCanvas({ initial, onSave, isSaving }: AgentBuilderProps) {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
         <h2 className="text-xl font-bold text-gray-900">Agent Canvas</h2>
-        <button
+        <div className="flex items-center gap-3">
+          <input
+            value={previewText}
+            onChange={(e) => setPreviewText?.(e.target.value)}
+            placeholder="Preview text"
+            className="input text-sm"
+          />
+          <button
+            type="button"
+            onClick={() => doPreview?.((initial as any)?.id)}
+            disabled={!initial || !(initial as any).id || isPreviewing}
+            className="py-2 px-4 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md text-sm"
+          >
+            {isPreviewing ? 'Previewing…' : 'Preview'}
+          </button>
+        
+          <button
           onClick={() => {
             if (!initial) return
             const payload = {
@@ -260,6 +306,7 @@ function AgentCanvas({ initial, onSave, isSaving }: AgentBuilderProps) {
         >
           {isSaving ? 'Saving…' : 'Save'}
         </button>
+        </div>
       </div>
 
       {/* Canvas area */}
@@ -316,6 +363,35 @@ function AgentCanvas({ initial, onSave, isSaving }: AgentBuilderProps) {
 
 export default function AgentBuilder(props: AgentBuilderProps) {
   const [isDesktop, setIsDesktop] = useState(false)
+  const [previewText, setPreviewText] = useState('')
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [isPreviewing, setIsPreviewing] = useState(false)
+
+  const doPreview = async (agentId?: string | undefined) => {
+    if (!agentId) return
+    if (!previewText || previewText.trim().length === 0) return
+    setIsPreviewing(true)
+    try {
+      const res = await fetch(`/api/agents/${agentId}/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: previewText }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        console.error('Preview failed', err)
+        setPreviewUrl(null)
+        return
+      }
+      const data = await res.json()
+      setPreviewUrl(data.audio_url)
+    } catch (e) {
+      console.error('Preview error', e)
+      setPreviewUrl(null)
+    } finally {
+      setIsPreviewing(false)
+    }
+  }
 
   useEffect(() => {
     const check = () => setIsDesktop(window.innerWidth >= 1024)
@@ -324,5 +400,5 @@ export default function AgentBuilder(props: AgentBuilderProps) {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  return isDesktop ? <AgentCanvas {...props} /> : <AgentForm {...props} />
+  return isDesktop ? <AgentCanvas {...props} previewText={previewText} setPreviewText={setPreviewText} previewUrl={previewUrl} isPreviewing={isPreviewing} doPreview={doPreview} /> : <AgentForm {...props} previewText={previewText} setPreviewText={setPreviewText} previewUrl={previewUrl} isPreviewing={isPreviewing} doPreview={doPreview} />
 }

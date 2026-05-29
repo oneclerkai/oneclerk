@@ -70,6 +70,10 @@ class Settings(BaseSettings):
     WHATSAPP_API_URL: str | None = None
     WHATSAPP_FROM: str | None = None
 
+    # Optional OpenRouter compatibility (acts as an OpenAI-compatible proxy)
+    OPENROUTER_API_KEY: str | None = None
+    OPENROUTER_MODEL: str | None = "openchat/openchat-7b:free"
+
     STARTUP_REQUIRED_KEYS: tuple[str, ...] = Field(
         default=(
             "SECRET_KEY",

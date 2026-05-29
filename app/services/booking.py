@@ -89,7 +89,7 @@ async def propose_slots(
             for hour in (10, 15):
                 slot_local = candidate.replace(hour=hour, minute=0, second=0, microsecond=0)
                 slot_utc = to_utc(slot_local, tz)
-                label = slot_local.strftime("%A %-d %B at %-I %p %Z")
+                label = slot_local.strftime("%A %d %B at %I %p %Z").replace(" 0", " ")
                 slots.append({
                     "label": label,
                     "iso": slot_local.isoformat(),
