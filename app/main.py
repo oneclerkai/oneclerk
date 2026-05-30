@@ -67,6 +67,10 @@ app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000", "https://oneclerk.ai"]
 if settings.FRONTEND_URL:
     allowed_origins.append(settings.FRONTEND_URL)
+import os as _os
+_replit_domain = _os.environ.get("REPLIT_DEV_DOMAIN")
+if _replit_domain:
+    allowed_origins.append(f"https://{_replit_domain}")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
