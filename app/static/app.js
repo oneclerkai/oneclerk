@@ -1,4 +1,4 @@
-// OneClerk dashboard — single-page app, vanilla JS, no build step.
+// Harkly AI dashboard — single-page app, vanilla JS, no build step.
 // Uses Lucide for icons (loaded from CDN in index.html).
 
 const API = "";
@@ -87,7 +87,7 @@ const BRAND_SVG = {
   gcal: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="5" y="5" width="22" height="22" rx="2" fill="#fff"/><path fill="#1A73E8" d="M5 9h22v3H5z"/><path fill="#EA4335" d="M22 5h3v6h-3z"/><path fill="#FBBC04" d="M7 5h3v6H7z"/><text x="16" y="22.5" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" font-weight="700" fill="#1A73E8">31</text></svg>`,
   ig: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><radialGradient id="igG" cx=".3" cy="1.05" r="1.1"><stop offset="0%" stop-color="#FED576"/><stop offset="26%" stop-color="#F47133"/><stop offset="61%" stop-color="#BC3081"/><stop offset="100%" stop-color="#4C63D2"/></radialGradient></defs><rect x="4" y="4" width="24" height="24" rx="6" fill="url(#igG)"/><circle cx="16" cy="16" r="5.6" fill="none" stroke="#fff" stroke-width="2"/><circle cx="22.5" cy="9.5" r="1.4" fill="#fff"/></svg>`,
   phone: `<svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g class="ph-rings" fill="none" stroke="#0d6efd" stroke-width="1.6" stroke-linecap="round"><path d="M22.5 9.5c1.7 1.2 3 2.9 3.6 4.9"/><path d="M24.5 6.5c2.7 1.6 4.7 4.1 5.5 7.1"/><path d="M26.5 3.5c3.6 2 6.2 5.4 7.2 9.4"/></g><path fill="#0d6efd" d="M11.4 14.5c1.4 2.7 3.6 4.9 6.3 6.3l2.1-2.1c.3-.3.7-.4 1-.2 1.2.4 2.5.6 3.8.6.6 0 1 .4 1 1V23c0 .6-.4 1-1 1C13.4 24 8 18.6 8 11.4c0-.6.4-1 1-1h2.9c.6 0 1 .4 1 1 0 1.3.2 2.6.6 3.8.1.4 0 .7-.2 1l-1.9 2.3z"/></svg>`,
-  // OneClerk AI agent — orange gradient orb with "OC"
+  // Harkly AI AI agent — orange gradient orb with "OC"
   agent: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><radialGradient id="ocG" cx=".35" cy=".3" r=".9"><stop offset="0%" stop-color="#ffe39a"/><stop offset="55%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#9a3412"/></radialGradient></defs><circle cx="16" cy="16" r="14" fill="url(#ocG)"/><circle cx="16" cy="16" r="14" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1"/><text x="16" y="20.5" text-anchor="middle" font-family="Poppins,Arial,sans-serif" font-size="11" font-weight="800" fill="#fff">OC</text></svg>`,
   // Talking points — sticky note
   text: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="5" y="6" width="22" height="22" rx="3" fill="#fef9c3" stroke="#eab308" stroke-width="1.2"/><path d="M9 12h14M9 16h14M9 20h10" stroke="#854d0e" stroke-width="1.6" stroke-linecap="round"/></svg>`,
@@ -291,7 +291,7 @@ const FRAMES = [
     img: makeFrameSvg('#e6f5e0', `
       <rect x='30' y='30' width='260' height='180' rx='16' fill='#fff' stroke='#0d0d0f' stroke-opacity='0.1'/>
       <rect x='30' y='30' width='260' height='32' rx='16' fill='#075e54'/>
-      <text x='48' y='51' font-family='Poppins' font-size='12' font-weight='700' fill='#fff'>OneClerk · Summary</text>
+      <text x='48' y='51' font-family='Poppins' font-size='12' font-weight='700' fill='#fff'>Harkly AI · Summary</text>
       <text x='240' y='51' font-family='Poppins' font-size='10' fill='#fff' opacity='0.7'>now</text>
       <rect x='44' y='78' width='200' height='90' rx='10' fill='#dcf8c6'/>
       <text x='54' y='98' font-family='Poppins' font-size='10' font-weight='700' fill='#1a1408'>Sarah Mehta · 2:14pm</text>
@@ -347,7 +347,7 @@ const FRAMES = [
 // Reviews — short, punchy, one specific result per person
 const REVIEWS = [
   {
-    quote: "Caught 23 missed calls in week one — two became same-day patients. OneClerk books into my calendar and sends a WhatsApp summary before I've had my first coffee.",
+    quote: "Caught 23 missed calls in week one — two became same-day patients. Harkly AI books into my calendar and sends a WhatsApp summary before I've had my first coffee.",
     name: "Dr. Marisol Ruiz",
     place: "Family Physician · Austin, TX",
     img: "https://i.pravatar.cc/120?img=47",
@@ -365,13 +365,13 @@ const REVIEWS = [
     img: "https://i.pravatar.cc/120?img=12",
   },
   {
-    quote: "Three-month receptionist vacancy — configured OneClerk in twelve minutes and saved the full salary. Patient experience scores actually went up.",
+    quote: "Three-month receptionist vacancy — configured Harkly AI in twelve minutes and saved the full salary. Patient experience scores actually went up.",
     name: "Dr. Priya Nair",
     place: "Practice Manager · Bright Smiles Dental",
     img: "https://i.pravatar.cc/120?img=44",
   },
   {
-    quote: "I can't answer mid-job and used to lose every caller to whoever picked up first. OneClerk recovered 8 booked jobs in my very first month.",
+    quote: "I can't answer mid-job and used to lose every caller to whoever picked up first. Harkly AI recovered 8 booked jobs in my very first month.",
     name: "Mike Hartman",
     place: "Plumber · Hartman Plumbing Co.",
     img: "https://i.pravatar.cc/120?img=15",
@@ -401,7 +401,7 @@ const REVIEWS = [
     img: "https://i.pravatar.cc/120?img=20",
   },
   {
-    quote: "OneClerk pre-screens every caller and flags urgent ones for immediate callback. Client acquisition up 35% in just 60 days.",
+    quote: "Harkly AI pre-screens every caller and flags urgent ones for immediate callback. Client acquisition up 35% in just 60 days.",
     name: "Devin Okafor",
     place: "Solo Attorney · Houston, TX",
     img: "https://i.pravatar.cc/120?img=33",
@@ -500,16 +500,16 @@ function mountVoicePreview(container, preselectedLang) {
   }));
 
   const GREETINGS = {
-    "hi-IN":"नमस्ते, यहाँ OneClerk है। मैं आपकी कैसे मदद कर सकता हूँ?",
-    "es-ES":"Hola, le habla OneClerk. ¿En qué le puedo ayudar?",
-    "fr-FR":"Bonjour, ici OneClerk. Comment puis-je vous aider?",
-    "zh-CN":"您好，这里是OneClerk。我可以如何帮助您？",
-    "vi-VN":"Xin chào, đây là OneClerk. Tôi có thể giúp gì cho bạn?",
-    "ar-SA":"مرحبا، هذا OneClerk. كيف يمكنني مساعدتك؟",
-    "de-DE":"Hallo, hier ist OneClerk. Wie kann ich Ihnen helfen?",
-    "ja-JP":"こんにちは、OneClerkです。どのようにお手伝いできますか？",
-    "pt-PT":"Olá, aqui é o OneClerk. Como posso ajudá-lo?",
-    "ko-KR":"안녕하세요, OneClerk입니다. 어떻게 도와드릴까요?",
+    "hi-IN":"नमस्ते, यहाँ Harkly AI है। मैं आपकी कैसे मदद कर सकता हूँ?",
+    "es-ES":"Hola, le habla Harkly AI. ¿En qué le puedo ayudar?",
+    "fr-FR":"Bonjour, ici Harkly AI. Comment puis-je vous aider?",
+    "zh-CN":"您好，这里是Harkly AI。我可以如何帮助您？",
+    "vi-VN":"Xin chào, đây là Harkly AI. Tôi có thể giúp gì cho bạn?",
+    "ar-SA":"مرحبا، هذا Harkly AI. كيف يمكنني مساعدتك؟",
+    "de-DE":"Hallo, hier ist Harkly AI. Wie kann ich Ihnen helfen?",
+    "ja-JP":"こんにちは、Harkly AIです。どのようにお手伝いできますか？",
+    "pt-PT":"Olá, aqui é o Harkly AI. Como posso ajudá-lo?",
+    "ko-KR":"안녕하세요, Harkly AI입니다. 어떻게 도와드릴까요?",
   };
   playBtn.addEventListener("click", () => {
     if (!window.speechSynthesis) { toast("Speech not supported in this browser","error"); return; }
@@ -518,7 +518,7 @@ function mountVoicePreview(container, preselectedLang) {
       lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); return;
     }
     const langCode = PREVIEW_LANG_MAP[selectedLang] || "en-US";
-    const text = GREETINGS[langCode] || `Hi, this is ${Store.user?.name || "your AI receptionist"} from OneClerk. How can I help you today?`;
+    const text = GREETINGS[langCode] || `Hi, this is ${Store.user?.name || "your AI receptionist"} from Harkly AI. How can I help you today?`;
     const u = new SpeechSynthesisUtterance(text);
     u.lang  = langCode; u.rate = selectedVoice.rate; u.pitch = selectedVoice.pitch;
     currentPitch = selectedVoice.pitch;
@@ -538,7 +538,7 @@ route("auth", async () => {
     <div class="landing">
       <!-- NAV -->
       <nav class="lp-nav">
-        <div class="lp-brand"><span class="dot"></span>OneClerk</div>
+        <div class="lp-brand"><span class="dot"></span>Harkly AI</div>
         <div class="lp-links">
           <a data-scroll="lp-cases">Use cases</a>
           <a data-scroll="lp-try">Try it live</a>
@@ -569,8 +569,8 @@ route("auth", async () => {
         <div class="lp-hero-inner">
           <span class="lp-eyebrow"><span class="pulse"></span><span>VOICE AI · LIVE 24/7</span></span>
           <h1 class="lp-title lp-title-one">
-            <span class="lp-title-line">World's <em>No.1</em> AI Voice Agent Builder.</span>
-            <span class="lp-title-line">Build Your Agent And <em>Replace Your Clerk.</em></span>
+            <span class="lp-title-line">Your Phone Rings. <em>Harkly AI</em> Answers.</span>
+            <span class="lp-title-line">Human-Like Voice. <em>Every Call. 24/7.</em></span>
           </h1>
           <div class="lp-sub" id="lp-sub-rotate">
             <span id="lp-sub-text"></span><span class="caret"></span>
@@ -665,12 +665,12 @@ route("auth", async () => {
       <!-- soft gradient between sections -->
       <div class="lp-grad-soft lp-grad-soft-dark" aria-hidden="true"></div>
 
-      <!-- TRY IT LIVE — voice agent test with waveform -->
+      <!-- TRY IT LIVE — real voice bot with mic input, STT, AI response, TTS -->
       <section class="lp-try" id="lp-try">
         <div class="lp-try-head">
-          <span class="eb">TRY THE AGENT — RIGHT HERE</span>
-          <h2>Hear it talk in <em>your language</em>, in <em>your voice</em>.</h2>
-          <p>Pick a voice and a language, hit talk, and the agent will demo a real reception call. No signup.</p>
+          <span class="eb">TALK TO THE AGENT — RIGHT NOW</span>
+          <h2>Speak. The AI <em>listens</em> and <em>responds</em>.</h2>
+          <p>Tap the mic, allow access, and speak — the agent will hear you in your language and reply with a real AI voice. No signup needed.</p>
         </div>
         <div class="lp-try-card">
           <div class="lp-try-controls">
@@ -708,14 +708,20 @@ route("auth", async () => {
               </select>
             </label>
           </div>
-          <div class="lp-try-stage">
+          <div class="lp-try-chat" id="lp-try-chat">
+            <div class="lp-try-chat-hint" id="lp-try-chat-hint">
+              <div class="lp-try-mic-pulse">🎙️</div>
+              <p>Tap <strong>Speak to agent</strong> below, allow mic access, and say something. The AI agent will respond in your language with a natural voice.</p>
+            </div>
+          </div>
+          <div class="lp-try-stage" style="height:110px">
             <canvas class="lp-try-wave" id="lp-try-wave"></canvas>
-            <div class="lp-try-status" id="lp-try-status">Press <strong>Talk</strong> to hear a sample reception call.</div>
+            <div class="lp-try-status" id="lp-try-status">Tap the mic to start the conversation.</div>
           </div>
           <div class="lp-try-actions">
             <button class="lp-try-talk" id="lp-try-talk">
               <span class="lp-try-talk-dot"></span>
-              <span id="lp-try-talk-label">Talk to the agent</span>
+              <span id="lp-try-talk-label">🎙️ Speak to agent</span>
             </button>
             <button class="lp-try-secondary" data-open-auth="signup">Build your own — free →</button>
           </div>
@@ -777,7 +783,7 @@ route("auth", async () => {
         <div class="lp-footer-light"></div>
         <div class="lp-footer-links">
           <div class="lp-footer-col">
-            <h4>OneClerk</h4>
+            <h4>Harkly AI</h4>
             <p>The autonomous voice receptionist that picks up so you never miss the call that matters.</p>
           </div>
           <div class="lp-footer-col">
@@ -795,11 +801,11 @@ route("auth", async () => {
         </div>
 
         <div class="lp-bigword" id="lp-bigword">
-          ${"ONECLERK".split("").map(c => `<span class="ltr">${c}</span>`).join("")}
+          ${"HARKLY".split("").map(c => `<span class="ltr">${c}</span>`).join("")}
         </div>
 
         <div class="lp-footer-bottom">
-          <span>© 2026 OneClerk Labs, Inc.</span>
+          <span>© 2026 Harkly AI, Inc.</span>
           <span>Made for the calls that matter.</span>
         </div>
       </footer>
@@ -906,99 +912,184 @@ function pickBestVoice(langCode, gender) {
 }
 
 function initVoiceTester(root) {
-  const canvas = root.querySelector("#lp-try-wave");
-  const status = root.querySelector("#lp-try-status");
-  const btn    = root.querySelector("#lp-try-talk");
-  const lbl    = root.querySelector("#lp-try-talk-label");
+  const canvas   = root.querySelector("#lp-try-wave");
+  const status   = root.querySelector("#lp-try-status");
+  const btn      = root.querySelector("#lp-try-talk");
+  const lbl      = root.querySelector("#lp-try-talk-label");
   const langSel  = root.querySelector("#lp-try-lang");
   const voiceSel = root.querySelector("#lp-try-voice");
-  if (!canvas) return;
+  const agentSel = root.querySelector("#lp-try-agent");
+  const chat     = root.querySelector("#lp-try-chat");
+  const chatHint = root.querySelector("#lp-try-chat-hint");
+  if (!canvas || !btn) return;
+
   const ctx = canvas.getContext("2d");
   function resize() {
     const r = canvas.getBoundingClientRect();
-    canvas.width = r.width * devicePixelRatio;
+    canvas.width  = r.width  * devicePixelRatio;
     canvas.height = r.height * devicePixelRatio;
   }
   resize();
   window.addEventListener("resize", resize);
 
-  let speaking = false, t = 0, raf = null, level = 0.1, currentPitch = 1;
-  function frame() {
+  let agentSpeaking = false, listening = false, t = 0, level = 0.1, currentPitch = 1;
+  (function frame() {
     t += 0.04 * (0.7 + currentPitch * 0.3);
-    level += ((speaking ? 0.85 : 0.12) - level) * 0.08;
+    level += (((agentSpeaking || listening) ? 0.85 : 0.12) - level) * 0.08;
     const w = canvas.width, h = canvas.height;
     ctx.clearRect(0, 0, w, h);
     const grd = ctx.createLinearGradient(0, 0, w, 0);
-    grd.addColorStop(0, "rgba(255,205,92,0.9)");
-    grd.addColorStop(0.5, "rgba(255,138,61,0.95)");
-    grd.addColorStop(1, "rgba(99,102,241,0.85)");
+    if (listening) {
+      grd.addColorStop(0,   "rgba(99,102,241,0.9)");
+      grd.addColorStop(0.5, "rgba(139,92,246,0.95)");
+      grd.addColorStop(1,   "rgba(59,130,246,0.85)");
+    } else {
+      grd.addColorStop(0,   "rgba(255,205,92,0.9)");
+      grd.addColorStop(0.5, "rgba(255,138,61,0.95)");
+      grd.addColorStop(1,   "rgba(99,102,241,0.85)");
+    }
     ctx.fillStyle = grd;
-    const bars = 64;
-    const bw = w / bars;
+    const bars = 64, bw = w / bars;
     for (let i = 0; i < bars; i++) {
       const phase = i * 0.35 + t;
-      const amp = (Math.sin(phase) * 0.35 + Math.sin(phase * 1.7) * 0.35 + Math.sin(phase * 0.7) * 0.30);
-      const a = Math.abs(amp) * level;
-      const bh = Math.max(4 * devicePixelRatio, a * h * 0.9 * (0.6 + currentPitch * 0.4));
-      const x = i * bw + bw * 0.18;
-      const y = (h - bh) / 2;
-      ctx.fillRect(x, y, bw * 0.6, bh);
+      const amp   = Math.sin(phase) * 0.35 + Math.sin(phase * 1.7) * 0.35 + Math.sin(phase * 0.7) * 0.30;
+      const a     = Math.abs(amp) * level;
+      const bh    = Math.max(4 * devicePixelRatio, a * h * 0.9 * (0.6 + currentPitch * 0.4));
+      ctx.fillRect(i * bw + bw * 0.18, (h - bh) / 2, bw * 0.6, bh);
     }
-    raf = requestAnimationFrame(frame);
-  }
-  frame();
+    requestAnimationFrame(frame);
+  })();
 
-  // Live preview when controls change — short ping in the new voice/lang
-  function previewLine(short = true) {
+  function addChatMsg(role, text) {
+    if (chatHint) chatHint.style.display = "none";
+    const el = document.createElement("div");
+    el.className = `lp-try-msg lp-try-msg-${role}`;
+    el.innerHTML = `<span class="lp-try-msg-who">${role === "user" ? "You" : "Agent"}</span><span class="lp-try-msg-text">${escapeHtml(text)}</span>`;
+    chat.appendChild(el);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function speakText(text, langKey, voiceKey) {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
-    const lang  = langSel.value;
-    const voice = voiceSel.value;
-    const langDef  = TRY_LANG_MAP[lang]  || TRY_LANG_MAP["English (US)"];
-    const voiceDef = TRY_VOICE_MAP[voice] || TRY_VOICE_MAP["Maya — warm, mid-30s"];
-    const u = new SpeechSynthesisUtterance(short ? langDef.greet + " OneClerk." : "");
+    const langDef  = TRY_LANG_MAP[langKey]  || TRY_LANG_MAP["English (US)"];
+    const voiceDef = TRY_VOICE_MAP[voiceKey] || TRY_VOICE_MAP["Maya — warm, mid-30s"];
+    const u = new SpeechSynthesisUtterance(text);
     const v = pickBestVoice(langDef.code, voiceDef.gender);
     if (v) u.voice = v;
     u.lang  = (v && v.lang) || langDef.code;
     u.rate  = voiceDef.rate;
     u.pitch = voiceDef.pitch;
     currentPitch = voiceDef.pitch;
-    if (short) try { window.speechSynthesis.speak(u); } catch (e) {}
+    agentSpeaking = true;
+    u.onend = () => { agentSpeaking = false; };
+    try { window.speechSynthesis.speak(u); } catch (_) {}
   }
-  langSel  && langSel.addEventListener("change",  () => previewLine(true));
-  voiceSel && voiceSel.addEventListener("change", () => previewLine(true));
 
-  btn.addEventListener("click", () => {
-    if (speaking) {
-      window.speechSynthesis && window.speechSynthesis.cancel();
-      speaking = false;
-      lbl.textContent = "Talk to the agent";
-      status.innerHTML = "Stopped. Press <strong>Talk</strong> again to replay.";
+  async function getDemoResponse(message, agentType, language) {
+    try {
+      const r = await fetch("/api/demo-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, agent_type: agentType, language }),
+      });
+      if (!r.ok) throw new Error("api error");
+      return (await r.json()).response;
+    } catch (_) {
+      return TRY_LINES[agentType] || TRY_LINES["Dental clinic front desk"];
+    }
+  }
+
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null, recActive = false;
+
+  async function startConversation() {
+    if (recActive) {
+      if (recognition) recognition.stop();
       return;
     }
-    const lang  = langSel.value;
-    const voice = voiceSel.value;
-    const agent = root.querySelector("#lp-try-agent").value;
-    const line  = TRY_LINES[agent] || TRY_LINES["Dental clinic front desk"];
-    const langDef  = TRY_LANG_MAP[lang]  || TRY_LANG_MAP["English (US)"];
-    const voiceDef = TRY_VOICE_MAP[voice] || TRY_VOICE_MAP["Maya — warm, mid-30s"];
-    status.innerHTML = `<strong>Speaking…</strong> <span class="lp-try-lang-tag">${escapeHtml(lang)} · ${escapeHtml(voice.split("—")[0].trim())}</span><br/><em>"${escapeHtml(line)}"</em>`;
-    lbl.textContent = "Stop";
-    speaking = true;
-    currentPitch = voiceDef.pitch;
-    if (window.speechSynthesis) {
-      const u = new SpeechSynthesisUtterance(line);
-      const v = pickBestVoice(langDef.code, voiceDef.gender);
-      if (v) u.voice = v;
-      u.lang  = (v && v.lang) || langDef.code;
-      u.rate  = voiceDef.rate;
-      u.pitch = voiceDef.pitch;
-      u.onend = () => { speaking = false; lbl.textContent = "Talk to the agent"; status.innerHTML = "Done. Want one in <em>your</em> voice? <strong>Get started free →</strong>"; };
-      try { window.speechSynthesis.speak(u); } catch (e) { /* noop */ }
-    } else {
-      setTimeout(() => { speaking = false; lbl.textContent = "Talk to the agent"; status.innerHTML = "Demo finished."; }, 4200);
+
+    // Request microphone permission
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (_) {
+      status.innerHTML = `<strong style="color:#ff5868">Mic blocked.</strong> Allow microphone access in your browser settings, then tap again.`;
+      return;
     }
-  });
+
+    if (!SpeechRec) {
+      // Fallback: play preset TTS response
+      const agent = agentSel ? agentSel.value : "Dental clinic front desk";
+      const line  = TRY_LINES[agent] || TRY_LINES["Dental clinic front desk"];
+      addChatMsg("agent", line);
+      speakText(line, langSel.value, voiceSel.value);
+      status.innerHTML = `<strong>Demo mode</strong> — your browser doesn't support live speech recognition. Playing a sample response.`;
+      return;
+    }
+
+    recognition = new SpeechRec();
+    const langDef   = TRY_LANG_MAP[langSel.value] || TRY_LANG_MAP["English (US)"];
+    recognition.lang            = langDef.code;
+    recognition.continuous      = false;
+    recognition.interimResults  = true;
+
+    recActive = true; listening = true;
+    btn.classList.add("live");
+    lbl.textContent = "Listening…";
+    status.innerHTML = `<strong>Listening…</strong> Speak to the agent in ${escapeHtml(langSel.value)}.`;
+
+    let finalTranscript = "";
+
+    recognition.onresult = (e) => {
+      let interim = "";
+      finalTranscript = "";
+      for (const result of e.results) {
+        if (result.isFinal) finalTranscript += result[0].transcript;
+        else interim += result[0].transcript;
+      }
+      if (interim) status.innerHTML = `<strong>Hearing:</strong> "${escapeHtml(interim)}…"`;
+    };
+
+    recognition.onend = async () => {
+      recActive = false; listening = false;
+      btn.classList.remove("live");
+      lbl.textContent = "🎙️ Speak to agent";
+
+      if (!finalTranscript.trim()) {
+        status.innerHTML = `Didn't catch that — tap the mic and try again.`;
+        return;
+      }
+
+      const agentType = agentSel ? agentSel.value : "Dental clinic front desk";
+      const langKey   = langSel.value;
+      const voiceKey  = voiceSel.value;
+
+      addChatMsg("user", finalTranscript);
+      status.innerHTML = `<strong>Thinking…</strong>`;
+
+      const response = await getDemoResponse(finalTranscript, agentType, langKey);
+      addChatMsg("agent", response);
+      speakText(response, langKey, voiceKey);
+      status.innerHTML = `<strong>Agent speaking…</strong> <span class="lp-try-lang-tag">${escapeHtml(langKey)} · ${escapeHtml(voiceKey.split("—")[0].trim())}</span>`;
+    };
+
+    recognition.onerror = (e) => {
+      recActive = false; listening = false;
+      btn.classList.remove("live");
+      lbl.textContent = "🎙️ Speak to agent";
+      if (e.error === "not-allowed" || e.error === "permission-denied") {
+        status.innerHTML = `<strong style="color:#ff5868">Mic permission denied.</strong> Enable it in browser settings.`;
+      } else if (e.error === "no-speech") {
+        status.innerHTML = `No speech detected. Speak closer to your mic and try again.`;
+      } else {
+        status.innerHTML = `Couldn't hear you clearly — tap the mic and try again.`;
+      }
+    };
+
+    recognition.start();
+  }
+
+  btn.addEventListener("click", startConversation);
 }
 
 // --- Landing helpers ---
@@ -1068,7 +1159,7 @@ function initReviewTracks(root) {
   bot.innerHTML = botHtml + botHtml;
 }
 
-// Giant ONECLERK letters arc upward (parabola), end FULLY horizontal
+// Giant HARKLY letters arc upward (parabola), end FULLY horizontal
 function initParabolaWord(root) {
   const wrap = root.querySelector("#lp-bigword");
   if (!wrap) return;
@@ -1193,7 +1284,7 @@ function openAuthModal(initialMode = "login") {
           <div id="m-err" class="text-xs text-danger hidden"></div>
         </form>
         <p class="text-xs text-muted mt-6 text-center" style="color:rgba(231,234,243,0.45)">
-          By continuing you agree to OneClerk's terms of service.
+          By continuing you agree to Harkly AI's terms of service.
         </p>
       </div>
     </div>`);
@@ -1235,7 +1326,7 @@ function openAuthModal(initialMode = "login") {
         } catch (ex) {
           const msg = (ex.message || "").toLowerCase();
           if (msg.includes("no account") || msg.includes("not found") || msg.includes("not registered")) {
-            err.innerHTML = `No OneClerk account found for this Google email. <a href="#" id="m-gg-signup" style="color:#f97316;text-decoration:underline;">Create your account now →</a>`;
+            err.innerHTML = `No Harkly AI account found for this Google email. <a href="#" id="m-gg-signup" style="color:#f97316;text-decoration:underline;">Create your account now →</a>`;
             const sw = $("#m-gg-signup", modal);
             if (sw) sw.addEventListener("click", (ev) => { ev.preventDefault(); setMode("signup"); err.classList.add("hidden"); });
           } else {
@@ -1381,6 +1472,7 @@ function openAuthModal(initialMode = "login") {
 
   // Validate all visible fields before submit — show red border on empty ones
   $("#m-form", modal).addEventListener("submit", (e) => {
+    e.preventDefault();
     let blocked = false;
     const fields = modal.querySelectorAll(".field");
     fields.forEach(f => {
@@ -1434,7 +1526,7 @@ function shell(activeKey, title, subtitle, action) {
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-mark">O</div>
-          <div><div style="font-weight:700">OneClerk</div><div style="font-size:11px;color:var(--muted)">Voice AI</div></div>
+          <div><div style="font-weight:700">Harkly AI</div><div style="font-size:11px;color:var(--muted)">Voice AI</div></div>
         </div>
         <nav>
           ${items.map(i => `<button class="nav-item ${activeKey===i.k?'active':''}" data-hash="${i.hash}"><i data-lucide="${i.icon}" class="icon"></i>${i.label}</button>`).join("")}
@@ -1621,7 +1713,7 @@ route("onboarding", async () => {
         <div class="ob-brand">
           <div class="ob-brand-mark">O</div>
           <div>
-            <div class="ob-brand-name">OneClerk</div>
+            <div class="ob-brand-name">Harkly AI</div>
             <div class="ob-brand-sub">Let's set up your AI receptionist</div>
           </div>
           <button class="ob-skip-all" id="ob-skip-all" title="Skip for now">Skip for now →</button>
@@ -1933,14 +2025,14 @@ route("dashboard", async () => {
       }
       const langCode = PREVIEW_LANG_MAP[selectedLang] || "en-US";
       const greetings = {
-        "hi-IN": "नमस्ते, यहाँ OneClerk है। मैं आपकी कैसे मदद कर सकता हूँ?",
-        "es-ES": "Hola, le habla OneClerk. ¿En qué le puedo ayudar?",
-        "fr-FR": "Bonjour, ici OneClerk. Comment puis-je vous aider?",
-        "zh-CN": "您好，这里是OneClerk。我可以如何帮助您？",
-        "vi-VN": "Xin chào, đây là OneClerk. Tôi có thể giúp gì cho bạn?",
-        "ar-SA": "مرحبا، هذا OneClerk. كيف يمكنني مساعدتك؟",
+        "hi-IN": "नमस्ते, यहाँ Harkly AI है। मैं आपकी कैसे मदद कर सकता हूँ?",
+        "es-ES": "Hola, le habla Harkly AI. ¿En qué le puedo ayudar?",
+        "fr-FR": "Bonjour, ici Harkly AI. Comment puis-je vous aider?",
+        "zh-CN": "您好，这里是Harkly AI。我可以如何帮助您？",
+        "vi-VN": "Xin chào, đây là Harkly AI. Tôi có thể giúp gì cho bạn?",
+        "ar-SA": "مرحبا، هذا Harkly AI. كيف يمكنني مساعدتك؟",
       };
-      const text = greetings[langCode] || `Hi, this is ${Store.user?.name || "your AI assistant"} from OneClerk. How can I help you today?`;
+      const text = greetings[langCode] || `Hi, this is ${Store.user?.name || "your AI assistant"} from Harkly AI. How can I help you today?`;
       const u = new SpeechSynthesisUtterance(text);
       u.lang = langCode;
       u.rate = selectedVoice.rate;
@@ -2834,7 +2926,7 @@ function showBuilderTutorial(stage) {
     {
       target: () => $(".agb-orb", stage),
       title: "Meet your AI Agent",
-      body: "This glowing orb is your OneClerk agent — the brain that picks up the phone. Everything you add will plug into it.",
+      body: "This glowing orb is your Harkly AI agent — the brain that picks up the phone. Everything you add will plug into it.",
       placement: "right",
     },
     {
@@ -3495,7 +3587,7 @@ route("agentSetup", async (id) => {
     const carrierBlock = a.twilio_number ? `
       <div class="card p-5 mt-4">
         <div class="font-semibold mb-1">Forward your business number</div>
-        <div class="text-xs text-muted mb-3">OneClerk only answers calls you miss — your phone always rings first.</div>
+        <div class="text-xs text-muted mb-3">Harkly AI only answers calls you miss — your phone always rings first.</div>
         <div class="grid grid-cols-2 gap-3">
           <div>
             <div class="stat-label mb-2">Activate code</div>
@@ -3609,9 +3701,9 @@ route("agentSetup", async (id) => {
       }));
       const LANG_SIMPLE = { Hindi:"hi-IN", Spanish:"es-ES", French:"fr-FR", Mandarin:"zh-CN", Vietnamese:"vi-VN", Arabic:"ar-SA", German:"de-DE", Japanese:"ja-JP", Portuguese:"pt-PT", Korean:"ko-KR" };
       const langCode = LANG_SIMPLE[cfg.language] || "en-US";
-      const GRTS2 = { "hi-IN":"नमस्ते, यहाँ OneClerk है। मैं आपकी कैसे मदद कर सकता हूँ?", "es-ES":"Hola, le habla OneClerk. ¿En qué le puedo ayudar?", "fr-FR":"Bonjour, ici OneClerk. Comment puis-je vous aider?", "zh-CN":"您好，这里是OneClerk。我可以如何帮助您？" };
+      const GRTS2 = { "hi-IN":"नमस्ते, यहाँ Harkly AI है। मैं आपकी कैसे मदद कर सकता हूँ?", "es-ES":"Hola, le habla Harkly AI. ¿En qué le puedo ayudar?", "fr-FR":"Bonjour, ici Harkly AI. Comment puis-je vous aider?", "zh-CN":"您好，这里是Harkly AI。我可以如何帮助您？" };
       const agentName = cfg.agent_name || "your AI receptionist";
-      const bizName   = cfg.business_name || "OneClerk";
+      const bizName   = cfg.business_name || "Harkly AI";
       const greeting  = GRTS2[langCode] || `Hi, this is ${agentName} from ${bizName}. How can I help you today?`;
       svpPlay.addEventListener("click", () => {
         if (!window.speechSynthesis) { toast("Speech not supported in this browser","error"); return; }
@@ -3853,7 +3945,7 @@ route("preview", async () => {
 
   function updateAgentName() {
     const el = $("#pv-agt-name", page);
-    if (el) el.textContent = selAgent ? selAgent.name : "OneClerk AI";
+    if (el) el.textContent = selAgent ? selAgent.name : "Harkly AI AI";
   }
 
   const agentSel = $("#pv2-agent-sel", page);
@@ -3950,7 +4042,7 @@ route("billing", async () => {
 
 route("billingSuccess", async () => {
   const wrap = shell("billing", "Welcome aboard 🎉", "Your subscription is active.");
-  $("#page", wrap).innerHTML = `<div class="card p-6 text-center"><i data-lucide="check-circle-2" class="icon" style="width:48px;height:48px;color:var(--success)"></i><div class="text-lg font-semibold mt-3">You're all set</div><div class="text-sm text-muted mt-2 mb-4">Your OneClerk subscription is now active.</div><button class="btn btn-primary" id="go">Go to dashboard</button></div>`;
+  $("#page", wrap).innerHTML = `<div class="card p-6 text-center"><i data-lucide="check-circle-2" class="icon" style="width:48px;height:48px;color:var(--success)"></i><div class="text-lg font-semibold mt-3">You're all set</div><div class="text-sm text-muted mt-2 mb-4">Your Harkly AI subscription is now active.</div><button class="btn btn-primary" id="go">Go to dashboard</button></div>`;
   renderIcons($("#page", wrap));
   $("#go", $("#page", wrap)).addEventListener("click", () => navigate("#/"));
   return wrap;
@@ -4344,7 +4436,7 @@ route("agentFlow", async (id) => {
     const ls = document.getElementById("fb-lang-sel");
     const lc = PREVIEW_LANG_MAP[ls?.value] || "en-US";
     const vm = PREVIEW_VOICES.find(v => v.id === vid) || PREVIEW_VOICES[0];
-    const GREET = { "hi-IN": "नमस्ते, यहाँ OneClerk है। कैसे मदद करूँ?", "es-ES": "Hola, le habla OneClerk. ¿En qué le ayudo?", "ar-SA": "مرحبا، هذا OneClerk. كيف أساعدك؟", "zh-CN": "您好，这里是OneClerk。我能帮您什么？" };
+    const GREET = { "hi-IN": "नमस्ते, यहाँ Harkly AI है। कैसे मदद करूँ?", "es-ES": "Hola, le habla Harkly AI. ¿En qué le ayudo?", "ar-SA": "مرحبا، هذا Harkly AI. كيف أساعدك؟", "zh-CN": "您好，这里是Harkly AI。我能帮您什么？" };
     const text = GREET[lc] || "Hi, this is your AI receptionist. How can I help you today?";
     const u = new SpeechSynthesisUtterance(text);
     u.lang = lc; u.rate = vm.rate; u.pitch = vm.pitch;

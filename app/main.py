@@ -2,11 +2,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 import asyncio
 import logging
+import os
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.config import settings
@@ -18,7 +20,7 @@ from app.services.synthesis import cleanup_audio_files
 from app.services.synthesis import AUDIO_DIR, delete_file_later
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("oneclerk")
+logger = logging.getLogger("harkly")
 
 
 @asynccontextmanager
@@ -56,7 +58,7 @@ async def _audio_cleanup_loop() -> None:
 
 
 app = FastAPI(
-    title="OneClerk API",
+    title="Harkly AI API",
     description="The voice AI receptionist that answers your business calls.",
     version="1.0.0",
     lifespan=lifespan,
@@ -104,8 +106,8 @@ async def root():
     if _HAS_STATIC:
         return FileResponse(_STATIC_DIR / "index.html", headers=_NO_CACHE_HEADERS)
     return {
-        "product": "OneClerk",
-        "tagline": "Your phone rings. OneClerk handles it.",
+        "product": "Harkly AI",
+        "tagline": "Your phone rings. Harkly AI handles it.",
         "version": "1.0.0",
         "environment": settings.ENVIRONMENT,
         "docs": "/docs",
@@ -128,8 +130,8 @@ async def favicon():
 @app.get("/api", include_in_schema=False)
 async def api_info() -> dict:
     return {
-        "product": "OneClerk",
-        "tagline": "Your phone rings. OneClerk handles it.",
+        "product": "Harkly AI",
+        "tagline": "Your phone rings. Harkly AI handles it.",
         "version": "1.0.0",
         "environment": settings.ENVIRONMENT,
         "docs": "/docs",
@@ -141,9 +143,59 @@ async def api_info() -> dict:
 async def health() -> dict:
     return {
         "status": "ok",
-        "product": "OneClerk",
+        "product": "Harkly AI",
         "services": settings.service_checklist(),
     }
+
+
+class DemoChatPayload(BaseModel):
+    message: str
+    agent_type: str = "Dental clinic front desk"
+    language: str = "English (US)"
+
+
+_DEMO_FALLBACKS = {
+    "Dental clinic front desk": "Thanks for calling! I can help you schedule a cleaning, look up your insurance, or transfer you to the doctor. What works best for you?",
+    "Hair salon receptionist": "Hey there! Happy to book you in with your stylist, or set you up with someone new. Which would you prefer?",
+    "Restaurant host": "Great evening to call! I can get you a table reservation or walk you through tonight's specials. What can I do for you?",
+    "HVAC dispatcher": "Thanks for calling! Is this an emergency repair or would you like to schedule a tune-up? I'll get a tech sorted for you.",
+    "Law firm intake": "Thank you for reaching out. Can you give me a brief overview of your matter so I can route you to the right attorney?",
+}
+
+_DEMO_SYSTEM = (
+    "You are {agent_type}, a friendly AI receptionist powered by Harkly AI. "
+    "Respond in {language} if it's not English. "
+    "Keep your reply to 1–2 natural sentences, warm and professional. "
+    "Do not mention you are an AI unless asked."
+)
+
+
+@app.post("/api/demo-chat", include_in_schema=False)
+async def demo_chat(payload: DemoChatPayload) -> dict:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key and payload.message.strip():
+        try:
+            import openai  # type: ignore
+            client = openai.AsyncOpenAI(api_key=api_key)
+            system = _DEMO_SYSTEM.format(
+                agent_type=payload.agent_type,
+                language=payload.language,
+            )
+            resp = await client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": payload.message},
+                ],
+                max_tokens=130,
+                temperature=0.75,
+            )
+            return {"response": resp.choices[0].message.content.strip()}
+        except Exception:
+            logger.exception("demo-chat OpenAI call failed, using fallback")
+
+    fallback = _DEMO_FALLBACKS.get(payload.agent_type, "How can I help you today?")
+    return {"response": fallback}
 
 
 @app.get("/api/audio/{filename}", include_in_schema=False)
