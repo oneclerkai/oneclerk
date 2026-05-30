@@ -12,7 +12,7 @@ httpx==0.25.2
 celery==5.3.4
 redis==5.0.1
 aioredis==2.0.1
-telnyx==2.7.0
+telnyx>=4.0.0
 stripe==7.4.0
 elevenlabs==0.2.11
 google-auth==2.25.2
