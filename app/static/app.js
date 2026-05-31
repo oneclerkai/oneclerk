@@ -923,6 +923,8 @@ function initVoiceTester(root) {
   const chatHint = root.querySelector("#lp-try-chat-hint");
   if (!canvas || !btn) return;
 
+  const vapi = window.Vapi ? new window.Vapi("bace6e2b-19b8-403f-84aa-7c9b8ae0dea8") : null;
+
   const ctx = canvas.getContext("2d");
   function resize() {
     const r = canvas.getBoundingClientRect();
@@ -1089,7 +1091,71 @@ function initVoiceTester(root) {
     recognition.start();
   }
 
-  btn.addEventListener("click", startConversation);
+  if (vapi) {
+    let vapiCallActive = false;
+
+    function setButtonIdle() {
+      lbl.textContent = "🎙️ Speak to agent";
+      btn.classList.remove("live");
+      btn.disabled = false;
+      vapiCallActive = false;
+    }
+
+    function setButtonConnecting() {
+      lbl.textContent = "Connecting…";
+      btn.disabled = true;
+      btn.classList.remove("live");
+    }
+
+    function setButtonActive() {
+      lbl.textContent = "🛑 Stop Speaking";
+      btn.disabled = false;
+      btn.classList.add("live");
+      vapiCallActive = true;
+    }
+
+    vapi.on("call-start", () => {
+      setButtonActive();
+      status.innerHTML = `<strong>Connected.</strong> Speak — the agent is listening.`;
+      listening = true;
+    });
+
+    vapi.on("call-end", () => {
+      setButtonIdle();
+      status.innerHTML = `Call ended. Tap the mic to start a new conversation.`;
+      listening = false;
+      agentSpeaking = false;
+    });
+
+    vapi.on("speech-start", () => {
+      agentSpeaking = true;
+      status.innerHTML = `<strong>Agent speaking…</strong>`;
+    });
+
+    vapi.on("speech-end", () => {
+      agentSpeaking = false;
+      status.innerHTML = `<strong>Listening…</strong> Go ahead and speak.`;
+    });
+
+    vapi.on("error", () => {
+      setButtonIdle();
+      status.innerHTML = `Something went wrong — tap the mic to try again.`;
+      listening = false;
+      agentSpeaking = false;
+    });
+
+    btn.addEventListener("click", () => {
+      if (vapiCallActive) {
+        vapi.stop();
+      } else {
+        setButtonConnecting();
+        status.innerHTML = `<strong>Connecting…</strong>`;
+        vapi.start("d5f28a96-25da-4905-bac8-5dee52a15f4e");
+      }
+    });
+  } else {
+    btn.addEventListener("click", startConversation);
+  }
 }
 
 // --- Landing helpers ---
