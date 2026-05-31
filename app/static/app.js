@@ -3,6 +3,29 @@
 
 const API = "";
 const API_PREFIX = "/api";
+
+// ── Shared Vapi singleton ─────────────────────────────────────────────────────
+// Lazily instantiated so window.Vapi is guaranteed to exist (both scripts are
+// synchronous, but the constructor is called only after the page has rendered).
+let _vapiInstance = null;
+function getVapi() {
+  if (!_vapiInstance) {
+    const VapiClass = window.Vapi && (window.Vapi.default || window.Vapi);
+    if (VapiClass) _vapiInstance = new VapiClass("bace6e2b-19b8-403f-84aa-7c9b8ae0dea8");
+  }
+  return _vapiInstance;
+}
+
+// Cartesia voice IDs — update from https://play.cartesia.ai/voices if needed
+const CARTESIA_VOICE_MAP = {
+  "maya":   "a0e99841-438c-4a64-b679-ae501e7d6091", // Helpful Woman     — warm, mid-30s
+  "arjun":  "5619d38c-cf51-4d8e-9575-48f61a280413", // Customer Support  — calm, deep
+  "sofia":  "b7d50908-b17c-442d-ad8d-810c63997ed9", // California Girl   — bright, friendly
+  "daniel": "3b554273-4299-48b9-9aaf-eefd438e3941", // Professional Man  — neutral
+  "linh":   "79a125e8-cd45-4c13-8a67-188112f4dd22", // British Lady      — soft, soothing
+  "emma":   "0f56a1c6-f2c6-4d60-adca-41b7a4a1ef79", // Empathetic Woman
+  "chris":  "5c42302c-194b-4d0c-ba1a-8cb485c84ab9", // Friendly Sidekick — energetic
+};
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const h = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
@@ -923,8 +946,7 @@ function initVoiceTester(root) {
   const chatHint = root.querySelector("#lp-try-chat-hint");
   if (!canvas || !btn) return;
 
-  const VapiClass = window.Vapi && (window.Vapi.default || window.Vapi);
-  const vapi = VapiClass ? new VapiClass("bace6e2b-19b8-403f-84aa-7c9b8ae0dea8") : null;
+  const vapi = getVapi();
 
   const ctx = canvas.getContext("2d");
   function resize() {
@@ -4471,23 +4493,115 @@ route("agentFlow", async (id) => {
     })
   );
 
-  // Play
-  const playBtn = document.getElementById("fb-play");
-  const playLbl = document.getElementById("fb-play-lbl");
-  if (playBtn) playBtn.addEventListener("click", () => {
-    if (window.speechSynthesis?.speaking) { window.speechSynthesis.cancel(); playLbl.textContent = "▶ Play sample"; return; }
-    const vid = previewEl.querySelector(".fb-vpill.active")?.dataset.voice || "maya";
-    const ls = document.getElementById("fb-lang-sel");
-    const lc = PREVIEW_LANG_MAP[ls?.value] || "en-US";
-    const vm = PREVIEW_VOICES.find(v => v.id === vid) || PREVIEW_VOICES[0];
-    const GREET = { "hi-IN": "नमस्ते, यहाँ Harkly AI है। कैसे मदद करूँ?", "es-ES": "Hola, le habla Harkly AI. ¿En qué le ayudo?", "ar-SA": "مرحبا، هذا Harkly AI. كيف أساعدك؟", "zh-CN": "您好，这里是Harkly AI。我能帮您什么？" };
-    const text = GREET[lc] || "Hi, this is your AI receptionist. How can I help you today?";
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = lc; u.rate = vm.rate; u.pitch = vm.pitch;
-    playLbl.textContent = "⏹ Stop";
-    u.onend = u.onerror = () => { playLbl.textContent = "▶ Play sample"; };
-    try { window.speechSynthesis.speak(u); } catch { playLbl.textContent = "▶ Play sample"; }
-  });
+  // ── Canvas → Vapi overrides ─────────────────────────────────────────────────
+  // Reads the current drag-and-drop canvas state and maps it to Vapi's
+  // AssistantOverrides shape so the preview call reflects whatever the user built.
+  function readCanvasOverrides() {
+    const overrides = {};
+
+    // --- Voice ---
+    const voiceCard = state.cards.find(c => c.type === "voice");
+    const voiceId   = voiceCard?.config?.voice
+      || previewEl.querySelector(".fb-vpill.active")?.dataset.voice
+      || "maya";
+    const cartesiaId = CARTESIA_VOICE_MAP[voiceId];
+    if (cartesiaId) {
+      overrides.voice = { provider: "cartesia", voiceId: cartesiaId };
+    }
+
+    // --- Language / Transcriber ---
+    const langCard   = state.cards.find(c => c.type === "language");
+    const langLabel  = langCard?.config?.language
+      || document.getElementById("fb-lang-sel")?.value
+      || "English (US)";
+    const bcp47      = PREVIEW_LANG_MAP[langLabel] || "en-US";
+    // Deepgram uses the base language tag ("es", "fr", "hi", …); keep full tag for EN variants
+    const deepgramLang = bcp47 === "en-GB" ? "en-GB" : bcp47.split("-")[0];
+    if (deepgramLang !== "en") {
+      overrides.transcriber = { provider: "deepgram", language: deepgramLang };
+    }
+
+    // --- Integration context → variableValues ---
+    const vars = {};
+    state.cards.forEach(c => {
+      const cfg = c.config || {};
+      if (c.type === "whatsapp"  && cfg.whatsapp)  vars.whatsappNumber = cfg.whatsapp;
+      if (c.type === "gmail"     && cfg.email)      vars.gmailAddress   = cfg.email;
+      if (c.type === "gcal"      && cfg.calendly)   vars.calendlyUrl    = cfg.calendly;
+      if (c.type === "phone"     && cfg.phone)      vars.forwardingNumber = cfg.phone;
+      if (c.type === "info"      && cfg.text)       vars.businessInfo   = cfg.text;
+    });
+    if (Object.keys(vars).length) overrides.variableValues = vars;
+
+    return overrides;
+  }
+
+  // ── Play / Stop button wired to Vapi ────────────────────────────────────────
+  const CANVAS_ASSISTANT_ID = "5b54d785-e86b-420e-ace0-26092882287e";
+  const playBtn  = document.getElementById("fb-play");
+  const playLbl  = document.getElementById("fb-play-lbl");
+  let canvasCallActive = false;
+
+  const vapi = getVapi();
+
+  if (playBtn && vapi) {
+    vapi.on("call-start", () => {
+      canvasCallActive = true;
+      playLbl.textContent = "🛑 Stop call";
+      playBtn.classList.add("playing");
+      playBtn.disabled = false;
+      console.log("[Harkly AI] Canvas preview call started.");
+    });
+
+    vapi.on("call-end", () => {
+      canvasCallActive = false;
+      playLbl.textContent = "▶ Play sample";
+      playBtn.classList.remove("playing");
+      playBtn.disabled = false;
+      console.log("[Harkly AI] Canvas preview call ended.");
+    });
+
+    vapi.on("error", (err) => {
+      canvasCallActive = false;
+      playLbl.textContent = "▶ Play sample";
+      playBtn.classList.remove("playing");
+      playBtn.disabled = false;
+      console.error("[Harkly AI] Vapi error:", err);
+    });
+
+    playBtn.addEventListener("click", () => {
+      if (canvasCallActive) {
+        vapi.stop();
+        return;
+      }
+
+      const overrides = readCanvasOverrides();
+      console.log("[Harkly AI] Starting canvas preview call.");
+      console.log("[Harkly AI] Assistant ID:", CANVAS_ASSISTANT_ID);
+      console.log("[Harkly AI] Overrides:", JSON.stringify(overrides, null, 2));
+
+      playLbl.textContent = "Connecting…";
+      playBtn.disabled = true;
+      vapi.start(CANVAS_ASSISTANT_ID, overrides);
+    });
+
+  } else if (playBtn) {
+    // Vapi unavailable — fall back to browser TTS
+    playBtn.addEventListener("click", () => {
+      if (window.speechSynthesis?.speaking) { window.speechSynthesis.cancel(); playLbl.textContent = "▶ Play sample"; return; }
+      const vid = previewEl.querySelector(".fb-vpill.active")?.dataset.voice || "maya";
+      const ls  = document.getElementById("fb-lang-sel");
+      const lc  = PREVIEW_LANG_MAP[ls?.value] || "en-US";
+      const vm  = PREVIEW_VOICES.find(v => v.id === vid) || PREVIEW_VOICES[0];
+      const GREET = { "hi-IN": "नमस्ते, यहाँ Harkly AI है। कैसे मदद करूँ?", "es-ES": "Hola, le habla Harkly AI. ¿En qué le ayudo?", "ar-SA": "مرحبا، هذا Harkly AI. كيف أساعدك؟", "zh-CN": "您好，这里是Harkly AI。我能帮您什么？" };
+      const text = GREET[lc] || "Hi, this is your AI receptionist. How can I help you today?";
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = lc; u.rate = vm.rate; u.pitch = vm.pitch;
+      playLbl.textContent = "⏹ Stop";
+      u.onend = u.onerror = () => { playLbl.textContent = "▶ Play sample"; };
+      try { window.speechSynthesis.speak(u); } catch { playLbl.textContent = "▶ Play sample"; }
+    });
+  }
 
   function syncPreview() {
     const vc = state.cards.find(c => c.type === "voice");
