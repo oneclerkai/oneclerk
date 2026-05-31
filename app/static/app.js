@@ -1182,14 +1182,15 @@ function initParabolaWord(root) {
     const remaining = 1 - ease;
     // Hard-snap to straight in last 8%
     const flat = remaining < 0.08 ? 0 : remaining;
-    // Tall arch: 520px peak, dramatic parabola
-    const curve = flat * 520;
-    // Rotation: outer letters tilt most, inner letters barely move
-    const maxRot = flat * 14;
+    // Arch height: 560px at peak — upside-down U (centre highest)
+    const curve = flat * 560;
+    // Rotation: outer letters tilt outward, centre stays upright
+    const maxRot = flat * 16;
     allSpans.forEach((el, i) => {
       const x = positions[i];
-      // Inverted parabola: highest at edges (x=±1), flat at centre (x=0)
-      const lift = -curve * x * x;
+      // True arch parabola: centre is highest (lift = 0 → maximum at x=0)
+      // y = -curve * (1 - x²) → peak at x=0, zero at x=±1
+      const lift = -curve * (1 - x * x);
       const rot  = maxRot * x;
       el.style.transform = `translateY(${lift.toFixed(1)}px) rotate(${rot.toFixed(2)}deg)`;
     });

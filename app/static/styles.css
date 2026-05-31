@@ -765,18 +765,19 @@ textarea.field { resize: vertical; min-height: 80px; }
   position: absolute;
   left: 50%; top: 50%;
   transform: translate(-50%, -50%);
-  width: 200%;
-  height: 380%;
+  width: 260%;
+  height: 500%;
   background:
-    radial-gradient(ellipse 55% 45% at 50% 50%,
-      rgba(99,102,241,0.65) 0%,
-      rgba(139,92,246,0.44) 25%,
-      rgba(59,130,246,0.22) 52%,
+    radial-gradient(ellipse 50% 40% at 50% 50%,
+      rgba(99,102,241,0.82) 0%,
+      rgba(139,92,246,0.56) 22%,
+      rgba(59,130,246,0.28) 48%,
       transparent 100%),
-    radial-gradient(ellipse 80% 70% at 50% 50%,
-      rgba(99,102,241,0.18) 0%,
+    radial-gradient(ellipse 85% 75% at 50% 50%,
+      rgba(99,102,241,0.28) 0%,
+      rgba(139,92,246,0.12) 55%,
       transparent 100%);
-  filter: blur(40px);
+  filter: blur(48px);
   z-index: -1;
   pointer-events: none;
 }
@@ -1229,7 +1230,7 @@ textarea.field { resize: vertical; min-height: 80px; }
 .lp-bigword {
   position: relative; z-index: 2;
   display: flex; justify-content: center; align-items: flex-end;
-  height: clamp(150px, 24vw, 380px);
+  height: clamp(160px, 26vw, 420px);
   margin: 0 auto 40px;
   pointer-events: none;
   user-select: none;
@@ -1241,7 +1242,7 @@ textarea.field { resize: vertical; min-height: 80px; }
   display: inline-block;
   font-family: 'Nunito', 'Poppins', sans-serif;
   font-weight: 700;
-  font-size: clamp(80px, 18vw, 280px);
+  font-size: clamp(80px, 20.5vw, 360px);
   line-height: 1;
   letter-spacing: -0.05em;
   color: #f6f6f1;
@@ -1249,7 +1250,7 @@ textarea.field { resize: vertical; min-height: 80px; }
   will-change: transform;
 }
 .lp-bigword .ltr-space {
-  width: 0.22em;
+  width: 0.20em;
   display: inline-block;
 }
 
@@ -1529,30 +1530,20 @@ textarea.field { resize: vertical; min-height: 80px; }
 .lp-plan.featured {
   background: #0d0d0f;
   color: #fafaf7;
-  border: none;
+  border: 2.5px solid #6366f1;
   transform: translateY(-8px);
   isolation: isolate;
+  animation: featuredBorderHue 3.5s linear infinite;
 }
-.lp-plan.featured::before {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: 16px;
-  z-index: -1;
-  background: conic-gradient(from 0deg, #ff5868, #ffd97a, #a855f7, #6366f1, #34d399, #3b82f6, #ff5868);
-  animation: harklyBorderSpin 2.8s linear infinite;
-}
-.lp-plan.featured::after {
-  content: '';
-  position: absolute;
-  inset: 1px;
-  border-radius: 13px;
-  z-index: -1;
-  background: #0d0d0f;
-}
-@keyframes harklyBorderSpin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+@keyframes featuredBorderHue {
+  0%   { border-color: #6366f1; }
+  14%  { border-color: #a855f7; }
+  28%  { border-color: #ec4899; }
+  42%  { border-color: #f97316; }
+  57%  { border-color: #eab308; }
+  71%  { border-color: #22c55e; }
+  85%  { border-color: #3b82f6; }
+  100% { border-color: #6366f1; }
 }
 .lp-plan.featured:hover { transform: translateY(-12px); }
 .lp-plan-badge {
@@ -1626,21 +1617,21 @@ textarea.field { resize: vertical; min-height: 80px; }
 @media (max-width: 1080px) { .lp-plan-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 580px)  { .lp-plan-grid { grid-template-columns: 1fr; } }
 
-/* Footer HARKLY AI letters — bold Nunito, full-screen wide */
+/* Footer HARKLY AI letters — bold Nunito, fills full screen width */
 .lp-bigword {
-  height: clamp(150px, 24vw, 380px);
+  height: clamp(160px, 26vw, 420px);
   margin: 60px auto 40px;
   max-width: 100%;
   overflow: visible;
 }
 .lp-bigword .ltr {
-  font-size: clamp(80px, 18vw, 280px);
+  font-size: clamp(80px, 20.5vw, 360px);
   letter-spacing: -0.05em;
   font-weight: 700;
   font-family: 'Nunito', 'Poppins', sans-serif;
 }
 .lp-bigword .ltr-space {
-  width: 0.22em;
+  width: 0.20em;
   display: inline-block;
 }
 /* Compact footer bottom */
