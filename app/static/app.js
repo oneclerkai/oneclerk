@@ -2080,36 +2080,73 @@ route("dashboard", async () => {
       selectedLang = b.dataset.lang;
     }));
 
-    playBtn.addEventListener("click", () => {
-      if (!window.speechSynthesis) { toast("Speech not supported in this browser", "error"); return; }
-      if (speaking) {
-        window.speechSynthesis.cancel();
-        speaking = false;
+    // ── Vapi-powered dashboard preview ──────────────────────────────────────
+    const DASH_ASSISTANT_ID = "5b54d785-e86b-420e-ace0-26092882287e";
+    let dashCallActive = false;
+    const dashVapi = getVapi();
+
+    function dashOverrides() {
+      const cartesiaId = CARTESIA_VOICE_MAP[selectedVoice.id];
+      const bcp47 = PREVIEW_LANG_MAP[selectedLang] || "en-US";
+      const deepgramLang = bcp47 === "en-GB" ? "en-GB" : bcp47.split("-")[0];
+      const ov = {};
+      if (cartesiaId) ov.voice = { provider: "cartesia", voiceId: cartesiaId };
+      if (deepgramLang !== "en") ov.transcriber = { provider: "deepgram", language: deepgramLang };
+      return ov;
+    }
+
+    if (dashVapi) {
+      dashVapi.on("call-start", () => {
+        dashCallActive = true;
+        lbl.textContent = "🛑 Stop call";
+        playBtn.classList.add("playing");
+        playBtn.disabled = false;
+        speaking = true;
+        console.log("[Harkly AI] Dashboard preview call started.");
+      });
+      dashVapi.on("call-end", () => {
+        dashCallActive = false; speaking = false;
         lbl.textContent = "Play sample";
         playBtn.classList.remove("playing");
-        return;
-      }
-      const langCode = PREVIEW_LANG_MAP[selectedLang] || "en-US";
-      const greetings = {
-        "hi-IN": "नमस्ते, यहाँ Harkly AI है। मैं आपकी कैसे मदद कर सकता हूँ?",
-        "es-ES": "Hola, le habla Harkly AI. ¿En qué le puedo ayudar?",
-        "fr-FR": "Bonjour, ici Harkly AI. Comment puis-je vous aider?",
-        "zh-CN": "您好，这里是Harkly AI。我可以如何帮助您？",
-        "vi-VN": "Xin chào, đây là Harkly AI. Tôi có thể giúp gì cho bạn?",
-        "ar-SA": "مرحبا، هذا Harkly AI. كيف يمكنني مساعدتك؟",
-      };
-      const text = greetings[langCode] || `Hi, this is ${Store.user?.name || "your AI assistant"} from Harkly AI. How can I help you today?`;
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = langCode;
-      u.rate = selectedVoice.rate;
-      u.pitch = selectedVoice.pitch;
-      currentPitch = selectedVoice.pitch;
-      speaking = true;
-      lbl.textContent = "Stop";
-      playBtn.classList.add("playing");
-      u.onend = u.onerror = () => { speaking = false; lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); };
-      try { window.speechSynthesis.speak(u); } catch (e) { speaking = false; lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); }
-    });
+        playBtn.disabled = false;
+        console.log("[Harkly AI] Dashboard preview call ended.");
+      });
+      dashVapi.on("volume-level", (vol) => {
+        level = 0.12 + vol * 0.80;
+      });
+      dashVapi.on("error", () => {
+        dashCallActive = false; speaking = false;
+        lbl.textContent = "Play sample";
+        playBtn.classList.remove("playing");
+        playBtn.disabled = false;
+      });
+
+      playBtn.addEventListener("click", () => {
+        if (dashCallActive) { dashVapi.stop(); return; }
+        const overrides = dashOverrides();
+        console.log("[Harkly AI] Dashboard preview — voice:", selectedVoice.id, "lang:", selectedLang);
+        console.log("[Harkly AI] Dashboard overrides:", JSON.stringify(overrides, null, 2));
+        lbl.textContent = "Connecting…";
+        playBtn.disabled = true;
+        dashVapi.start(DASH_ASSISTANT_ID, overrides);
+      });
+    } else {
+      playBtn.addEventListener("click", () => {
+        if (!window.speechSynthesis) { toast("Speech not supported in this browser", "error"); return; }
+        if (speaking) {
+          window.speechSynthesis.cancel(); speaking = false;
+          lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); return;
+        }
+        const langCode = PREVIEW_LANG_MAP[selectedLang] || "en-US";
+        const text = `Hi, this is ${Store.user?.name || "your AI assistant"} from Harkly AI. How can I help you today?`;
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = langCode; u.rate = selectedVoice.rate; u.pitch = selectedVoice.pitch;
+        currentPitch = selectedVoice.pitch; speaking = true;
+        lbl.textContent = "Stop"; playBtn.classList.add("playing");
+        u.onend = u.onerror = () => { speaking = false; lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); };
+        try { window.speechSynthesis.speak(u); } catch { speaking = false; lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); }
+      });
+    }
   })();
 
   try {
@@ -4430,20 +4467,36 @@ route("agentFlow", async (id) => {
     renderCanvas();
   });
 
-  // Save
+  // Save — canvas cards drive the agent's top-level voice_id and language
   $("#fb-save", shellEl).addEventListener("click", async () => {
     try {
       const nc = { ...cfg, flow_v2: { cards: state.cards, edges: state.edges } };
+      let canvasVoiceId = a.voice_id;
+      let canvasLanguage = a.language;
       state.cards.forEach(card => {
         const c = card.config || {};
-        if (card.type === "voice" && c.voice) nc.voice_id = c.voice;
-        if (card.type === "language" && c.language) nc.language = c.language;
-        if (card.type === "phone" && c.phone) nc.forwarding_number = c.phone;
-        if (card.type === "gcal" && c.calendly) nc.calendly_url = c.calendly;
-        if (card.type === "whatsapp" && c.whatsapp) nc.owner_whatsapp = c.whatsapp;
-        if (card.type === "info") { if (c.text) nc.business_info = c.text; if (c.url) nc.business_url = c.url; }
+        if (card.type === "voice"    && c.voice)    { nc.voice_id = c.voice;          canvasVoiceId = c.voice; }
+        if (card.type === "language" && c.language)  { nc.language = c.language;       canvasLanguage = c.language; }
+        if (card.type === "phone"    && c.phone)     nc.forwarding_number = c.phone;
+        if (card.type === "gcal"     && c.calendly)  nc.calendly_url = c.calendly;
+        if (card.type === "whatsapp" && c.whatsapp)  nc.owner_whatsapp = c.whatsapp;
+        if (card.type === "info") {
+          if (c.text) nc.business_info = c.text;
+          if (c.url)  nc.business_url  = c.url;
+        }
       });
-      await api(`/agents/${id}`, { method: "PUT", body: { name: a.name, twilio_number: a.twilio_number, forwarding_number: a.forwarding_number, voice_id: a.voice_id, language: a.language, config: nc } });
+      const fwdNum = state.cards.find(c => c.type === "phone")?.config?.phone || a.forwarding_number;
+      await api(`/agents/${id}`, {
+        method: "PUT",
+        body: {
+          name: a.name,
+          twilio_number: a.twilio_number,
+          forwarding_number: fwdNum,
+          voice_id: canvasVoiceId,
+          language: canvasLanguage,
+          config: nc,
+        },
+      });
       toast("Agent saved!", "success");
     } catch (e) { toast(e.message, "error"); }
   });

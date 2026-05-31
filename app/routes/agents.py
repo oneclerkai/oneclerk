@@ -24,7 +24,7 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 
 
 class AgentConfig(BaseModel):
-    business_name: str
+    business_name: str = ""
     business_type: str = ""
     agent_name: str = "OneClerk"
     greeting_message: str = "How can I help you today?"
@@ -42,9 +42,17 @@ class AgentConfig(BaseModel):
     google_credentials: dict[str, Any] | None = None
     google_calendar_connected: bool = False
     gmail_connected: bool = False
+    # Business info from canvas info card
+    business_info: str = ""
+    business_url: str = ""
     # Visual flow builder data: { nodes: [...], edges: [...] }
     flow: dict[str, Any] | None = None
     builder_layout: dict[str, Any] | None = None
+    # Drag-and-drop canvas (Agent Flow Builder) — cards + edges
+    flow_v2: dict[str, Any] | None = None
+
+    class Config:
+        extra = "allow"  # preserve any extra keys the frontend sets
 
 
 class CreateAgentRequest(BaseModel):
@@ -112,6 +120,9 @@ def _agent_dict(agent: Agent) -> dict:
 
 def _normalize_agent_config(config: dict[str, Any] | None) -> dict[str, Any]:
     cfg = config.copy() if isinstance(config, dict) else {}
+    # flow_v2 (drag-and-drop canvas cards) → also populate legacy `flow` field
+    if cfg.get("flow_v2") and cfg.get("flow") is None:
+        cfg["flow"] = cfg["flow_v2"]
     if cfg.get("builder_layout") and cfg.get("flow") is None:
         cfg["flow"] = cfg["builder_layout"]
     if cfg.get("google_credentials"):

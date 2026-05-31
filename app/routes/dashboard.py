@@ -121,7 +121,8 @@ async def stats(
         "calls_handled": int(handled),
         "urgent_calls": int(urgent),
         "urgent_today": int(urgent_today),
-        "bookings_made": int(bookings),
+        "bookings": int(bookings),        # used by dashboard stat card
+        "bookings_made": int(bookings),   # legacy alias
         "bookings_today": int(bookings_today),
         "escalations_today": int(escalations_today),
         "total_minutes": int(int(minutes_raw) // 60),
