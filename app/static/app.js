@@ -923,7 +923,8 @@ function initVoiceTester(root) {
   const chatHint = root.querySelector("#lp-try-chat-hint");
   if (!canvas || !btn) return;
 
-  const vapi = window.Vapi ? new window.Vapi("bace6e2b-19b8-403f-84aa-7c9b8ae0dea8") : null;
+  const VapiClass = window.Vapi && (window.Vapi.default || window.Vapi);
+  const vapi = VapiClass ? new VapiClass("bace6e2b-19b8-403f-84aa-7c9b8ae0dea8") : null;
 
   const ctx = canvas.getContext("2d");
   function resize() {
