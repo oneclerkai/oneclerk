@@ -1316,42 +1316,6 @@ function openAuthModal(initialMode = "login") {
     }
   });
 
-  // Google sign-in
-  $("#m-google", modal).addEventListener("click", () => {
-    if (typeof google === "undefined" || !google.accounts) {
-      toast("Google Sign-in is not configured. Please use email/password.", "error");
-      return;
-    }
-    google.accounts.id.initialize({
-      client_id: window.GOOGLE_CLIENT_ID || "",
-      callback: async (response) => {
-        if (!response.credential) return;
-        const err = $("#m-err", modal);
-        err.classList.add("hidden");
-        try {
-          const r = await api("/auth/google", { method: "POST", body: { credential: response.credential }, auth: false });
-          Store.token = r.access_token;
-          const me = await api("/auth/me");
-          Store.user = me;
-          toast(`Welcome${me.name ? ", " + me.name.split(" ")[0] : ""}!`, "success");
-          close();
-          navigate("#/agents");
-        } catch (ex) {
-          const msg = (ex.message || "").toLowerCase();
-          if (msg.includes("no account") || msg.includes("not found") || msg.includes("not registered")) {
-            err.innerHTML = `No Harkly AI account found for this Google email. <a href="#" id="m-gg-signup" style="color:#f97316;text-decoration:underline;">Create your account now →</a>`;
-            const sw = $("#m-gg-signup", modal);
-            if (sw) sw.addEventListener("click", (ev) => { ev.preventDefault(); setMode("signup"); err.classList.add("hidden"); });
-          } else {
-            err.textContent = ex.message || "Google sign-in failed. Please try again.";
-          }
-          err.classList.remove("hidden");
-        }
-      },
-    });
-    google.accounts.id.prompt();
-  });
-
   const setMode = (m) => {
     mode = m;
     $$("#m-tabs button", modal).forEach(b => b.classList.toggle("active", b.dataset.mode === m));
