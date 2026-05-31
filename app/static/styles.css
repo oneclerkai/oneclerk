@@ -1224,8 +1224,8 @@ textarea.field { resize: vertical; min-height: 80px; }
 .lp-bigword {
   position: relative; z-index: 2;
   display: flex; justify-content: center; align-items: flex-end;
-  height: clamp(80px, 14vw, 220px);
-  margin: 0 auto 30px;
+  height: clamp(160px, 28vw, 460px);
+  margin: 0 auto 40px;
   pointer-events: none;
   user-select: none;
   gap: 0;
@@ -1236,7 +1236,7 @@ textarea.field { resize: vertical; min-height: 80px; }
   display: inline-block;
   font-family: 'Poppins', sans-serif;
   font-weight: 900;
-  font-size: clamp(40px, 11vw, 180px);
+  font-size: clamp(80px, 22vw, 420px);
   line-height: 1;
   letter-spacing: 3px;
   color: #f6f6f1;
@@ -1611,15 +1611,15 @@ textarea.field { resize: vertical; min-height: 80px; }
 @media (max-width: 1080px) { .lp-plan-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 580px)  { .lp-plan-grid { grid-template-columns: 1fr; } }
 
-/* Footer HARKLY AI letters — Poppins Black, compact */
+/* Footer HARKLY AI letters — Poppins Black, full-screen wide */
 .lp-bigword {
-  height: clamp(80px, 14vw, 220px);
-  margin: 40px auto 30px;
+  height: clamp(160px, 28vw, 460px);
+  margin: 60px auto 40px;
   max-width: 100%;
   overflow: visible;
 }
 .lp-bigword .ltr {
-  font-size: clamp(40px, 11vw, 180px);
+  font-size: clamp(80px, 22vw, 420px);
   letter-spacing: 3px;
   font-weight: 900;
   font-family: 'Poppins', sans-serif;
