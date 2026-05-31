@@ -1159,50 +1159,63 @@ function initReviewTracks(root) {
   bot.innerHTML = botHtml + botHtml;
 }
 
-// Giant HARKLY letters arc upward (parabola), end FULLY horizontal
+// Giant HARKLY AI letters arch upward in a visually-even parabola,
+// settling perfectly flat as the section scrolls into view.
 function initParabolaWord(root) {
   const wrap = root.querySelector("#lp-bigword");
   if (!wrap) return;
-  // Only animate real letter spans, not the space span
-  const letters = Array.from(wrap.querySelectorAll(".ltr:not(.ltr-space)"));
   const allSpans = Array.from(wrap.querySelectorAll(".ltr"));
-  const N = allSpans.length;
+  if (!allSpans.length) return;
 
-  // Positions mapped from -1 (far left) to +1 (far right) across all spans
-  const positions = allSpans.map((_, i) => (i - (N - 1) / 2) / Math.max((N - 1) / 2, 1));
+  // Pixel-based positions — measured once after render so the arch is
+  // visually centred on the actual rendered text width, not character count.
+  let positions = null;
+
+  function measurePositions() {
+    const rects = allSpans.map(el => el.getBoundingClientRect());
+    const leftMid  = rects[0].left + rects[0].width / 2;
+    const rightMid = rects[rects.length - 1].left + rects[rects.length - 1].width / 2;
+    const center   = (leftMid + rightMid) / 2;
+    const half     = Math.max(rightMid - center, center - leftMid, 1);
+    positions = rects.map(r => ((r.left + r.width / 2) - center) / half);
+  }
 
   function update() {
+    if (!positions) measurePositions();
     const rect = wrap.getBoundingClientRect();
-    const vh = window.innerHeight;
-    // raw: 0 when word just enters viewport bottom, 1 when centred
-    const raw = 1 - (rect.top + rect.height * 0.5) / vh;
-    const t = Math.max(0, Math.min(1, raw * 1.5));
-    // Smooth ease-out (6th power) — settles perfectly flat at end
+    const vh   = window.innerHeight;
+    // progress: 0 when element bottom just enters viewport, 1 when centred
+    const raw  = 1 - (rect.top + rect.height * 0.5) / vh;
+    const t    = Math.max(0, Math.min(1, raw * 1.5));
+    // Ease-out⁶ — snaps clean to flat at the end
     const ease = 1 - Math.pow(1 - t, 6);
     const remaining = 1 - ease;
-    // Hard-snap to straight in last 8%
     const flat = remaining < 0.08 ? 0 : remaining;
-    // Arch height: 560px at peak — upside-down U (centre highest)
-    const curve = flat * 560;
-    // Rotation: outer letters tilt outward, centre stays upright
-    const maxRot = flat * 16;
+
+    // Upside-down U parabola: peak at centre (x=0), zero at edges (x=±1)
+    const curve  = flat * 520;   // px at peak
+    const maxRot = flat * 14;    // deg tilt at edges
     allSpans.forEach((el, i) => {
-      const x = positions[i];
-      // True arch parabola: centre is highest (lift = 0 → maximum at x=0)
-      // y = -curve * (1 - x²) → peak at x=0, zero at x=±1
-      const lift = -curve * (1 - x * x);
+      const x    = positions[i];
+      const lift = -curve * (1 - x * x); // arch formula
       const rot  = maxRot * x;
       el.style.transform = `translateY(${lift.toFixed(1)}px) rotate(${rot.toFixed(2)}deg)`;
     });
   }
 
-  update();
+  // Measure after fonts load, then run initial update
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => { measurePositions(); update(); });
+  } else {
+    setTimeout(() => { measurePositions(); update(); }, 200);
+  }
+
   let raf;
   window.addEventListener("scroll", () => {
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(update);
   }, { passive: true });
-  window.addEventListener("resize", update);
+  window.addEventListener("resize", () => { positions = null; update(); });
 }
 
 const BUSINESS_TYPES = [
