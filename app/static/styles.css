@@ -759,7 +759,7 @@ textarea.field { resize: vertical; min-height: 80px; }
   max-width: 980px;
   text-align: center;
 }
-/* Blue atmospheric glow behind the title — text-width only, sky blue */
+/* Blue atmospheric glow behind the title — text-width only, light sky blue faded */
 .lp-title::before {
   content: '';
   position: absolute;
@@ -768,10 +768,10 @@ textarea.field { resize: vertical; min-height: 80px; }
   width: 115%;
   height: 180%;
   background: radial-gradient(ellipse 74% 65% at 50% 50%,
-    rgba(14,165,233,0.30) 0%,
-    rgba(56,189,248,0.16) 42%,
+    rgba(56,189,248,0.14) 0%,
+    rgba(147,219,253,0.07) 45%,
     transparent 100%);
-  filter: blur(20px);
+  filter: blur(24px);
   z-index: -1;
   pointer-events: none;
 }
@@ -3525,12 +3525,12 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   width: 115%;
   height: 180%;
   background: radial-gradient(ellipse 74% 65% at 50% 50%,
-    rgba(14,165,233,0.30) 0%,
-    rgba(56,189,248,0.16) 42%,
+    rgba(56,189,248,0.14) 0%,
+    rgba(147,219,253,0.07) 45%,
     transparent 100%);
   pointer-events: none;
   z-index: -1;
-  filter: blur(20px);
+  filter: blur(24px);
 }
 .lp-title.lp-title-one .lp-title-line {
   display: block;
