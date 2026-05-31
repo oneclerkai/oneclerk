@@ -801,7 +801,7 @@ route("auth", async () => {
         </div>
 
         <div class="lp-bigword" id="lp-bigword">
-          ${"HARKLY".split("").map(c => `<span class="ltr">${c}</span>`).join("")}
+          ${"HARKLY AI".split("").map(c => c === " " ? `<span class="ltr ltr-space">&nbsp;</span>` : `<span class="ltr">${c}</span>`).join("")}
         </div>
 
         <div class="lp-footer-bottom">
