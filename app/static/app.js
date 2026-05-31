@@ -1163,29 +1163,34 @@ function initReviewTracks(root) {
 function initParabolaWord(root) {
   const wrap = root.querySelector("#lp-bigword");
   if (!wrap) return;
-  const letters = Array.from(wrap.querySelectorAll(".ltr"));
-  const N = letters.length;
-  const positions = letters.map((_, i) => (i - (N - 1) / 2) / ((N - 1) / 2));
+  // Only animate real letter spans, not the space span
+  const letters = Array.from(wrap.querySelectorAll(".ltr:not(.ltr-space)"));
+  const allSpans = Array.from(wrap.querySelectorAll(".ltr"));
+  const N = allSpans.length;
+
+  // Positions mapped from -1 (far left) to +1 (far right) across all spans
+  const positions = allSpans.map((_, i) => (i - (N - 1) / 2) / Math.max((N - 1) / 2, 1));
 
   function update() {
     const rect = wrap.getBoundingClientRect();
     const vh = window.innerHeight;
-    // raw progress 0 (just appearing at bottom) → 1+ (passed)
-    const raw = 1 - (rect.top + rect.height * 0.55) / vh;
-    // Curve only operates 0..1
-    // Reach t=1 sooner so the word locks PERFECTLY straight well before fully scrolled.
-    const t = Math.max(0, Math.min(1, raw * 1.45));
-    // Stronger ease-out (5th power) so the END snaps fully flat.
-    const ease = 1 - Math.pow(1 - t, 5);
+    // raw: 0 when word just enters viewport bottom, 1 when centred
+    const raw = 1 - (rect.top + rect.height * 0.5) / vh;
+    const t = Math.max(0, Math.min(1, raw * 1.5));
+    // Smooth ease-out (6th power) — settles perfectly flat at end
+    const ease = 1 - Math.pow(1 - t, 6);
     const remaining = 1 - ease;
-    // Hard-snap to fully straight in the last 12% of the curve.
-    const flat = remaining < 0.12 ? 0 : remaining;
-    const curve = flat * 320; // bigger arch when far away
-    letters.forEach((el, i) => {
+    // Hard-snap to straight in last 8%
+    const flat = remaining < 0.08 ? 0 : remaining;
+    // Tall arch: 520px peak, dramatic parabola
+    const curve = flat * 520;
+    // Rotation: outer letters tilt most, inner letters barely move
+    const maxRot = flat * 14;
+    allSpans.forEach((el, i) => {
       const x = positions[i];
-      // y = -curve * (1 - x^2): arches upward (negative Y)
-      const lift = -curve * (1 - x * x);
-      const rot = flat * x * 7;
+      // Inverted parabola: highest at edges (x=±1), flat at centre (x=0)
+      const lift = -curve * x * x;
+      const rot  = maxRot * x;
       el.style.transform = `translateY(${lift.toFixed(1)}px) rotate(${rot.toFixed(2)}deg)`;
     });
   }
