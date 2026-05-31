@@ -759,25 +759,19 @@ textarea.field { resize: vertical; min-height: 80px; }
   max-width: 980px;
   text-align: center;
 }
-/* Blue atmospheric glow behind the title */
+/* Blue atmospheric glow behind the title — subtle, text-width only */
 .lp-title::before {
   content: '';
   position: absolute;
   left: 50%; top: 50%;
   transform: translate(-50%, -50%);
-  width: 260%;
-  height: 500%;
-  background:
-    radial-gradient(ellipse 50% 40% at 50% 50%,
-      rgba(99,102,241,0.82) 0%,
-      rgba(139,92,246,0.56) 22%,
-      rgba(59,130,246,0.28) 48%,
-      transparent 100%),
-    radial-gradient(ellipse 85% 75% at 50% 50%,
-      rgba(99,102,241,0.28) 0%,
-      rgba(139,92,246,0.12) 55%,
-      transparent 100%);
-  filter: blur(48px);
+  width: 105%;
+  height: 150%;
+  background: radial-gradient(ellipse 72% 62% at 50% 50%,
+    rgba(99,102,241,0.16) 0%,
+    rgba(139,92,246,0.09) 45%,
+    transparent 100%);
+  filter: blur(16px);
   z-index: -1;
   pointer-events: none;
 }
@@ -1230,8 +1224,8 @@ textarea.field { resize: vertical; min-height: 80px; }
 .lp-bigword {
   position: relative; z-index: 2;
   display: flex; justify-content: center; align-items: flex-end;
-  height: clamp(160px, 28vw, 460px);
-  margin: 0 auto 40px;
+  height: clamp(80px, 14vw, 220px);
+  margin: 0 auto 30px;
   pointer-events: none;
   user-select: none;
   gap: 0;
@@ -1242,15 +1236,15 @@ textarea.field { resize: vertical; min-height: 80px; }
   display: inline-block;
   font-family: 'Poppins', sans-serif;
   font-weight: 900;
-  font-size: clamp(80px, 22vw, 420px);
+  font-size: clamp(40px, 11vw, 180px);
   line-height: 1;
-  letter-spacing: -0.06em;
+  letter-spacing: 3px;
   color: #f6f6f1;
   transform-origin: center bottom;
   will-change: transform;
 }
 .lp-bigword .ltr-space {
-  width: 0.18em;
+  width: 0.25em;
   display: inline-block;
 }
 
@@ -1617,21 +1611,21 @@ textarea.field { resize: vertical; min-height: 80px; }
 @media (max-width: 1080px) { .lp-plan-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 580px)  { .lp-plan-grid { grid-template-columns: 1fr; } }
 
-/* Footer HARKLY AI letters — Poppins Black, fills full screen width */
+/* Footer HARKLY AI letters — Poppins Black, compact */
 .lp-bigword {
-  height: clamp(160px, 28vw, 460px);
-  margin: 60px auto 40px;
+  height: clamp(80px, 14vw, 220px);
+  margin: 40px auto 30px;
   max-width: 100%;
   overflow: visible;
 }
 .lp-bigword .ltr {
-  font-size: clamp(80px, 22vw, 420px);
-  letter-spacing: -0.06em;
+  font-size: clamp(40px, 11vw, 180px);
+  letter-spacing: 3px;
   font-weight: 900;
   font-family: 'Poppins', sans-serif;
 }
 .lp-bigword .ltr-space {
-  width: 0.18em;
+  width: 0.25em;
   display: inline-block;
 }
 /* Compact footer bottom */
@@ -3528,21 +3522,15 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   position: absolute;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: 280%;
-  height: 520%;
-  background:
-    radial-gradient(ellipse 50% 40% at 50% 50%,
-      rgba(99,102,241,0.88) 0%,
-      rgba(139,92,246,0.60) 20%,
-      rgba(59,130,246,0.32) 45%,
-      transparent 100%),
-    radial-gradient(ellipse 88% 78% at 50% 50%,
-      rgba(99,102,241,0.30) 0%,
-      rgba(139,92,246,0.14) 55%,
-      transparent 100%);
+  width: 110%;
+  height: 160%;
+  background: radial-gradient(ellipse 70% 60% at 50% 50%,
+    rgba(99,102,241,0.18) 0%,
+    rgba(139,92,246,0.10) 40%,
+    transparent 100%);
   pointer-events: none;
   z-index: -1;
-  filter: blur(52px);
+  filter: blur(18px);
 }
 .lp-title.lp-title-one .lp-title-line {
   display: block;
