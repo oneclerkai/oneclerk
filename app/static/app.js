@@ -4282,6 +4282,20 @@ route("agentFlow", async (id) => {
   const CARD_W = 236, CARD_H = 136;
 
   function genId() { return "c" + Math.random().toString(36).slice(2, 9); }
+
+  // Pre-populate with a starter layout when this is a fresh agent
+  if (state.cards.length === 0) {
+    const pid = genId(), vid = genId(), lid = genId(), iid = genId(), wid = genId();
+    state.cards = [
+      { id: pid, type: "phone",    x: 30,  y: 40,  config: {} },
+      { id: vid, type: "voice",    x: 310, y: 40,  config: { voice: "maya" } },
+      { id: lid, type: "language", x: 590, y: 40,  config: { language: "English (US)" } },
+      { id: iid, type: "info",     x: 30,  y: 218, config: {} },
+      { id: wid, type: "whatsapp", x: 310, y: 218, config: {} },
+    ];
+    state.edges = [{ from: pid, to: vid }, { from: vid, to: lid }];
+  }
+
   function cardMeta(type) { return INT_CARDS.find(c => c.type === type) || INT_CARDS[3]; }
 
   const shellEl = h(`
@@ -4315,31 +4329,7 @@ route("agentFlow", async (id) => {
     </div>
   `);
 
-  const previewEl = h(`
-    <div class="fb-preview">
-      <canvas class="fb-wave" id="fb-wave"></canvas>
-      <div class="fb-preview-glow"></div>
-      <div class="fb-preview-content">
-        <div class="fb-preview-tag">Voice Preview</div>
-        <div class="fb-vpills" id="fb-vpills">
-          ${PREVIEW_VOICES.slice(0, 5).map(v => `
-            <button class="fb-vpill${v.id === "maya" ? " active" : ""}" data-voice="${v.id}">
-              <span class="fb-vpill-name">${v.label}</span>
-              <span class="fb-vpill-sub">${v.sub}</span>
-            </button>`).join("")}
-        </div>
-        <div class="fb-preview-controls">
-          <select class="fb-lang-sel" id="fb-lang-sel">
-            ${PREVIEW_LANGS.slice(0, 14).map(l => `<option>${escapeHtml(l)}</option>`).join("")}
-          </select>
-          <button class="fb-play" id="fb-play"><span id="fb-play-lbl">▶ Play sample</span></button>
-        </div>
-      </div>
-    </div>
-  `);
-
   page.appendChild(shellEl);
-  page.appendChild(previewEl);
   renderIcons(shellEl);
 
   const canvasEl = $("#fb-canvas", shellEl);
@@ -4467,7 +4457,7 @@ route("agentFlow", async (id) => {
 
       // Field changes → sync preview
       el.querySelectorAll("[data-field]").forEach(inp => {
-        const upd = () => { card.config = card.config || {}; card.config[inp.dataset.field] = inp.value; syncPreview(); };
+        const upd = () => { card.config = card.config || {}; card.config[inp.dataset.field] = inp.value; checkAutoActivate(); };
         inp.addEventListener("change", upd);
         inp.addEventListener("input", upd);
       });
@@ -4567,130 +4557,106 @@ route("agentFlow", async (id) => {
 
   renderCanvas();
 
-  // Preview wave
-  setTimeout(() => {
-    const wc = document.getElementById("fb-wave");
-    if (!wc) return;
-    const ctx = wc.getContext("2d"), dpr = window.devicePixelRatio || 1;
-    let t = 0;
-    const resize = () => { const r = wc.getBoundingClientRect(); wc.width = r.width * dpr; wc.height = r.height * dpr; };
-    resize(); window.addEventListener("resize", resize);
-    (function draw() {
-      t += 0.022;
-      const w = wc.width, hh = wc.height;
-      ctx.clearRect(0, 0, w, hh);
-      const bars = 60;
-      const bw = w / bars;
-      for (let i = 0; i < bars; i++) {
-        const ph = i * 0.3 + t;
-        const amp = Math.sin(ph)*0.38 + Math.sin(ph*2.1)*0.31 + Math.sin(ph*0.6)*0.31;
-        const bh = Math.max(3*dpr, Math.abs(amp) * hh * 0.74);
-        const ratio = i / bars;
-        ctx.fillStyle = `rgba(${Math.round(140+ratio*115)},${Math.round(100+ratio*120)},255,0.62)`;
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(i*bw+bw*0.2, (hh-bh)/2, bw*0.6, bh, 2);
-        else ctx.rect(i*bw+bw*0.2, (hh-bh)/2, bw*0.6, bh);
-        ctx.fill();
-      }
-      requestAnimationFrame(draw);
-    })();
-  }, 80);
-
-  // Voice pills
-  previewEl.querySelectorAll(".fb-vpill").forEach(btn =>
-    btn.addEventListener("click", () => {
-      previewEl.querySelectorAll(".fb-vpill").forEach(x => x.classList.remove("active"));
-      btn.classList.add("active");
-    })
-  );
-
-  // ── Canvas → Vapi overrides ─────────────────────────────────────────────────
-  // Reads the current drag-and-drop canvas state and maps it to Vapi's
-  // AssistantOverrides shape so the preview call reflects whatever the user built.
-  function readCanvasOverrides() {
-    const overrides = {};
-
-    // --- Voice ---
-    const voiceCard = state.cards.find(c => c.type === "voice");
-    const voiceId   = voiceCard?.config?.voice
-      || previewEl.querySelector(".fb-vpill.active")?.dataset.voice
-      || "maya";
-    const cartesiaId = CARTESIA_VOICE_MAP[voiceId];
-    if (cartesiaId) {
-      overrides.voice = { provider: "cartesia", voiceId: cartesiaId };
-    }
-
-    // --- Language / Transcriber ---
-    const langCard   = state.cards.find(c => c.type === "language");
-    const langLabel  = langCard?.config?.language
-      || document.getElementById("fb-lang-sel")?.value
-      || "English (US)";
-    const bcp47      = PREVIEW_LANG_MAP[langLabel] || "en-US";
-    // Deepgram uses the base language tag ("es", "fr", "hi", …); keep full tag for EN variants
-    const deepgramLang = bcp47 === "en-GB" ? "en-GB" : bcp47.split("-")[0];
-    if (deepgramLang !== "en") {
-      overrides.transcriber = { provider: "deepgram", language: deepgramLang };
-    }
-
-    // --- Integration context → variableValues ---
-    const vars = {};
-    state.cards.forEach(c => {
-      const cfg = c.config || {};
-      if (c.type === "whatsapp"  && cfg.whatsapp)  vars.whatsappNumber = cfg.whatsapp;
-      if (c.type === "gmail"     && cfg.email)      vars.gmailAddress   = cfg.email;
-      if (c.type === "gcal"      && cfg.calendly)   vars.calendlyUrl    = cfg.calendly;
-      if (c.type === "phone"     && cfg.phone)      vars.forwardingNumber = cfg.phone;
-      if (c.type === "info"      && cfg.text)       vars.businessInfo   = cfg.text;
-    });
-    if (Object.keys(vars).length) overrides.variableValues = vars;
-
-    return overrides;
-  }
-
-  // ── Play / Stop button wired to Vapi ────────────────────────────────────────
-  const CANVAS_ASSISTANT_ID = "d5f28a96-25da-4905-bac8-5dee52a15f4e";
-  const playBtn  = document.getElementById("fb-play");
-  const playLbl  = document.getElementById("fb-play-lbl");
-  let canvasCallActive = false;
-
-  if (playBtn) {
-    playBtn.addEventListener("click", () => {
-      if (canvasCallActive) { stopVapiCall(); return; }
-      if (!getVapi()) { toast("Vapi unavailable — check your connection", "error"); return; }
-      const overrides = readCanvasOverrides();
-      playLbl.textContent = "Connecting…";
-      playBtn.disabled = true;
-      startVapiCall(CANVAS_ASSISTANT_ID, overrides, {
-        onStart: () => {
-          canvasCallActive = true;
-          playLbl.textContent = "🛑 Stop call";
-          playBtn.classList.add("playing"); playBtn.disabled = false;
-        },
-        onEnd: () => {
-          canvasCallActive = false;
-          playLbl.textContent = "▶ Play sample";
-          playBtn.classList.remove("playing", "agent-speaking"); playBtn.disabled = false;
-        },
-        onSpeechStart: () => { playBtn.classList.add("agent-speaking"); },
-        onSpeechEnd:   () => { playBtn.classList.remove("agent-speaking"); },
-        onVolume: (vol) => { playBtn.style.setProperty("--vapi-vol", vol.toFixed(3)); },
-        onError: (err) => {
-          canvasCallActive = false;
-          playLbl.textContent = "▶ Play sample";
-          playBtn.classList.remove("playing", "agent-speaking"); playBtn.disabled = false;
-          console.error("[Harkly AI] Canvas Vapi error:", err);
-          toast("Could not start preview — allow microphone access and retry", "error");
-        },
+  // ── Auto-activate when phone number is filled ────────────────────────────────
+  let _activating = false;
+  async function checkAutoActivate() {
+    if (_activating || a.is_active) return;
+    const phoneCard = state.cards.find(c => c.type === "phone");
+    const hasPhone  = !!(phoneCard?.config?.phone?.trim());
+    if (!hasPhone) return;
+    _activating = true;
+    try {
+      const nc2 = { ...cfg, flow_v2: { cards: state.cards, edges: state.edges } };
+      state.cards.forEach(card => {
+        const c2 = card.config || {};
+        if (card.type === "voice"    && c2.voice)    nc2.voice_id          = c2.voice;
+        if (card.type === "language" && c2.language) nc2.language           = c2.language;
+        if (card.type === "phone"    && c2.phone)    nc2.forwarding_number  = c2.phone;
+        if (card.type === "gcal"     && c2.calendly) nc2.calendly_url       = c2.calendly;
+        if (card.type === "whatsapp" && c2.whatsapp) nc2.owner_whatsapp     = c2.whatsapp;
+        if (card.type === "info"     && c2.text)     nc2.business_info      = c2.text;
       });
-    });
+      await api(`/agents/${id}`, { method: "PUT", body: {
+        name: a.name, twilio_number: a.twilio_number || "",
+        forwarding_number: nc2.forwarding_number || a.forwarding_number || "",
+        config: nc2,
+      }});
+      await api(`/agents/${id}/activate`, { method: "POST" });
+      a.is_active = true;
+      toast("🎉 Your agent is now live and will answer calls!", "success");
+    } catch (_) { /* silent — user can activate manually via Save */ }
+    _activating = false;
   }
 
-  function syncPreview() {
-    const vc = state.cards.find(c => c.type === "voice");
-    const lc = state.cards.find(c => c.type === "language");
-    if (vc?.config?.voice) { previewEl.querySelectorAll(".fb-vpill").forEach(x => x.classList.remove("active")); const p = previewEl.querySelector(`[data-voice="${vc.config.voice}"]`); if (p) p.classList.add("active"); }
-    if (lc?.config?.language) { const s = document.getElementById("fb-lang-sel"); if (s) s.value = lc.config.language; }
+  // ── Animated first-time tutorial ─────────────────────────────────────────────
+  const FLOW_TUT_KEY = "oc_seen_flow_tutorial";
+  function showFlowTutorial() {
+    if (localStorage.getItem(FLOW_TUT_KEY)) return;
+    const STEPS = [
+      { icon: "🎯", title: "Welcome to your Agent Builder",
+        body: "This canvas is your AI receptionist's brain. Cards represent everything your agent needs to handle calls — voice, language, bookings, and more." },
+      { icon: "📞", title: "Start with your Phone card",
+        body: "The Phone card is already on the canvas. Enter your forwarding number there — the moment it's filled in your agent activates automatically. No extra steps!" },
+      { icon: "🎙️", title: "Pick a voice & language",
+        body: "The Voice and Language cards let you choose how your agent sounds. Click the dropdown in each card to customise. You can change these any time." },
+      { icon: "📋", title: "Add business knowledge",
+        body: "Open the Info card and type your hours, services, pricing, and FAQs. Your agent uses this to answer callers accurately in real time." },
+      { icon: "🔗", title: "Connect cards with arrows",
+        body: "Drag the → handle on the right edge of any card onto another card to create a connection. This tells the AI the order of operations during a call." },
+      { icon: "💾", title: "Save to lock it in",
+        body: "Hit Save agent when you're done. If your phone number is filled in, the agent is already live — saving just stores the latest settings." },
+    ];
+    let i = 0;
+    const ov = h(`<div class="ftut-overlay">
+      <div class="ftut-card" id="ftut-card">
+        <div class="ftut-header">
+          <span class="ftut-icon" id="ftut-icon"></span>
+          <span class="ftut-count" id="ftut-count"></span>
+        </div>
+        <div class="ftut-title" id="ftut-title"></div>
+        <div class="ftut-body"  id="ftut-body"></div>
+        <div class="ftut-dots" id="ftut-dots">${STEPS.map((_, j) =>
+          `<span class="ftut-dot${j === 0 ? " on" : ""}"></span>`).join("")}
+        </div>
+        <div class="ftut-btns">
+          <button class="ftut-skip" id="ftut-skip">Skip tour</button>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="ftut-nav-btn" id="ftut-back" disabled>← Back</button>
+            <button class="ftut-nav-btn ftut-nav-primary" id="ftut-next">Next →</button>
+          </div>
+        </div>
+      </div>
+    </div>`);
+    document.body.appendChild(ov);
+    void ov.offsetWidth;
+    ov.classList.add("ftut-in");
+
+    function close() {
+      localStorage.setItem(FLOW_TUT_KEY, "1");
+      ov.classList.remove("ftut-in"); ov.classList.add("ftut-out");
+      setTimeout(() => ov.remove(), 280);
+    }
+    function render() {
+      const s = STEPS[i];
+      $("#ftut-icon",  ov).textContent = s.icon;
+      $("#ftut-count", ov).textContent = `${i + 1} / ${STEPS.length}`;
+      $("#ftut-title", ov).textContent = s.title;
+      $("#ftut-body",  ov).textContent  = s.body;
+      $("#ftut-back",  ov).disabled = i === 0;
+      $("#ftut-next",  ov).textContent  = i === STEPS.length - 1 ? "Let's build! 🚀" : "Next →";
+      ov.querySelectorAll(".ftut-dot").forEach((d, j) => d.classList.toggle("on", j === i));
+    }
+    $("#ftut-next", ov).addEventListener("click", () => { if (i >= STEPS.length - 1) { close(); return; } i++; render(); });
+    $("#ftut-back", ov).addEventListener("click", () => { if (i > 0) { i--; render(); } });
+    $("#ftut-skip", ov).addEventListener("click", close);
+    document.addEventListener("keydown", function onK(e) {
+      if (!document.body.contains(ov)) { document.removeEventListener("keydown", onK); return; }
+      if (e.key === "Escape" || e.key === "ArrowRight") { if (e.key === "Escape") close(); else { i = Math.min(i + 1, STEPS.length - 1); render(); } }
+      if (e.key === "ArrowLeft") { i = Math.max(i - 1, 0); render(); }
+    });
+    render();
   }
+  requestAnimationFrame(showFlowTutorial);
 
   renderIcons(page);
   return wrap;
