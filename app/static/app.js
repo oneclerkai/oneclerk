@@ -36,15 +36,16 @@ function stopVapiCall() {
   try { _vapiInstance?.stop(); } catch (_) {}
 }
 
-// Cartesia voice IDs — update from https://play.cartesia.ai/voices if needed
-const CARTESIA_VOICE_MAP = {
-  "maya":   "a0e99841-438c-4a64-b679-ae501e7d6091", // Helpful Woman     — warm, mid-30s
-  "arjun":  "5619d38c-cf51-4d8e-9575-48f61a280413", // Customer Support  — calm, deep
-  "sofia":  "b7d50908-b17c-442d-ad8d-810c63997ed9", // California Girl   — bright, friendly
-  "daniel": "3b554273-4299-48b9-9aaf-eefd438e3941", // Professional Man  — neutral
-  "linh":   "79a125e8-cd45-4c13-8a67-188112f4dd22", // British Lady      — soft, soothing
-  "emma":   "0f56a1c6-f2c6-4d60-adca-41b7a4a1ef79", // Empathetic Woman
-  "chris":  "5c42302c-194b-4d0c-ba1a-8cb485c84ab9", // Friendly Sidekick — energetic
+// OpenAI TTS voice IDs — universally available on every Vapi account (no extra keys needed)
+// high-quality, multilingual (speaks whatever language the AI responds in)
+const OPENAI_VOICE_MAP = {
+  "maya":   "nova",    // warm, friendly female
+  "arjun":  "echo",    // calm, warm male
+  "sofia":  "shimmer", // bright, soft female
+  "daniel": "onyx",    // deep, professional male
+  "linh":   "shimmer", // soft, soothing female
+  "emma":   "nova",    // empathetic, warm female
+  "chris":  "fable",   // expressive, energetic male
 };
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -483,6 +484,28 @@ const PREVIEW_LANG_MAP = {
   "Ukrainian (Українська)":"uk-UA","Amharic (አማርኛ)":"am-ET","Hausa (Hausa)":"ha-NG",
 };
 
+// ── Shared Vapi override builder ──────────────────────────────────────────────
+// Uses OpenAI TTS (always available, high-quality, truly multilingual).
+// For non-English languages also injects a system-prompt instruction so the
+// AI brain responds in the selected language, and sets the Deepgram transcriber
+// language so speech-to-text understands the caller.
+function buildVapiOverrides(voice, lang) {
+  const openaiVoice = OPENAI_VOICE_MAP[voice?.id] || "nova";
+  const bcp47    = PREVIEW_LANG_MAP[lang] || "en-US";
+  const langCode = bcp47 === "en-GB" ? "en-GB" : bcp47.split("-")[0];
+  const ov = { voice: { provider: "openai", voiceId: openaiVoice } };
+  if (langCode !== "en") {
+    ov.transcriber = { provider: "deepgram", language: langCode };
+    ov.model = { messages: [{ role: "system", content: `The caller prefers ${lang}. Respond entirely in ${lang}. Do not switch to English.` }] };
+  }
+  return ov;
+}
+// Variant that takes a BCP-47 code directly (used by the agent setup page).
+function buildVapiOverridesFromBcp47(voice, bcp47) {
+  const label = Object.keys(PREVIEW_LANG_MAP).find(k => PREVIEW_LANG_MAP[k] === bcp47) || bcp47;
+  return buildVapiOverrides(voice, label);
+}
+
 // Mount a self-contained voice preview into any container element.
 // container must have children with data-preview-canvas, data-preview-play, data-preview-lbl,
 // data-preview-voice, data-preview-lang attributes.
@@ -558,13 +581,7 @@ function mountVoicePreview(container, preselectedLang) {
   let pvCallActive = false;
 
   function pvOverrides() {
-    const voiceId = CARTESIA_VOICE_MAP[selectedVoice.id];
-    const bcp47   = PREVIEW_LANG_MAP[selectedLang] || "en-US";
-    const dgLang  = bcp47 === "en-GB" ? "en-GB" : bcp47.split("-")[0];
-    const ov = {};
-    if (voiceId)          ov.voice      = { provider: "cartesia", voiceId };
-    if (dgLang !== "en")  ov.transcriber = { provider: "deepgram", language: dgLang };
-    return ov;
+    return buildVapiOverrides(selectedVoice, selectedLang);
   }
 
   playBtn.addEventListener("click", () => {
@@ -2064,8 +2081,12 @@ route("dashboard", async () => {
     if (!canvas || !playBtn) return;
     const ctx = canvas.getContext("2d");
     let speaking = false, t = 0, level = 0.1, raf = null, currentPitch = 1.15;
-    let selectedVoice = PREVIEW_VOICES[0];
-    let selectedLang = PREVIEW_LANGS[0];
+    // Restore last canvas-selected voice + language so dashboard preview stays in sync
+    const _savedVoice = localStorage.getItem("oc_last_voice");
+    const _savedLang  = localStorage.getItem("oc_last_lang");
+    let selectedVoice = PREVIEW_VOICES.find(v => v.id === _savedVoice) || PREVIEW_VOICES[0];
+    let selectedLang  = (PREVIEW_LANGS.includes(_savedLang) ? _savedLang : null) || PREVIEW_LANGS[0];
+    currentPitch = selectedVoice.pitch;
 
     function resize() {
       const r = canvas.getBoundingClientRect();
@@ -2128,16 +2149,22 @@ route("dashboard", async () => {
     // Wait one frame so the canvas has been laid out before reading its size
     requestAnimationFrame(() => { resize(); drawWave(); });
 
+    // Sync active state on load to match restored prefs
+    page.querySelectorAll(".dash-prev-voice").forEach(b => b.classList.toggle("active", b.dataset.vid === selectedVoice.id));
+    page.querySelectorAll(".dash-prev-lang").forEach(b => b.classList.toggle("active", b.dataset.lang === selectedLang));
+
     page.querySelectorAll(".dash-prev-voice").forEach(b => b.addEventListener("click", () => {
       page.querySelectorAll(".dash-prev-voice").forEach(x => x.classList.remove("active"));
       b.classList.add("active");
       selectedVoice = PREVIEW_VOICES.find(v => v.id === b.dataset.vid) || PREVIEW_VOICES[0];
       currentPitch = selectedVoice.pitch;
+      localStorage.setItem("oc_last_voice", selectedVoice.id);
     }));
     page.querySelectorAll(".dash-prev-lang").forEach(b => b.addEventListener("click", () => {
       page.querySelectorAll(".dash-prev-lang").forEach(x => x.classList.remove("active"));
       b.classList.add("active");
       selectedLang = b.dataset.lang;
+      localStorage.setItem("oc_last_lang", selectedLang);
     }));
 
     // ── Vapi-powered dashboard preview ──────────────────────────────────────
@@ -2145,13 +2172,7 @@ route("dashboard", async () => {
     let dashCallActive = false;
 
     function dashOverrides() {
-      const cartesiaId = CARTESIA_VOICE_MAP[selectedVoice.id];
-      const bcp47 = PREVIEW_LANG_MAP[selectedLang] || "en-US";
-      const deepgramLang = bcp47 === "en-GB" ? "en-GB" : bcp47.split("-")[0];
-      const ov = {};
-      if (cartesiaId) ov.voice = { provider: "cartesia", voiceId: cartesiaId };
-      if (deepgramLang !== "en") ov.transcriber = { provider: "deepgram", language: deepgramLang };
-      return ov;
+      return buildVapiOverrides(selectedVoice, selectedLang);
     }
 
     playBtn.addEventListener("click", () => {
@@ -3845,12 +3866,7 @@ route("agentSetup", async (id) => {
       const SVP_ASSISTANT_ID = "d5f28a96-25da-4905-bac8-5dee52a15f4e";
       let svpCallActive = false;
       function svpOverrides() {
-        const voiceId = CARTESIA_VOICE_MAP[sVoice2.id];
-        const dgLang  = langCode === "en-GB" ? "en-GB" : langCode.split("-")[0];
-        const ov = {};
-        if (voiceId)         ov.voice      = { provider: "cartesia", voiceId };
-        if (dgLang !== "en") ov.transcriber = { provider: "deepgram", language: dgLang };
-        return ov;
+        return buildVapiOverridesFromBcp47(sVoice2, langCode);
       }
       svpPlay.addEventListener("click", () => {
         if (svpCallActive) { stopVapiCall(); return; }
@@ -4457,7 +4473,14 @@ route("agentFlow", async (id) => {
 
       // Field changes → sync preview
       el.querySelectorAll("[data-field]").forEach(inp => {
-        const upd = () => { card.config = card.config || {}; card.config[inp.dataset.field] = inp.value; checkAutoActivate(); };
+        const upd = () => {
+          card.config = card.config || {};
+          card.config[inp.dataset.field] = inp.value;
+          // Bridge canvas selections → dashboard preview (persisted across navigation)
+          if (card.type === "voice"    && inp.dataset.field === "voice")    localStorage.setItem("oc_last_voice", inp.value);
+          if (card.type === "language" && inp.dataset.field === "language") localStorage.setItem("oc_last_lang",  inp.value);
+          checkAutoActivate();
+        };
         inp.addEventListener("change", upd);
         inp.addEventListener("input", upd);
       });
