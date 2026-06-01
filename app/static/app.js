@@ -2009,6 +2009,179 @@ route("onboarding", async () => {
 });
 
 // --- Pages ---
+// ── Quick-activate sheet: shown when an agent has no phone linked ─────────────
+function showQuickActivate(container, btn, agentId, agent) {
+  container.querySelector("#dmi-qa-sheet")?.remove();
+  const sheet = h(`
+    <div id="dmi-qa-sheet" class="dmi-qa-sheet">
+      <div class="dmi-qa-title">📞 Link a phone number to go live</div>
+      <div class="dmi-qa-sub">Callers forwarded here will be answered by <strong>${escapeHtml(agent?.name || "your agent")}</strong>.</div>
+      <div class="dmi-qa-row">
+        <input class="input dmi-qa-inp" id="dmi-qa-phone" placeholder="+1 555 000 0000" type="tel"/>
+        <button class="btn btn-primary btn-sm" id="dmi-qa-save">⚡ Activate</button>
+      </div>
+      <div class="dmi-qa-hint">Enter the forwarding number your phone provider will redirect missed calls to.</div>
+      <button class="dmi-qa-cancel" id="dmi-qa-cancel">✕ Cancel</button>
+    </div>`);
+  btn.closest(".dmi-row").after(sheet);
+  const inp = sheet.querySelector("#dmi-qa-phone");
+  inp.focus();
+  sheet.querySelector("#dmi-qa-cancel").addEventListener("click", () => sheet.remove());
+  sheet.querySelector("#dmi-qa-save").addEventListener("click", async () => {
+    const phone = inp.value.trim();
+    if (!phone) { inp.focus(); inp.classList.add("input-error"); return; }
+    inp.classList.remove("input-error");
+    const saveBtn = sheet.querySelector("#dmi-qa-save");
+    saveBtn.disabled = true; saveBtn.textContent = "Activating…";
+    try {
+      const cfg = agent?.config || {};
+      await api(`/agents/${agentId}`, { method: "PUT", body: {
+        name: agent?.name || "My Agent",
+        twilio_number: phone,
+        forwarding_number: phone,
+        config: { ...cfg, forwarding_number: phone },
+      }});
+      await api(`/agents/${agentId}/activate`, { method: "POST" });
+      sheet.remove();
+      const row = btn.closest(".dmi-row");
+      row.querySelector(".dmi-dot").className = "dmi-dot dmi-dot-live";
+      btn.className = "dmi-toggle dmi-pause-btn";
+      btn.textContent = "Pause"; btn.dataset.active = "true"; btn.dataset.hasPhone = "true";
+      toast("🎉 Agent is live and answering calls!", "success");
+    } catch(e) { toast(e.message, "error"); saveBtn.disabled = false; saveBtn.textContent = "⚡ Activate"; }
+  });
+}
+
+// ── Quick-create modal: 3-step agent wizard from the dashboard ────────────────
+function openQuickCreate(page) {
+  document.querySelector("#qcm-overlay")?.remove();
+  let qcStep = 1, qcVoice = PREVIEW_VOICES[0], qcLang = PREVIEW_LANGS[0], qcBizType = "";
+
+  const overlay = h(`
+    <div id="qcm-overlay" class="qcm-overlay">
+      <div class="qcm-card">
+        <button class="qcm-close" id="qcm-x">✕</button>
+        <div class="qcm-header">
+          <div class="qcm-title">Create a new agent</div>
+          <div class="qcm-steps-row" id="qcm-steps-row">
+            <div class="qcm-step qcm-step-on" data-n="1"><span class="qcm-snum">1</span>Details</div>
+            <div class="qcm-step-line"></div>
+            <div class="qcm-step" data-n="2"><span class="qcm-snum">2</span>Voice</div>
+            <div class="qcm-step-line"></div>
+            <div class="qcm-step" data-n="3"><span class="qcm-snum">3</span>Phone</div>
+          </div>
+        </div>
+        <!-- Step 1 -->
+        <div class="qcm-body" id="qcm-s1">
+          <label class="qcm-lbl">Agent name</label>
+          <input class="input" id="qcm-name" placeholder="e.g. City Clinic Reception" autofocus/>
+          <label class="qcm-lbl" style="margin-top:16px">Business type</label>
+          <div class="qcm-type-grid">
+            ${["🏥 Clinic","🏨 Hotel","🍽️ Restaurant","✂️ Salon","🏢 Office","⚖️ Legal","🛍️ Retail","🎓 Education","💆 Wellness","📦 Other"].map(t=>`
+              <button class="qcm-type-btn" data-btype="${escapeHtml(t)}">${t}</button>`).join("")}
+          </div>
+        </div>
+        <!-- Step 2 -->
+        <div class="qcm-body qcm-hidden" id="qcm-s2">
+          <label class="qcm-lbl">Voice character</label>
+          <div class="qcm-voice-grid" id="qcm-voice-grid">
+            ${PREVIEW_VOICES.map((v,i)=>`
+              <button class="qcm-voice-btn${i===0?' active':''}" data-vid="${v.id}">
+                <span class="qcm-vname">${v.label}</span>
+                <span class="qcm-vsub">${v.sub}</span>
+              </button>`).join("")}
+          </div>
+          <label class="qcm-lbl" style="margin-top:16px">Language <span class="qcm-opt">(${PREVIEW_LANGS.length} available)</span></label>
+          <select class="input" id="qcm-lang" style="cursor:pointer">
+            ${PREVIEW_LANGS.map(l=>`<option>${escapeHtml(l)}</option>`).join("")}
+          </select>
+        </div>
+        <!-- Step 3 -->
+        <div class="qcm-body qcm-hidden" id="qcm-s3">
+          <div class="qcm-phone-icon">📞</div>
+          <label class="qcm-lbl">Forwarding phone number <span class="qcm-opt">optional</span></label>
+          <input class="input" id="qcm-phone" placeholder="+1 555 000 0000" type="tel"/>
+          <div class="qcm-phone-hint">Set call forwarding on your business phone to this number. You can add it later in the agent builder.</div>
+        </div>
+        <div class="qcm-footer">
+          <button class="btn btn-ghost" id="qcm-back" style="visibility:hidden">← Back</button>
+          <button class="btn btn-primary" id="qcm-next">Next →</button>
+        </div>
+      </div>
+    </div>`);
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add("qcm-in"));
+
+  const close = () => { overlay.classList.remove("qcm-in"); setTimeout(() => overlay.remove(), 220); };
+  overlay.querySelector("#qcm-x").addEventListener("click", close);
+  overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+
+  // Business type selection
+  overlay.querySelectorAll(".qcm-type-btn").forEach(b => b.addEventListener("click", () => {
+    overlay.querySelectorAll(".qcm-type-btn").forEach(x => x.classList.remove("active"));
+    b.classList.add("active"); qcBizType = b.dataset.btype;
+  }));
+
+  // Voice selection
+  overlay.querySelectorAll(".qcm-voice-btn").forEach(b => b.addEventListener("click", () => {
+    overlay.querySelectorAll(".qcm-voice-btn").forEach(x => x.classList.remove("active"));
+    b.classList.add("active"); qcVoice = PREVIEW_VOICES.find(v => v.id === b.dataset.vid) || qcVoice;
+  }));
+
+  // Step navigation
+  const goStep = (n) => {
+    qcStep = n;
+    overlay.querySelectorAll(".qcm-body").forEach((el, i) => el.classList.toggle("qcm-hidden", i + 1 !== n));
+    overlay.querySelectorAll(".qcm-step").forEach(el => {
+      const s = +el.dataset.n;
+      el.classList.toggle("qcm-step-on", s === n);
+      el.classList.toggle("qcm-step-done", s < n);
+    });
+    overlay.querySelector("#qcm-back").style.visibility = n === 1 ? "hidden" : "visible";
+    const nxt = overlay.querySelector("#qcm-next");
+    nxt.textContent = n === 3 ? "✓ Create agent" : "Next →";
+  };
+
+  overlay.querySelector("#qcm-back").addEventListener("click", () => goStep(qcStep - 1));
+  overlay.querySelector("#qcm-next").addEventListener("click", async () => {
+    if (qcStep === 1) {
+      const name = overlay.querySelector("#qcm-name").value.trim();
+      if (!name) { overlay.querySelector("#qcm-name").focus(); return; }
+      goStep(2);
+    } else if (qcStep === 2) {
+      qcLang = overlay.querySelector("#qcm-lang").value || PREVIEW_LANGS[0];
+      goStep(3);
+    } else {
+      // Create the agent
+      const name = overlay.querySelector("#qcm-name").value.trim();
+      const phone = overlay.querySelector("#qcm-phone").value.trim();
+      const nxt = overlay.querySelector("#qcm-next");
+      nxt.disabled = true; nxt.textContent = "Creating…";
+      try {
+        const created = await api("/agents/create", { method: "POST", body: {
+          name, twilio_number: phone,
+          config: {
+            agent_name: name, business_type: qcBizType.replace(/[^\w\s]/g,"").trim(),
+            voice_id: qcVoice.id, language: qcLang,
+          }
+        }});
+        if (phone) {
+          try { await api(`/agents/${created.agent?.id || created.id}/activate`, { method: "POST" }); } catch(_) {}
+        }
+        close();
+        toast(`🎉 ${name} created${phone ? " and activated!" : "!"}`, "success");
+        setTimeout(() => navigate(`#/agents/${created.agent?.id || created.id}/flow`), 400);
+      } catch(e) { toast(e.message, "error"); nxt.disabled = false; nxt.textContent = "✓ Create agent"; }
+    }
+  });
+
+  // Keyboard
+  overlay.addEventListener("keydown", e => {
+    if (e.key === "Escape") close();
+    if (e.key === "Enter" && e.target.tagName !== "BUTTON") overlay.querySelector("#qcm-next").click();
+  });
+}
+
 route("dashboard", async () => {
   const action = h(`<button class="btn btn-primary"><i data-lucide="plus" class="icon"></i>New agent</button>`);
   action.addEventListener("click", () => navigate("#/agents/new"));
@@ -2032,7 +2205,7 @@ route("dashboard", async () => {
       <div class="card p-5">
         <div class="flex items-center justify-between mb-4">
           <div class="font-semibold">Your agents</div>
-          <button class="btn btn-ghost btn-sm" id="new-agent2"><i data-lucide="plus" class="icon"></i></button>
+          <button class="btn btn-primary btn-sm" id="new-agent2"><i data-lucide="plus" class="icon"></i> New</button>
         </div>
         <div id="agents-mini">${skeleton(3)}</div>
       </div>
@@ -2041,8 +2214,8 @@ route("dashboard", async () => {
     <div class="card mt-4" id="dash-preview">
       <div class="dash-prev-head">
         <div>
-          <div class="font-semibold" style="font-size:14px">Agent Voice Preview</div>
-          <div class="text-xs text-muted mt-1">Pick a voice and language — hear exactly how your agent will sound on a live call.</div>
+          <div class="font-semibold" style="font-size:14px">Voice Preview — <span id="dash-prev-agent-name" style="color:var(--primary)">Harkly AI</span></div>
+          <div class="text-xs text-muted mt-1" id="dash-prev-agent-meta">Select an agent to preview their exact voice, or pick manually below.</div>
         </div>
         <button class="dash-prev-play" id="dash-prev-play">
           <span class="dash-prev-dot"></span><span id="dash-prev-lbl">Play sample</span>
@@ -2071,10 +2244,10 @@ route("dashboard", async () => {
     </div>`;
   renderIcons(page);
   $("#see-all", page).addEventListener("click", () => navigate("#/calls"));
-  $("#new-agent2", page).addEventListener("click", () => navigate("#/agents/new"));
+  $("#new-agent2", page).addEventListener("click", () => openQuickCreate(page));
 
   // --- Dashboard Preview section: waveform + voices + languages ---
-  (function initDashPreview() {
+  let _dpc = (function initDashPreview() {
     const canvas = page.querySelector("#dash-prev-wave");
     const playBtn = page.querySelector("#dash-prev-play");
     const lbl = page.querySelector("#dash-prev-lbl");
@@ -2202,6 +2375,29 @@ route("dashboard", async () => {
         },
       });
     });
+
+    // Expose controller so the agents panel can sync voice/lang/name
+    return {
+      syncAgent(agent) {
+        if (!agent) return;
+        const vid = agent.config?.voice_id || agent.voice_id;
+        const v = vid ? (PREVIEW_VOICES.find(x => x.id === vid) || selectedVoice) : selectedVoice;
+        selectedVoice = v; currentPitch = v.pitch;
+        page.querySelectorAll(".dash-prev-voice").forEach(b => b.classList.toggle("active", b.dataset.vid === v.id));
+
+        const rawLang = agent.config?.language || agent.language || "";
+        const l = rawLang
+          ? (PREVIEW_LANGS.find(x => x.toLowerCase().includes(rawLang.toLowerCase().split("(")[0].trim().toLowerCase())) || selectedLang)
+          : selectedLang;
+        selectedLang = l;
+        page.querySelectorAll(".dash-prev-lang").forEach(b => b.classList.toggle("active", b.dataset.lang === l));
+
+        const nameEl = page.querySelector("#dash-prev-agent-name");
+        const metaEl = page.querySelector("#dash-prev-agent-meta");
+        if (nameEl) nameEl.textContent = agent.name;
+        if (metaEl) metaEl.textContent = `${v.label} · ${l} · ${agent.is_active ? "🟢 Live" : "⏸ Paused"}`;
+      }
+    };
   })();
 
   try {
@@ -2216,20 +2412,93 @@ route("dashboard", async () => {
     ].join("");
     renderIcons($("#stats", page));
     renderRecentCalls($("#recent", page), (recent.calls || []).slice(0, 6));
+    const agentList = agents.agents || [];
     const am = $("#agents-mini", page);
     if (!total) {
-      am.innerHTML = `<button class="btn btn-primary" style="width:100%" id="ca">Create your first agent</button>`;
-      $("#ca", am).addEventListener("click", () => navigate("#/agents/new"));
+      am.innerHTML = `
+        <div class="dmi-empty">
+          <div class="dmi-empty-icon">🤖</div>
+          <div class="dmi-empty-txt">No agents yet</div>
+          <button class="btn btn-primary btn-sm" id="ca">Create your first agent</button>
+        </div>`;
+      $("#ca", am).addEventListener("click", () => openQuickCreate(page));
     } else {
-      am.innerHTML = (agents.agents || []).slice(0, 5).map(a => `
-        <div class="flex items-center gap-3" style="padding:10px 0;border-bottom:1px solid var(--border)">
-          <div class="dot ${a.is_active ? 'dot-success' : 'dot-muted'}"></div>
-          <div style="flex:1;min-width:0">
-            <div class="text-sm font-medium truncate">${escapeHtml(a.name)}</div>
-            <div class="text-xs text-muted truncate">${escapeHtml(a.config?.business_name || "")}</div>
+      am.innerHTML = agentList.slice(0, 6).map(a => {
+        const cfg = a.config || {};
+        const lang  = cfg.language || a.language || "English (US)";
+        const voice = cfg.voice_id || a.voice_id || "maya";
+        const vLabel = PREVIEW_VOICES.find(v => v.id === voice)?.label || voice;
+        const hasPhone = !!(a.twilio_number || cfg.forwarding_number || cfg.phone);
+        return `
+        <div class="dmi-row" data-aid="${a.id}" data-voice="${escapeHtml(voice)}" data-lang="${escapeHtml(lang)}">
+          <div class="dmi-dot ${a.is_active ? 'dmi-dot-live' : 'dmi-dot-paused'}"></div>
+          <div class="dmi-body">
+            <div class="dmi-name">${escapeHtml(a.name)}</div>
+            <div class="dmi-meta">${escapeHtml(vLabel)} · ${escapeHtml(lang.split("(")[0].trim())}</div>
           </div>
-          <span class="text-xs text-muted">${a.is_active ? "Live" : "Paused"}</span>
-        </div>`).join("");
+          <button class="dmi-toggle ${a.is_active ? 'dmi-pause-btn' : 'dmi-live-btn'}"
+            data-id="${a.id}" data-active="${a.is_active}" data-has-phone="${hasPhone}"
+            data-name="${escapeHtml(a.name)}">
+            ${a.is_active ? 'Pause' : '⚡ Go Live'}
+          </button>
+        </div>`;
+      }).join("") + `<button class="dmi-new-row" id="dmi-new"><i data-lucide="plus" class="icon" style="width:13px;height:13px"></i> Create new agent</button>`;
+      renderIcons(am);
+
+      // Row click → select + sync preview
+      am.querySelectorAll(".dmi-row").forEach(row => {
+        row.addEventListener("click", e => {
+          if (e.target.closest(".dmi-toggle")) return;
+          am.querySelectorAll(".dmi-row").forEach(r => r.classList.remove("dmi-selected"));
+          row.classList.add("dmi-selected");
+          const agent = agentList.find(a => a.id == row.dataset.aid);
+          if (agent && _dpc) _dpc.syncAgent(agent);
+        });
+      });
+
+      // ⚡ Go Live / Pause toggle
+      am.querySelectorAll(".dmi-toggle").forEach(btn => {
+        btn.addEventListener("click", async e => {
+          e.stopPropagation();
+          const id = btn.dataset.id;
+          const isActive = btn.dataset.active === "true";
+          const hasPhone = btn.dataset.hasPhone === "true";
+          const agentObj = agentList.find(a => a.id == id);
+
+          if (!isActive && !hasPhone) {
+            showQuickActivate(am, btn, id, agentObj); return;
+          }
+          btn.disabled = true;
+          try {
+            await api(`/agents/${id}/${isActive ? "deactivate" : "activate"}`, { method: "POST" });
+            const row = btn.closest(".dmi-row");
+            const dot = row.querySelector(".dmi-dot");
+            if (isActive) {
+              dot.className = "dmi-dot dmi-dot-paused";
+              btn.className = "dmi-toggle dmi-live-btn";
+              btn.textContent = "⚡ Go Live"; btn.dataset.active = "false";
+              if (agentObj) agentObj.is_active = false;
+            } else {
+              dot.className = "dmi-dot dmi-dot-live";
+              btn.className = "dmi-toggle dmi-pause-btn";
+              btn.textContent = "Pause"; btn.dataset.active = "true";
+              if (agentObj) agentObj.is_active = true;
+            }
+            if (_dpc && agentObj && row.classList.contains("dmi-selected")) _dpc.syncAgent(agentObj);
+            toast(isActive ? "Agent paused." : "🎉 Agent is now live!", isActive ? "info" : "success");
+          } catch(err) { toast(err.message, "error"); }
+          btn.disabled = false;
+        });
+      });
+
+      $("#dmi-new", am)?.addEventListener("click", () => openQuickCreate(page));
+
+      // Auto-select first active agent
+      const firstActive = agentList.find(a => a.is_active) || agentList[0];
+      if (firstActive) {
+        am.querySelector(`[data-aid="${firstActive.id}"]`)?.classList.add("dmi-selected");
+        if (_dpc) _dpc.syncAgent(firstActive);
+      }
     }
   } catch (e) { toast(e.message, "error"); }
   return wrap;

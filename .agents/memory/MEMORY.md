@@ -1,0 +1,3 @@
+- [Vapi voice override](vapi-voice-override.md) — use OpenAI TTS provider (not Cartesia/11labs) to avoid crackling; buildVapiOverrides() is the shared helper
+- [Dashboard agent sync](dashboard-agent-sync.md) — initDashPreview returns _dpc controller; agents mini-panel calls _dpc.syncAgent(agent) after load
+- [Canvas→dashboard bridge](canvas-dashboard-bridge.md) — localStorage keys oc_last_voice / oc_last_lang sync canvas card changes to dashboard preview
