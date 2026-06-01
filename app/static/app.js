@@ -16,6 +16,26 @@ function getVapi() {
   return _vapiInstance;
 }
 
+// ── Safe Vapi call helper ─────────────────────────────────────────────────────
+// Clears ALL existing listeners before registering fresh ones so repeated page
+// visits never accumulate duplicate handlers on the shared singleton.
+function startVapiCall(assistantId, overrides, { onStart, onEnd, onSpeechStart, onSpeechEnd, onVolume, onError } = {}) {
+  const vapi = getVapi();
+  if (!vapi) return null;
+  try { vapi.removeAllListeners?.(); } catch (_) {}
+  if (onStart)       vapi.on("call-start",  onStart);
+  if (onEnd)         vapi.on("call-end",     onEnd);
+  if (onSpeechStart) vapi.on("speech-start", onSpeechStart);
+  if (onSpeechEnd)   vapi.on("speech-end",   onSpeechEnd);
+  if (onVolume)      vapi.on("volume-level", onVolume);
+  if (onError)       vapi.on("error",        onError);
+  vapi.start(assistantId, overrides || {});
+  return vapi;
+}
+function stopVapiCall() {
+  try { _vapiInstance?.stop(); } catch (_) {}
+}
+
 // Cartesia voice IDs — update from https://play.cartesia.ai/voices if needed
 const CARTESIA_VOICE_MAP = {
   "maya":   "a0e99841-438c-4a64-b679-ae501e7d6091", // Helpful Woman     — warm, mid-30s
@@ -534,25 +554,46 @@ function mountVoicePreview(container, preselectedLang) {
     "pt-PT":"Olá, aqui é o Harkly AI. Como posso ajudá-lo?",
     "ko-KR":"안녕하세요, Harkly AI입니다. 어떻게 도와드릴까요?",
   };
+  const PREVIEW_ASSISTANT_ID = "d5f28a96-25da-4905-bac8-5dee52a15f4e";
+  let pvCallActive = false;
+
+  function pvOverrides() {
+    const voiceId = CARTESIA_VOICE_MAP[selectedVoice.id];
+    const bcp47   = PREVIEW_LANG_MAP[selectedLang] || "en-US";
+    const dgLang  = bcp47 === "en-GB" ? "en-GB" : bcp47.split("-")[0];
+    const ov = {};
+    if (voiceId)          ov.voice      = { provider: "cartesia", voiceId };
+    if (dgLang !== "en")  ov.transcriber = { provider: "deepgram", language: dgLang };
+    return ov;
+  }
+
   playBtn.addEventListener("click", () => {
-    if (!window.speechSynthesis) { toast("Speech not supported in this browser","error"); return; }
-    if (speaking) {
-      window.speechSynthesis.cancel(); speaking = false;
-      lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); return;
-    }
-    const langCode = PREVIEW_LANG_MAP[selectedLang] || "en-US";
-    const text = GREETINGS[langCode] || `Hi, this is ${Store.user?.name || "your AI receptionist"} from Harkly AI. How can I help you today?`;
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang  = langCode; u.rate = selectedVoice.rate; u.pitch = selectedVoice.pitch;
-    currentPitch = selectedVoice.pitch;
-    speaking = true; lbl.textContent = "Stop"; playBtn.classList.add("playing");
-    u.onend = u.onerror = () => { speaking = false; lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); };
-    try { window.speechSynthesis.speak(u); } catch { speaking = false; lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); }
+    if (pvCallActive) { stopVapiCall(); return; }
+    if (!getVapi()) { toast("Vapi not available — check your connection", "error"); return; }
+    lbl.textContent = "Connecting…"; playBtn.disabled = true;
+    startVapiCall(PREVIEW_ASSISTANT_ID, pvOverrides(), {
+      onStart: () => {
+        pvCallActive = true; speaking = true;
+        lbl.textContent = "🛑 Stop"; playBtn.classList.add("playing"); playBtn.disabled = false;
+      },
+      onEnd: () => {
+        pvCallActive = false; speaking = false;
+        lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); playBtn.disabled = false;
+      },
+      onSpeechStart: () => { speaking = true; level = 0.88; },
+      onSpeechEnd:   () => { speaking = false; level = 0.12; },
+      onVolume: (vol) => { level = 0.12 + vol * 0.80; },
+      onError: () => {
+        pvCallActive = false; speaking = false;
+        lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); playBtn.disabled = false;
+        toast("Could not connect — please check mic permissions", "error");
+      },
+    });
   });
 
   return {
     setVoice(v) { selectedVoice = v; currentPitch = v.pitch; },
-    setLang(l) { selectedLang = l; },
+    setLang(l)  { selectedLang  = l; },
   };
 }
 
@@ -2102,7 +2143,6 @@ route("dashboard", async () => {
     // ── Vapi-powered dashboard preview ──────────────────────────────────────
     const DASH_ASSISTANT_ID = "d5f28a96-25da-4905-bac8-5dee52a15f4e";
     let dashCallActive = false;
-    const dashVapi = getVapi();
 
     function dashOverrides() {
       const cartesiaId = CARTESIA_VOICE_MAP[selectedVoice.id];
@@ -2114,66 +2154,33 @@ route("dashboard", async () => {
       return ov;
     }
 
-    if (dashVapi) {
-      dashVapi.on("call-start", () => {
-        dashCallActive = true;
-        lbl.textContent = "🛑 Stop call";
-        playBtn.classList.add("playing");
-        playBtn.disabled = false;
-        speaking = true;
-        console.log("[Harkly AI] Dashboard preview call started.");
+    playBtn.addEventListener("click", () => {
+      if (dashCallActive) { stopVapiCall(); return; }
+      if (!getVapi()) { toast("Vapi unavailable — check your internet connection", "error"); return; }
+      lbl.textContent = "Connecting…";
+      playBtn.disabled = true;
+      startVapiCall(DASH_ASSISTANT_ID, dashOverrides(), {
+        onStart: () => {
+          dashCallActive = true; speaking = true;
+          lbl.textContent = "🛑 Stop call";
+          playBtn.classList.add("playing"); playBtn.disabled = false;
+        },
+        onEnd: () => {
+          dashCallActive = false; speaking = false;
+          lbl.textContent = "Play sample";
+          playBtn.classList.remove("playing"); playBtn.disabled = false;
+        },
+        onSpeechStart: () => { speaking = true;  level = 0.85; },
+        onSpeechEnd:   () => { speaking = false; level = 0.12; },
+        onVolume: (vol) => { level = 0.12 + vol * 0.80; },
+        onError: () => {
+          dashCallActive = false; speaking = false;
+          lbl.textContent = "Play sample";
+          playBtn.classList.remove("playing"); playBtn.disabled = false;
+          toast("Could not start preview — allow microphone access and retry", "error");
+        },
       });
-      dashVapi.on("call-end", () => {
-        dashCallActive = false; speaking = false;
-        lbl.textContent = "Play sample";
-        playBtn.classList.remove("playing");
-        playBtn.disabled = false;
-        console.log("[Harkly AI] Dashboard preview call ended.");
-      });
-      dashVapi.on("speech-start", () => {
-        speaking = true;
-        level = 0.85;
-      });
-      dashVapi.on("speech-end", () => {
-        speaking = false;
-        level = 0.12;
-      });
-      dashVapi.on("volume-level", (vol) => {
-        level = 0.12 + vol * 0.80;
-      });
-      dashVapi.on("error", () => {
-        dashCallActive = false; speaking = false;
-        lbl.textContent = "Play sample";
-        playBtn.classList.remove("playing");
-        playBtn.disabled = false;
-      });
-
-      playBtn.addEventListener("click", () => {
-        if (dashCallActive) { dashVapi.stop(); return; }
-        const overrides = dashOverrides();
-        console.log("[Harkly AI] Dashboard preview — voice:", selectedVoice.id, "lang:", selectedLang);
-        console.log("[Harkly AI] Dashboard overrides:", JSON.stringify(overrides, null, 2));
-        lbl.textContent = "Connecting…";
-        playBtn.disabled = true;
-        dashVapi.start(DASH_ASSISTANT_ID, overrides);
-      });
-    } else {
-      playBtn.addEventListener("click", () => {
-        if (!window.speechSynthesis) { toast("Speech not supported in this browser", "error"); return; }
-        if (speaking) {
-          window.speechSynthesis.cancel(); speaking = false;
-          lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); return;
-        }
-        const langCode = PREVIEW_LANG_MAP[selectedLang] || "en-US";
-        const text = `Hi, this is ${Store.user?.name || "your AI assistant"} from Harkly AI. How can I help you today?`;
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = langCode; u.rate = selectedVoice.rate; u.pitch = selectedVoice.pitch;
-        currentPitch = selectedVoice.pitch; speaking = true;
-        lbl.textContent = "Stop"; playBtn.classList.add("playing");
-        u.onend = u.onerror = () => { speaking = false; lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); };
-        try { window.speechSynthesis.speak(u); } catch { speaking = false; lbl.textContent = "Play sample"; playBtn.classList.remove("playing"); }
-      });
-    }
+    });
   })();
 
   try {
@@ -3835,14 +3842,38 @@ route("agentSetup", async (id) => {
       const agentName = cfg.agent_name || "your AI receptionist";
       const bizName   = cfg.business_name || "Harkly AI";
       const greeting  = GRTS2[langCode] || `Hi, this is ${agentName} from ${bizName}. How can I help you today?`;
+      const SVP_ASSISTANT_ID = "d5f28a96-25da-4905-bac8-5dee52a15f4e";
+      let svpCallActive = false;
+      function svpOverrides() {
+        const voiceId = CARTESIA_VOICE_MAP[sVoice2.id];
+        const dgLang  = langCode === "en-GB" ? "en-GB" : langCode.split("-")[0];
+        const ov = {};
+        if (voiceId)         ov.voice      = { provider: "cartesia", voiceId };
+        if (dgLang !== "en") ov.transcriber = { provider: "deepgram", language: dgLang };
+        return ov;
+      }
       svpPlay.addEventListener("click", () => {
-        if (!window.speechSynthesis) { toast("Speech not supported in this browser","error"); return; }
-        if (spk2) { window.speechSynthesis.cancel(); spk2=false; svpLbl.textContent="Play"; svpPlay.classList.remove("playing"); return; }
-        const u = new SpeechSynthesisUtterance(greeting);
-        u.lang=langCode; u.rate=sVoice2.rate; u.pitch=sVoice2.pitch; cPitch2=sVoice2.pitch;
-        spk2=true; svpLbl.textContent="Stop"; svpPlay.classList.add("playing");
-        u.onend=u.onerror=()=>{ spk2=false; svpLbl.textContent="Play"; svpPlay.classList.remove("playing"); };
-        try { window.speechSynthesis.speak(u); } catch { spk2=false; svpLbl.textContent="Play"; svpPlay.classList.remove("playing"); }
+        if (svpCallActive) { stopVapiCall(); return; }
+        if (!getVapi()) { toast("Vapi unavailable — check your connection", "error"); return; }
+        svpLbl.textContent = "Connecting…"; svpPlay.disabled = true;
+        startVapiCall(SVP_ASSISTANT_ID, svpOverrides(), {
+          onStart: () => {
+            svpCallActive = true; spk2 = true;
+            svpLbl.textContent = "🛑 Stop"; svpPlay.classList.add("playing"); svpPlay.disabled = false;
+          },
+          onEnd: () => {
+            svpCallActive = false; spk2 = false;
+            svpLbl.textContent = "Play"; svpPlay.classList.remove("playing"); svpPlay.disabled = false;
+          },
+          onSpeechStart: () => { spk2 = true;  lv2 = 0.88; },
+          onSpeechEnd:   () => { spk2 = false; lv2 = 0.12; },
+          onVolume: (vol) => { lv2 = 0.12 + vol * 0.80; },
+          onError: () => {
+            svpCallActive = false; spk2 = false;
+            svpLbl.textContent = "Play"; svpPlay.classList.remove("playing"); svpPlay.disabled = false;
+            toast("Could not start preview — allow microphone access and retry", "error");
+          },
+        });
       });
     })();
 
@@ -4622,76 +4653,35 @@ route("agentFlow", async (id) => {
   const playLbl  = document.getElementById("fb-play-lbl");
   let canvasCallActive = false;
 
-  const vapi = getVapi();
-
-  if (playBtn && vapi) {
-    vapi.on("call-start", () => {
-      canvasCallActive = true;
-      playLbl.textContent = "🛑 Stop call";
-      playBtn.classList.add("playing");
-      playBtn.disabled = false;
-      console.log("[Harkly AI] Canvas preview call started.");
-    });
-
-    vapi.on("call-end", () => {
-      canvasCallActive = false;
-      playLbl.textContent = "▶ Play sample";
-      playBtn.classList.remove("playing");
-      playBtn.disabled = false;
-      console.log("[Harkly AI] Canvas preview call ended.");
-    });
-
-    vapi.on("speech-start", () => {
-      playBtn.classList.add("agent-speaking");
-    });
-
-    vapi.on("speech-end", () => {
-      playBtn.classList.remove("agent-speaking");
-    });
-
-    vapi.on("volume-level", (vol) => {
-      playBtn.style.setProperty("--vapi-vol", vol.toFixed(3));
-    });
-
-    vapi.on("error", (err) => {
-      canvasCallActive = false;
-      playLbl.textContent = "▶ Play sample";
-      playBtn.classList.remove("playing", "agent-speaking");
-      playBtn.disabled = false;
-      console.error("[Harkly AI] Vapi error:", err);
-    });
-
+  if (playBtn) {
     playBtn.addEventListener("click", () => {
-      if (canvasCallActive) {
-        vapi.stop();
-        return;
-      }
-
+      if (canvasCallActive) { stopVapiCall(); return; }
+      if (!getVapi()) { toast("Vapi unavailable — check your connection", "error"); return; }
       const overrides = readCanvasOverrides();
-      console.log("[Harkly AI] Starting canvas preview call.");
-      console.log("[Harkly AI] Assistant ID:", CANVAS_ASSISTANT_ID);
-      console.log("[Harkly AI] Overrides:", JSON.stringify(overrides, null, 2));
-
       playLbl.textContent = "Connecting…";
       playBtn.disabled = true;
-      vapi.start(CANVAS_ASSISTANT_ID, overrides);
-    });
-
-  } else if (playBtn) {
-    // Vapi unavailable — fall back to browser TTS
-    playBtn.addEventListener("click", () => {
-      if (window.speechSynthesis?.speaking) { window.speechSynthesis.cancel(); playLbl.textContent = "▶ Play sample"; return; }
-      const vid = previewEl.querySelector(".fb-vpill.active")?.dataset.voice || "maya";
-      const ls  = document.getElementById("fb-lang-sel");
-      const lc  = PREVIEW_LANG_MAP[ls?.value] || "en-US";
-      const vm  = PREVIEW_VOICES.find(v => v.id === vid) || PREVIEW_VOICES[0];
-      const GREET = { "hi-IN": "नमस्ते, यहाँ Harkly AI है। कैसे मदद करूँ?", "es-ES": "Hola, le habla Harkly AI. ¿En qué le ayudo?", "ar-SA": "مرحبا، هذا Harkly AI. كيف أساعدك؟", "zh-CN": "您好，这里是Harkly AI。我能帮您什么？" };
-      const text = GREET[lc] || "Hi, this is your AI receptionist. How can I help you today?";
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = lc; u.rate = vm.rate; u.pitch = vm.pitch;
-      playLbl.textContent = "⏹ Stop";
-      u.onend = u.onerror = () => { playLbl.textContent = "▶ Play sample"; };
-      try { window.speechSynthesis.speak(u); } catch { playLbl.textContent = "▶ Play sample"; }
+      startVapiCall(CANVAS_ASSISTANT_ID, overrides, {
+        onStart: () => {
+          canvasCallActive = true;
+          playLbl.textContent = "🛑 Stop call";
+          playBtn.classList.add("playing"); playBtn.disabled = false;
+        },
+        onEnd: () => {
+          canvasCallActive = false;
+          playLbl.textContent = "▶ Play sample";
+          playBtn.classList.remove("playing", "agent-speaking"); playBtn.disabled = false;
+        },
+        onSpeechStart: () => { playBtn.classList.add("agent-speaking"); },
+        onSpeechEnd:   () => { playBtn.classList.remove("agent-speaking"); },
+        onVolume: (vol) => { playBtn.style.setProperty("--vapi-vol", vol.toFixed(3)); },
+        onError: (err) => {
+          canvasCallActive = false;
+          playLbl.textContent = "▶ Play sample";
+          playBtn.classList.remove("playing", "agent-speaking"); playBtn.disabled = false;
+          console.error("[Harkly AI] Canvas Vapi error:", err);
+          toast("Could not start preview — allow microphone access and retry", "error");
+        },
+      });
     });
   }
 

@@ -1,0 +1,38 @@
+The issues you are describing (the preview bot not picking up your canvas setup, and the homepage dropdown menus not updating the voice or language during a call) happen because your frontend dropdown selectors aren't passing the user's choices into the Vapi connection script. If you just use fixed IDs, Vapi will always use the defaults configured inside its panel, completely ignoring your custom UI selections.
+
+We are going to give Replit a complete, bulletproof overhaul that bridges your HTML/JS UI variables directly into the Vapi Web SDK initialization sequence.
+
+🛠️ What We Are Fixing (The Blueprint)
+For the Main Homepage (image_89813b.png, image_503335.png): When a user changes the dropdown options for Language (e.g., Hindi) or Voice (e.g., Arjun), our script will grab those active string values right when the "Speak to agent" button is tapped and pass them over as dynamic assistantOverrides.
+
+For the Dashboard Preview (image_898123.png, image_898120.jpg): When a user drops nodes onto the canvas (Image 3) and clicks "Play Sample" in the Preview panel (Image 2), the script will read the active canvas connections to dynamically assemble the overrides.
+
+💻 The Master Prompt for Your Replit AI Agent
+Copy this entire block, open your Replit AI Chat panel, and paste it directly. All of your specific IDs and keys have been populated for you:
+
+Plaintext
+Act as a Senior Frontend Engineer. I need you to completely overhaul our Vapi frontend implementation across our public home website and our user dashboard components to fix critical control bugs. 
+
+Use our existing code structure but update the integration logic using these exact production credentials:
+- Vapi Public Key: "bace6e2b-19b8-403f-84aa-7c9b8ae0dea8"
+- Homepage Assistant ID: "5b54d785-e86b-420e-ace0-26092882287e"
+- Dashboard Master Canvas ID: "d5f28a96-25da-4905-bac8-5dee52a15f4e"
+
+Please fix the following two issues immediately:
+
+1. FIX HOMEPAGE DROPDOWNS (app/static/app.js or main landing file)
+Right now, changing the 'Language' and 'Voice' dropdowns on the home website does nothing because the Vapi call is hardcoded. Update the event listener for the main homepage "Speak to agent" button. When clicked, it must look at the current value of our HTML dropdown selectors for Language and Voice. 
+Create an assistantOverrides object to pass into vapi.start():
+- Map the selected language value to: transcriber.language
+- Map the selected voice value to: voice.voiceId (Use a mapping dictionary to convert names like "Arjun" or "Maya" into their correct Cartesia/Vapi IDs. For example, map "Arjun" to its multi-lingual ID, and "Maya" to its warm ID).
+
+2. FIX DASHBOARD PREVIEW & DRAG-AND-DROP SYNC
+Right now, the "Play sample" button in the Preview component is broken. Update the dashboard preview script so that when "Play sample" is clicked, it automatically reads the active configuration states saved from our Agent Builder drag-and-drop canvas layout. 
+If a user has dragged a 'Languages' card (e.g., English US) or a 'Voice Type' card (e.g., Maya) onto the canvas, extract those values and construct a client-side override payload. Then pass it to vapi.start("d5f28a96-25da-4905-bac8-5dee52a15f4e", assistantOverrides).
+
+3. SOUND WAVE & BUTTON UI FEEDBACK
+Ensure both components handle Vapi SDK connection events ('call-start', 'call-end', 'speech-start', 'speech-end'). When a call is live, update the button states cleanly, and make sure the audio visualization lines react to audio levels.
+
+Provide the complete updated code files or replacement snippets ready to save in Replit.
+⚡ What to Do After Pasting into Replit
+Let Replit AI completely overwrite or insert the new execution code blocks.
