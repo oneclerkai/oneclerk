@@ -3543,6 +3543,10 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   -webkit-background-clip: text;
           background-clip: text;
   -webkit-text-fill-color: transparent;
+  opacity: 0.8;
+}
+.lp-title.lp-title-one .lp-title-line:last-child em {
+  opacity: 0.85;
 }
 @media (max-width: 900px) {
   .lp-title.lp-title-one { font-size: clamp(18px, 4.2vw, 38px); }
