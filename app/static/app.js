@@ -1228,30 +1228,43 @@ function initVoiceTester(root) {
     btn.addEventListener("click", () => {
       if (vapiCallActive) {
         vapi.stop();
-      } else {
-        setButtonConnecting();
-        status.innerHTML = `<strong>Connecting…</strong>`;
-
-        // Build overrides from the Language and Voice dropdowns
-        const homepageLangVal  = langSel  ? langSel.value  : "English (US)";
-        const homepageVoiceVal = voiceSel ? voiceSel.value : "Maya — warm, mid-30s";
-        // Extract voice key: "Maya — warm, mid-30s" → "maya"
-        const homepageVoiceKey = homepageVoiceVal.split("—")[0].trim().toLowerCase();
-        const homepageCartesiaId = CARTESIA_VOICE_MAP[homepageVoiceKey];
-        // Reuse TRY_LANG_MAP for BCP-47 code
-        const homepageBcp47 = (TRY_LANG_MAP[homepageLangVal] || {}).code || "en-US";
-        const homepageDeepgramLang = homepageBcp47 === "en-GB" ? "en-GB" : homepageBcp47.split("-")[0];
-
-        const homepageOverrides = {};
-        if (homepageCartesiaId) {
-          homepageOverrides.voice = { provider: "cartesia", voiceId: homepageCartesiaId };
-        }
-        if (homepageDeepgramLang !== "en") {
-          homepageOverrides.transcriber = { provider: "deepgram", language: homepageDeepgramLang };
-        }
-
-        vapi.start("5b54d785-e86b-420e-ace0-26092882287e", homepageOverrides);
+        return;
       }
+      setButtonConnecting();
+      status.innerHTML = `<strong>Connecting…</strong> Requesting mic access…`;
+
+      // Async IIFE — request mic BEFORE Vapi.start for instant permission pop-up
+      (async () => {
+        try {
+          await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (_) {
+          setButtonIdle();
+          status.innerHTML = `<strong style="color:#ff5868">Mic blocked.</strong> Allow microphone access in your browser, then tap again.`;
+          return;
+        }
+
+        const langVal   = langSel  ? langSel.value  : "English (US)";
+        const voiceVal  = voiceSel ? voiceSel.value : "Maya — warm, mid-30s";
+        const agentType = agentSel ? agentSel.value : "professional front desk receptionist";
+
+        // Map dropdown label → PREVIEW_VOICES id → OpenAI TTS voice
+        const voiceKey = voiceVal.split("—")[0].trim().toLowerCase();
+        const voiceObj = PREVIEW_VOICES.find(v => v.id === voiceKey) || PREVIEW_VOICES[0];
+        // Build overrides using the shared helper (OpenAI TTS + Deepgram STT)
+        const overrides = buildVapiOverrides(voiceObj, langVal);
+        // Always inject agent-type system prompt (overrides any language-only prompt)
+        overrides.model = {
+          messages: [{ role: "system", content: `You are an AI voice receptionist for a ${agentType}. Be warm, professional and concise. Always respond in ${langVal}. Help the caller efficiently.` }],
+        };
+
+        status.innerHTML = `<strong>Connecting…</strong> Starting call in ${langVal}…`;
+        // 5 s timeout guard
+        const timeout = setTimeout(() => {
+          if (!vapiCallActive) { setButtonIdle(); status.innerHTML = `Connection timed out — tap again to retry.`; }
+        }, 5000);
+        vapi.on("call-start", () => clearTimeout(timeout));
+        vapi.start("5b54d785-e86b-420e-ace0-26092882287e", overrides);
+      })();
     });
   } else {
     btn.addEventListener("click", startConversation);
@@ -4552,14 +4565,15 @@ route("agentFlow", async (id) => {
   page.appendChild(agentSubtabs(id, "flow"));
 
   const INT_CARDS = [
-    { type: "whatsapp",  label: "WhatsApp Live",    color: "#25D366", brandKey: "whatsapp", icon: "message-circle" },
-    { type: "gmail",     label: "Gmail",             color: "#EA4335", brandKey: "gmail",    icon: "mail"           },
-    { type: "gcal",      label: "Google Calendar",   color: "#1A73E8", brandKey: "gcal",     icon: "calendar"       },
-    { type: "info",      label: "Business Info",     color: "#6366F1", brandKey: null,       icon: "file-text"      },
-    { type: "phone",     label: "Phone Number",      color: "#0D6EFD", brandKey: "phone",    icon: "phone"          },
-    { type: "voice",     label: "Voice Type",        color: "#F59E0B", brandKey: null,       icon: "mic"            },
-    { type: "language",  label: "Languages",         color: "#10B981", brandKey: null,       icon: "globe"          },
-    { type: "slack",     label: "Slack Alerts",      color: "#4A154B", brandKey: "slack",    icon: "layers"         },
+    { type: "phone",     label: "Phone Number",     color: "#0D6EFD", brandKey: "phone",    icon: "phone"          },
+    { type: "agent",     label: "Agent (AI Brain)", color: "#8B5CF6", brandKey: null,       icon: "cpu"            },
+    { type: "whatsapp",  label: "WhatsApp Notify",  color: "#25D366", brandKey: "whatsapp", icon: "message-circle" },
+    { type: "gmail",     label: "Gmail Follow-up",  color: "#EA4335", brandKey: "gmail",    icon: "mail"           },
+    { type: "gcal",      label: "Google Calendar",  color: "#1A73E8", brandKey: "gcal",     icon: "calendar"       },
+    { type: "voice",     label: "Voice Type",       color: "#F59E0B", brandKey: null,       icon: "mic"            },
+    { type: "language",  label: "Language",         color: "#10B981", brandKey: null,       icon: "globe"          },
+    { type: "info",      label: "Business Info",    color: "#6366F1", brandKey: null,       icon: "file-text"      },
+    { type: "slack",     label: "Slack Alerts",     color: "#4A154B", brandKey: "slack",    icon: "layers"         },
   ];
 
   const saved = (cfg.flow_v2 && cfg.flow_v2.cards) ? cfg.flow_v2 : { cards: [], edges: [] };
@@ -4568,18 +4582,7 @@ route("agentFlow", async (id) => {
 
   function genId() { return "c" + Math.random().toString(36).slice(2, 9); }
 
-  // Pre-populate with a starter layout when this is a fresh agent
-  if (state.cards.length === 0) {
-    const pid = genId(), vid = genId(), lid = genId(), iid = genId(), wid = genId();
-    state.cards = [
-      { id: pid, type: "phone",    x: 30,  y: 40,  config: {} },
-      { id: vid, type: "voice",    x: 310, y: 40,  config: { voice: "maya" } },
-      { id: lid, type: "language", x: 590, y: 40,  config: { language: "English (US)" } },
-      { id: iid, type: "info",     x: 30,  y: 218, config: {} },
-      { id: wid, type: "whatsapp", x: 310, y: 218, config: {} },
-    ];
-    state.edges = [{ from: pid, to: vid }, { from: vid, to: lid }];
-  }
+  // Start with an empty canvas — the tutorial guides first-time users through the panel
 
   function cardMeta(type) { return INT_CARDS.find(c => c.type === type) || INT_CARDS[3]; }
 
@@ -4648,6 +4651,7 @@ route("agentFlow", async (id) => {
     gmail:    [{ field: "email",    label: "Gmail address"     }],
     gcal:     [{ field: "calendly", label: "booking URL"       }],
     slack:    [{ field: "webhook",  label: "Slack webhook URL" }],
+    agent:    [],
     voice:    [],
     language: [],
     info:     [],
@@ -4759,8 +4763,12 @@ route("agentFlow", async (id) => {
   function cardBodyHTML(card) {
     const c = card.config || {};
     const ci = (ph, field, val) => `<input class="fb-ci" placeholder="${ph}" data-field="${field}" value="${escapeHtml(val || '')}" />`;
+    if (card.type === "agent") return `
+      <select class="fb-ci" data-field="voice">${PREVIEW_VOICES.map(v => `<option value="${v.id}"${c.voice===v.id?" selected":""}>${v.label} — ${v.sub}</option>`).join("")}</select>
+      <select class="fb-ci" data-field="language" style="margin-top:5px">${PREVIEW_LANGS.map(l => `<option${c.language===l?" selected":""}>${l}</option>`).join("")}</select>
+      <textarea class="fb-ci" style="resize:vertical;min-height:40px;margin-top:5px" data-field="text" placeholder="Business info, FAQs, hours, services…">${escapeHtml(c.text||'')}</textarea>`;
     if (card.type === "voice") return `<select class="fb-ci" data-field="voice">${PREVIEW_VOICES.map(v => `<option value="${v.id}"${c.voice===v.id?" selected":""}>${v.label} — ${v.sub}</option>`).join("")}</select>`;
-    if (card.type === "language") return `<select class="fb-ci" data-field="language">${PREVIEW_LANGS.slice(0,15).map(l => `<option${c.language===l?" selected":""}>${l}</option>`).join("")}</select>`;
+    if (card.type === "language") return `<select class="fb-ci" data-field="language">${PREVIEW_LANGS.map(l => `<option${c.language===l?" selected":""}>${l}</option>`).join("")}</select>`;
     if (card.type === "phone") return ci("Forwarding number e.g. +1 555 0100", "phone", c.phone);
     if (card.type === "whatsapp") return ci("WhatsApp number for summaries", "whatsapp", c.whatsapp);
     if (card.type === "gmail") return ci("Gmail address", "email", c.email);
@@ -4774,9 +4782,11 @@ route("agentFlow", async (id) => {
   }
 
   function portPos(card, side) {
+    const el = itemsEl.querySelector(`[data-cid="${card.id}"]`);
+    const h  = (el?.offsetHeight) || CARD_H;
     return side === "out"
-      ? { x: card.x + CARD_W, y: card.y + CARD_H / 2 }
-      : { x: card.x,          y: card.y + CARD_H / 2 };
+      ? { x: card.x + CARD_W, y: card.y + h / 2 }
+      : { x: card.x,          y: card.y + h / 2 };
   }
 
   function bezier(sx, sy, tx, ty) {
@@ -4786,11 +4796,14 @@ route("agentFlow", async (id) => {
   }
 
   // Connection validation rules — what each card type may output to
+  // Central model: Phone → Agent (AI Brain) → outputs (WhatsApp/Gmail/Calendar/Slack)
+  // Voice/Language/Info can configure Agent directly, or flow independently.
   const CONN_RULES = {
-    phone:    ["voice", "language", "info"],
-    voice:    ["language", "info"],
-    language: ["voice", "info"],
-    info:     ["gcal", "whatsapp", "gmail", "slack"],
+    phone:    ["agent", "voice", "language", "info"],
+    agent:    ["whatsapp", "gmail", "gcal", "slack"],
+    voice:    ["agent", "language", "info"],
+    language: ["agent", "voice", "info"],
+    info:     ["agent", "gcal", "whatsapp", "gmail", "slack"],
     gcal:     ["whatsapp", "gmail", "slack"],
     whatsapp: [],
     gmail:    [],
@@ -4798,6 +4811,7 @@ route("agentFlow", async (id) => {
   };
   const CONN_DENY_REASONS = {
     phone:    "Phone is the starting point — nothing should connect into it from another card.",
+    agent:    "Agent is a hub — connect into it from Phone/Voice/Language/Info, and out from it to WhatsApp/Gmail/Calendar.",
     whatsapp: "WhatsApp Notify is a terminal step. It sends a summary and the flow ends there.",
     gmail:    "Gmail is a terminal step. It sends a follow-up email and the flow ends there.",
     slack:    "Slack is a terminal step. It sends an alert and the flow ends there.",
@@ -4938,17 +4952,17 @@ route("agentFlow", async (id) => {
           card.config = card.config || {};
           card.config[inp.dataset.field] = inp.value;
           // Bridge canvas selections → dashboard preview (persisted across navigation)
-          if (card.type === "voice"    && inp.dataset.field === "voice")    localStorage.setItem("oc_last_voice", inp.value);
-          if (card.type === "language" && inp.dataset.field === "language") localStorage.setItem("oc_last_lang",  inp.value);
-          // Sync canvas state to global preview state
+          if ((card.type === "agent" || card.type === "voice")    && inp.dataset.field === "voice")    localStorage.setItem("oc_last_voice", inp.value);
+          if ((card.type === "agent" || card.type === "language") && inp.dataset.field === "language") localStorage.setItem("oc_last_lang",  inp.value);
+          // Sync canvas state to global preview state (agent card takes priority over standalone cards)
           (function syncCanvasState() {
+            const ac = state.cards.find(c => c.type === "agent");
             const vc = state.cards.find(c => c.type === "voice");
             const lc = state.cards.find(c => c.type === "language");
-            const LANG_MAP = { "English (US)": "en-US", "Hindi (हिंदी)": "hi-IN", "Spanish": "es-ES", "Arabic (عربي)": "ar-SA", "Tamil (தமிழ்)": "ta-IN", "French": "fr-FR", "Mandarin": "zh-CN", "Portuguese": "pt-PT", "German": "de-DE", "Japanese": "ja-JP" };
-            window.harklyCanvasState = {
-              voiceId:  (vc?.config?.voice) || "maya",
-              language: LANG_MAP[lc?.config?.language] || "en-US",
-            };
+            const LANG_MAP = PREVIEW_LANG_MAP;
+            const voiceId  = ac?.config?.voice    || vc?.config?.voice    || "maya";
+            const langKey  = ac?.config?.language || lc?.config?.language || "English (US)";
+            window.harklyCanvasState = { voiceId, language: LANG_MAP[langKey] || "en-US" };
           })();
           updateActivationBar();
           checkAutoActivate();
@@ -5148,7 +5162,7 @@ route("agentFlow", async (id) => {
   }
 
   // ── Blur-based step-by-step tutorial with arrow pointers ─────────────────────
-  const FLOW_TUT_KEY = "oc_seen_flow_tutorial_v2";
+  const FLOW_TUT_KEY = "oc_seen_flow_tutorial_v3";
   function showFlowTutorial() {
     if (localStorage.getItem(FLOW_TUT_KEY)) {
       const replayBtn = h(`<button class="btn btn-sm" id="fb-tut-replay" title="Replay tutorial" style="font-size:11px">📖 Tutorial</button>`);
@@ -5159,84 +5173,62 @@ route("agentFlow", async (id) => {
     }
 
     const phoneCard = () => state.cards.find(c => c.type === "phone");
-    const voiceCard = () => state.cards.find(c => c.type === "voice");
 
-    // Each step: icon, title, body (newline-split), detail (italic sub-note),
-    // target (CSS selector to spotlight, or null), arrow direction,
-    // check() → null | { type:"err"|"ok"|"hint", msg, list? }
+    // Steps spotlight individual cards in the panel so users understand each one
     const STEPS = [
       {
         icon: "🎯", title: "Welcome to the Agent Builder",
-        body: "This canvas is your AI receptionist's brain. Cards represent the integrations your agent uses during every call — voice, language, business knowledge, bookings, and notifications.",
-        detail: "Keyboard shortcut: ← → to navigate, Esc to close.",
+        body: "Build your AI receptionist by dragging integration cards from the right panel onto the canvas.\nEach card is one capability your agent has — phone answering, voice character, notifications, bookings.",
+        detail: "Use ← → to navigate · Esc to close.",
         target: null, arrow: null, check: null,
       },
       {
-        icon: "📦", title: "Step 1 — Drag cards onto the canvas",
-        body: "The panel on the right lists every available integration. Drag any card onto the canvas to add it, or click it to auto-place.",
-        detail: "Good starting set: Phone → Voice → Language → WhatsApp",
-        target: ".fb-glass-panel", arrow: "left", check: null,
+        icon: "📞", title: "Phone — the mandatory starting point",
+        body: "Every agent starts here. Enter your business forwarding number and when a caller doesn't reach you, Harkly AI answers in under 2 seconds.",
+        detail: "Required — your agent won't activate without this card on the canvas.",
+        target: ".fb-gpc[data-type='phone']", arrow: "left", check: null,
       },
       {
-        icon: "📞", title: "Step 2 — Phone card is mandatory",
-        body: "Every agent must start with the Phone card. It holds your forwarding number — when a caller doesn't reach you, Harkly AI picks up within 2 seconds.\n\nEnter your forwarding number inside the card after adding it.",
-        detail: "Nothing works without the Phone card on the canvas.",
-        target: null, arrow: null,
-        check: () => {
-          const pc = phoneCard();
-          if (!pc) return { type: "hint", msg: "⚠️  Phone card not on canvas yet. Drag it from the right panel to continue." };
-          const cfg = pc.config || {};
-          if (!cfg.phone) return { type: "hint", msg: "✏️  Phone card added! Now enter your forwarding number inside it." };
-          return { type: "ok", msg: "✅  Phone card configured with a forwarding number." };
-        },
+        icon: "🤖", title: "Agent — your AI brain",
+        body: "The Agent card IS your receptionist. It holds the voice, language, and business knowledge all in one.\nAll other cards connect to or from the Agent — it's the central hub.",
+        detail: "Tip: the recommended first connection is Phone → Agent.",
+        target: ".fb-gpc[data-type='agent']", arrow: "left", check: null,
       },
       {
-        icon: "🔗", title: "Step 3 — Connect cards with arrows",
-        body: "Hover over any card and drag the → handle on its RIGHT edge onto another card to create a connection. The arrow defines the order of operations during each call.",
-        detail: "Click any connection line to delete it.",
-        target: ".fb-port-out", arrow: "right", check: null,
+        icon: "💬", title: "WhatsApp — call summaries sent to you",
+        body: "After every call, your agent sends a WhatsApp recap to your number with caller info, reason for the call, any booking made, and urgency level.",
+        detail: "Connect: Agent → WhatsApp (terminal — no connections out).",
+        target: ".fb-gpc[data-type='whatsapp']", arrow: "left", check: null,
       },
       {
-        icon: "🚫", title: "Connection rules — what is and isn't allowed",
-        body: "The builder enforces logical order:\n✅  Phone → Voice / Language / Info\n✅  Info → WhatsApp / Calendar / Gmail / Slack\n❌  Phone → WhatsApp (must go via Info first)\n❌  WhatsApp / Gmail → anything (they are terminal)",
-        detail: "Invalid connections are blocked with a clear error message.",
+        icon: "📧", title: "Gmail — personalised follow-up emails",
+        body: "Your agent sends the caller a personalised email after the call — confirmations, quotes, intake forms, or just 'Thanks for calling'.",
+        detail: "Connect: Agent → Gmail (terminal — no connections out).",
+        target: ".fb-gpc[data-type='gmail']", arrow: "left", check: null,
+      },
+      {
+        icon: "📅", title: "Calendar — live appointment booking",
+        body: "Connect your Calendly link and the agent captures the caller's details, then books the appointment directly into your calendar during the live call.",
+        detail: "Connect: Agent → Calendar. Great for clinics, salons and consultancies.",
+        target: ".fb-gpc[data-type='gcal']", arrow: "left", check: null,
+      },
+      {
+        icon: "🔗", title: "Connect cards with arrows",
+        body: "Once cards are on the canvas:\n1. Hover a card to see the → handle on its right edge\n2. Drag from the handle onto another card\n3. A curved arrow shows the connection\n4. Click any arrow to remove it",
+        detail: "Recommended first flow: Phone → Agent → WhatsApp",
         target: null, arrow: null, check: null,
       },
       {
-        icon: "🎙️", title: "Step 4 — Set Voice & Language",
-        body: "Voice card: choose your agent's speaking character — warm, professional, calm, or friendly. Language card: pick from 30+ languages. Both sync live to the dashboard voice preview.",
-        detail: "Tip: try the voice preview on the dashboard before going live.",
-        target: null, arrow: null,
-        check: () => {
-          if (!voiceCard()) return { type: "hint", msg: "💡  Drag the Voice card from the right panel to choose how your agent sounds." };
-          return null;
-        },
-      },
-      {
-        icon: "📄", title: "Step 5 — Business Info = the AI's brain",
-        body: "Paste your FAQs, opening hours, service menu, prices, and policies into the Info card. The richer this is, the smarter and more accurate your agent's answers will be.",
-        detail: "Example: 'Open Mon–Sat 9am–6pm. Haircuts £25, colour from £60.'",
-        target: null, arrow: null, check: null,
-      },
-      {
-        icon: "💾", title: "Step 6 — Save & activate",
-        body: "When the flow looks right, click Save agent. Your agent goes live instantly — any caller who doesn't reach you gets answered by your AI.",
+        icon: "💾", title: "Save & activate",
+        body: "When your flow is ready, click Save & activate. Your agent goes live instantly — every caller who doesn't reach you gets answered by AI.",
         detail: null,
         target: "#fb-save", arrow: "bottom",
         check: () => {
           const issues   = validateCards();
           const hasPhone = !!phoneCard();
-          if (!hasPhone) return {
-            type: "err",
-            msg:  "⚠️  <strong>Phone card missing.</strong> Drag it from the right panel — it is the required entry point.",
-            list: [],
-          };
-          if (issues.length > 0) return {
-            type: "err",
-            msg:  `⚠️  <strong>${issues.length} issue${issues.length > 1 ? "s" : ""} to fix before saving:</strong>`,
-            list: issues.map(iss => `${cardMeta(iss.card.type).label}: add <strong>${iss.req.label}</strong>`),
-          };
-          return { type: "ok", msg: "✅  <strong>All set!</strong> Click Save agent to go live right now." };
+          if (!hasPhone) return { type: "err", msg: "⚠️ <strong>Phone card missing.</strong> Drag it from the right panel — it's the required entry point.", list: [] };
+          if (issues.length > 0) return { type: "err", msg: `⚠️ <strong>${issues.length} issue${issues.length > 1 ? "s" : ""} to fix:</strong>`, list: issues.map(iss => `${cardMeta(iss.card.type).label}: add <strong>${iss.req.label}</strong>`) };
+          return { type: "ok", msg: "✅ <strong>All set!</strong> Click Save & activate to go live right now." };
         },
       },
     ];
@@ -5431,281 +5423,145 @@ route("agentFlow", async (id) => {
 
   // ── Demo / How-to Guide ──────────────────────────────────────────────────
   function openDemoGuide() {
-    // ── Card definitions (mirrors builder INT_CARDS) ──────────────────────
+    // ── Card definitions ──────────────────────────────────────────────────
     const GUIDE_CARDS = [
-      { type: "phone",    label: "Phone Number",    color: "#0D6EFD", icon: "📞",
-        badge: "REQUIRED",
-        desc: "The entry point of every call flow. When a caller doesn't reach you, Harkly AI picks up your forwarding number in under 2 seconds and handles the conversation.",
-        field: "Forwarding: +1 (555) 010-0100",
-        howto: "Add your business forwarding number. Set your phone's 'Forward when unanswered' to this number." },
-      { type: "voice",    label: "Voice Type",      color: "#F59E0B", icon: "🎙️",
-        badge: "RECOMMENDED",
-        desc: "Pick your agent's voice character — warm and friendly, calm and professional, or authoritative. This setting syncs live to the voice preview on the dashboard.",
-        field: "Voice: Maya — Warm & professional",
-        howto: "Choose a voice that matches your brand tone. Preview it on the dashboard before going live." },
-      { type: "language", label: "Language",        color: "#10B981", icon: "🌍",
-        badge: "RECOMMENDED",
-        desc: "Set the primary language your AI speaks in. With 30+ languages available, your agent can greet international callers in their own language from the very first word.",
-        field: "Language: English (US)",
-        howto: "Pick the main language for your business. You can create multiple agents for different languages." },
-      { type: "info",     label: "Business Info",   color: "#6366F1", icon: "📄",
-        badge: "HIGHLY RECOMMENDED",
-        desc: "Paste your FAQs, opening hours, service menu, pricing, and policies here. This is the AI's brain — the richer this content, the more accurately it answers questions.",
-        field: "Paste FAQs, hours, menu, pricing…",
-        howto: "Start with hours, services and prices. Add FAQs over time as you see what callers ask." },
-      { type: "whatsapp", label: "WhatsApp Notify", color: "#25D366", icon: "💬",
-        badge: "TERMINAL",
-        desc: "After every call, your agent sends a WhatsApp recap to the owner: caller number, reason for call, booking made, urgency level. Always place at the end of the flow.",
-        field: "Owner WhatsApp: +44 7700 900000",
-        howto: "Enter the WhatsApp number you want to receive call summaries on. Connect AFTER Info cards." },
-      { type: "gcal",     label: "Google Calendar", color: "#1A73E8", icon: "📅",
-        badge: "OPTIONAL",
-        desc: "Connect your Calendly or Google Meet booking link. When a caller wants to book, the agent captures their details and drops the appointment into your real calendar.",
-        field: "Calendly URL: calendly.com/your-name",
-        howto: "Link your Calendly page. Great for clinics, salons, consultancies, hotels." },
-      { type: "gmail",    label: "Gmail Follow-up", color: "#EA4335", icon: "📧",
-        badge: "TERMINAL",
-        desc: "Send the caller a personalised follow-up email after the call ends — confirmation details, quotes, intake forms, or a simple 'Thanks for calling'. Always a terminal step.",
-        field: "From: hello@yourbusiness.com",
-        howto: "Enter the Gmail address you want emails sent from. Authorise Google access once in Settings." },
-      { type: "slack",    label: "Slack Alert",     color: "#4A154B", icon: "🔔",
-        badge: "OPTIONAL",
-        desc: "Get an instant Slack message when an urgent call comes in. Paste your Slack Incoming Webhook URL and your whole team is notified the moment something critical happens.",
-        field: "Webhook URL: hooks.slack.com/services/…",
-        howto: "Create an Incoming Webhook in your Slack workspace and paste the URL here." },
+      { type: "phone",    label: "Phone Number",    color: "#0D6EFD", icon: "📞", badge: "REQUIRED",
+        desc: "The entry point of every call flow. When a caller doesn't reach you, Harkly AI picks up in under 2 seconds.",
+        fields: ["Forwarding: +1 (555) 010-0100"],
+        why: "Required — your agent won't activate without this card." },
+      { type: "agent",    label: "Agent (AI Brain)", color: "#8B5CF6", icon: "🤖", badge: "REQUIRED",
+        desc: "The core AI receptionist. Connect Phone into it; it sends results to WhatsApp, Gmail, and Calendar.",
+        fields: ["Voice: Maya — Warm, mid-30s", "Language: English (US)", "Business info: hours, services, FAQs"],
+        why: "Central hub — all configuration and outputs flow through the Agent." },
+      { type: "whatsapp", label: "WhatsApp Notify", color: "#25D366", icon: "💬", badge: "TERMINAL",
+        desc: "Sends a WhatsApp recap to you after every call: caller, reason, booking made, urgency level.",
+        fields: ["Owner WhatsApp: +44 7700 900000"],
+        why: "Terminal — always at the end of the flow. No connections out." },
+      { type: "gmail",    label: "Gmail Follow-up", color: "#EA4335", icon: "📧", badge: "TERMINAL",
+        desc: "Sends the caller a personalised email — confirmations, quotes, intake forms, or a simple thanks.",
+        fields: ["From: hello@yourbusiness.com"],
+        why: "Terminal — the call ends here. Great for sending intake forms or booking confirmations." },
+      { type: "gcal",     label: "Google Calendar", color: "#1A73E8", icon: "📅", badge: "OPTIONAL",
+        desc: "Live appointment booking. Agent captures details and drops the event into your calendar.",
+        fields: ["Calendly URL: calendly.com/your-name"],
+        why: "Recommended for clinics, salons, consultancies, and hotels." },
+      { type: "voice",    label: "Voice Type",      color: "#F59E0B", icon: "🎙️", badge: "RECOMMENDED",
+        desc: "Standalone voice selector. Use this for granular control separate from the Agent card.",
+        fields: ["Voice: Maya / Arjun / Sofia / Daniel / Linh"],
+        why: "The Agent card has a built-in voice picker. Use this for advanced multi-voice setups." },
+      { type: "language", label: "Language",        color: "#10B981", icon: "🌍", badge: "RECOMMENDED",
+        desc: "Standalone language selector. 30+ languages. Use for multi-language agent setups.",
+        fields: ["Language: English (US) / Hindi / Spanish / French…"],
+        why: "For multi-language businesses — create one agent per language with this card." },
+      { type: "info",     label: "Business Info",   color: "#6366F1", icon: "📄", badge: "RECOMMENDED",
+        desc: "Paste FAQs, hours, menu, and policies. This is the AI's knowledge base for answering questions.",
+        fields: ["Hours, services, prices, policies, FAQs"],
+        why: "The richer this is, the more accurately your agent answers caller questions." },
+      { type: "slack",    label: "Slack Alert",     color: "#4A154B", icon: "🔔", badge: "OPTIONAL",
+        desc: "Instant Slack notification to your team when an urgent call comes in.",
+        fields: ["Webhook URL: hooks.slack.com/services/…"],
+        why: "Great for teams — everyone knows immediately when something critical happens." },
     ];
 
     // ── Connection rules ──────────────────────────────────────────────────
-    const CONN_RULES = [
-      { from: "📞 Phone",    to: "🎙️ Voice / 🌍 Language / 📄 Info",          ok: true,  note: "Route the incoming call to voice setup or knowledge." },
-      { from: "🎙️ Voice",    to: "🌍 Language / 📄 Info",                      ok: true,  note: "Chain voice config into language or business info." },
-      { from: "🌍 Language", to: "🎙️ Voice / 📄 Info",                         ok: true,  note: "Language pairs with voice and knowledge steps." },
-      { from: "📄 Info",     to: "💬 WhatsApp / 📅 Calendar / 📧 Gmail / 🔔 Slack", ok: true, note: "After knowledge, route to notifications or bookings." },
-      { from: "📞 Phone",    to: "💬 WhatsApp (direct)",                        ok: false, note: "WhatsApp needs context from Info first." },
-      { from: "💬 WhatsApp", to: "Anything — it's terminal",                   ok: false, note: "Terminal cards cannot have outgoing connections." },
-      { from: "📧 Gmail",    to: "Anything — it's terminal",                   ok: false, note: "Terminal cards cannot have outgoing connections." },
+    const CONN_GUIDE_RULES = [
+      { from: "📞 Phone",    to: "🤖 Agent",              ok: true,  why: "The call routes from your forwarding number directly to the AI Agent." },
+      { from: "🎙️ Voice",    to: "🤖 Agent",              ok: true,  why: "Configures how the Agent speaks — warm, professional, calm, etc." },
+      { from: "🌍 Language", to: "🤖 Agent",              ok: true,  why: "Tells the Agent which language to use for the conversation." },
+      { from: "📄 Info",     to: "🤖 Agent",              ok: true,  why: "Gives the Agent its knowledge — hours, services, FAQs, prices." },
+      { from: "🤖 Agent",    to: "💬 WhatsApp",           ok: true,  why: "After the call, Agent sends you a full recap on WhatsApp." },
+      { from: "🤖 Agent",    to: "📧 Gmail",              ok: true,  why: "Agent sends the caller a personalised follow-up email." },
+      { from: "🤖 Agent",    to: "📅 Calendar",           ok: true,  why: "Agent books the appointment directly into your calendar." },
+      { from: "🤖 Agent",    to: "🔔 Slack",              ok: true,  why: "Agent alerts your team channel when an urgent call arrives." },
+      { from: "📞 Phone",    to: "💬 WhatsApp (direct)",  ok: false, why: "Phone must route through Agent first — WhatsApp needs call context." },
+      { from: "💬 WhatsApp", to: "Anything",              ok: false, why: "Terminal card — the flow ends here. No outgoing connections allowed." },
+      { from: "📧 Gmail",    to: "Anything",              ok: false, why: "Terminal card — the flow ends here. No outgoing connections allowed." },
     ];
 
-    // ── Use-case templates ────────────────────────────────────────────────
-    const USE_CASES = [
-      {
-        icon: "🦷", title: "Dental Clinic", sub: "Appointment booking & FAQ reception", color: "#0D6EFD",
-        flow: ["📞 Phone","🎙️ Voice","🌍 Language","📄 Info","📅 Calendar","💬 WhatsApp"],
-        setup: [
-          { card:"🎙️ Voice",    tip:"Choose Professional & calm — patients are often nervous." },
-          { card:"📄 Info",     tip:"Add hours, accepted insurance, emergency walk-in policy, treatment list with prices." },
-          { card:"📅 Calendar", tip:"Link your Calendly for check-up and consultation bookings." },
-          { card:"💬 WhatsApp", tip:"Set your front-desk WhatsApp to get a recap after every call." },
-        ],
-      },
-      {
-        icon: "🏨", title: "Hotel / B&B", sub: "Reservations & concierge queries", color: "#6366F1",
-        flow: ["📞 Phone","🎙️ Voice","🌍 Language","📄 Info","📅 Calendar","💬 WhatsApp"],
-        setup: [
-          { card:"🌍 Language", tip:"Add Spanish, French or German if you have international guests." },
-          { card:"📄 Info",     tip:"Room types, nightly rates, check-in/out times, amenities, local attractions, cancellation policy." },
-          { card:"📅 Calendar", tip:"Link a room-reservation booking page." },
-          { card:"🎙️ Voice",    tip:"Warm & welcoming — it's the first impression of the hotel." },
-        ],
-      },
-      {
-        icon: "🍽️", title: "Restaurant", sub: "Table reservations & menu enquiries", color: "#F59E0B",
-        flow: ["📞 Phone","🎙️ Voice","📄 Info","📅 Calendar","💬 WhatsApp"],
-        setup: [
-          { card:"📄 Info",     tip:"Full menu with prices, allergen info, daily specials, opening hours, address and parking." },
-          { card:"📅 Calendar", tip:"Link your OpenTable or Resy page for table reservations." },
-          { card:"🎙️ Voice",    tip:"Friendly & energetic to match the restaurant's vibe." },
-          { card:"💬 WhatsApp", tip:"Get an alert when a large-party booking (8+ people) is requested." },
-        ],
-      },
-      {
-        icon: "✂️", title: "Hair Salon / Spa", sub: "Appointment booking & service enquiries", color: "#EC4899",
-        flow: ["📞 Phone","🎙️ Voice","📄 Info","📅 Calendar","💬 WhatsApp"],
-        setup: [
-          { card:"📄 Info",     tip:"Services list with prices — cuts, colour, perms, blowdry, facials, waxing. Mention top stylists." },
-          { card:"📅 Calendar", tip:"One Calendly per stylist — create multiple agents for each team member." },
-          { card:"🎙️ Voice",    tip:"Warm & friendly mirrors the salon atmosphere perfectly." },
-          { card:"💬 WhatsApp", tip:"Quick notification to the front desk after every new appointment call." },
-        ],
-      },
-      {
-        icon: "⚖️", title: "Law Office", sub: "Client intake & consultation scheduling", color: "#10B981",
-        flow: ["📞 Phone","🎙️ Voice","📄 Info","📅 Calendar","📧 Gmail","💬 WhatsApp"],
-        setup: [
-          { card:"🎙️ Voice",    tip:"Professional & authoritative — builds immediate credibility and trust." },
-          { card:"📄 Info",     tip:"Practice areas, fee structure, what to prepare for a first consultation, disclaimers." },
-          { card:"📅 Calendar", tip:"Free-consultation booking link — qualify clients before they arrive." },
-          { card:"📧 Gmail",    tip:"Send a confirmation email with the intake form link immediately after the call." },
-          { card:"💬 WhatsApp", tip:"Urgent alert for time-sensitive legal matters." },
-        ],
-      },
+    // ── Flow diagram data ─────────────────────────────────────────────────
+    const FLOW_CONFIG = [
+      { color:"#F59E0B", icon:"🎙️", label:"Voice",    sub:"How it sounds" },
+      { color:"#10B981", icon:"🌍", label:"Language",  sub:"What it speaks" },
+      { color:"#6366F1", icon:"📄", label:"Info",      sub:"What it knows" },
+      { color:"#0D6EFD", icon:"📞", label:"Phone",     sub:"Entry point" },
+    ];
+    const FLOW_HUB    = { color:"#8B5CF6", icon:"🤖", label:"Agent", sub:"AI brain" };
+    const FLOW_OUT    = [
+      { color:"#25D366", icon:"💬", label:"WhatsApp", sub:"Call summary" },
+      { color:"#EA4335", icon:"📧", label:"Gmail",    sub:"Follow-up email" },
+      { color:"#1A73E8", icon:"📅", label:"Calendar", sub:"Booking" },
+      { color:"#4A154B", icon:"🔔", label:"Slack",    sub:"Alert" },
     ];
 
-    // ── Tips ──────────────────────────────────────────────────────────────
-    const TIPS = [
-      { icon: "🚀", title: "Start with the minimum viable flow",
-        desc: "Begin with Phone → Voice → Language. Once that works, layer in Info and WhatsApp. A simple flow live today beats a perfect flow never." },
-      { icon: "📞", title: "Phone card is non-negotiable",
-        desc: "Every agent needs exactly one Phone card. It's the entry point and holds your forwarding number. Without it, nothing activates." },
-      { icon: "💡", title: "Business Info = the more, the smarter",
-        desc: "The AI answers questions directly from what you paste in the Info card. FAQs, pricing, hours, policies — the more detail, the fewer misses." },
-      { icon: "🔗", title: "Connect cards by dragging the → handle",
-        desc: "Hover over a card to reveal the → handle on its right edge. Drag it onto another card to create a flow connection. Click any arrow to delete it." },
-      { icon: "🎨", title: "One agent per phone line or persona",
-        desc: "Create separate agents for different roles — 'Sales line' in English, 'Support line' in Spanish, or one per stylist in your salon. Each gets its own Twilio number." },
-      { icon: "💬", title: "WhatsApp recap keeps you in control",
-        desc: "Add a WhatsApp card at the end of every flow. You get a post-call summary with caller number, intent, booking status and urgency — even while you're with a client." },
-      { icon: "📅", title: "Calendar card = no more double-bookings",
-        desc: "Connect your Calendly link to let the AI capture and schedule appointments directly into your calendar during the call — no human needed." },
-      { icon: "🔄", title: "Save means live — there's no draft mode",
-        desc: "Every time you hit Save agent the changes go live immediately. Test on a real phone first by calling your forwarding number from another device." },
-    ];
-
-    // ── Tab content builders ──────────────────────────────────────────────
-    function buildOverview() {
-      return `
-        <div class="dg-overview-hero">
-          <div class="dg-overview-badge">📖 QUICK START</div>
-          <div class="dg-overview-title">Build your AI receptionist in 4 steps</div>
-          <div class="dg-overview-desc">The Agent Builder is a visual canvas. Drag integration cards on, fill in the details, draw connection arrows to define the call sequence, and save. Your AI is live the moment you hit Save.</div>
-        </div>
-        <div class="dg-steps-grid">
-          ${[
-            { n:1, icon:"📦", t:"Drag cards onto the canvas",  d:"Open the right panel and drag Phone, Voice, Language and any extras you need onto the canvas." },
-            { n:2, icon:"✏️",  t:"Fill in each card's details", d:"Click inputs inside the cards. Add your phone number, choose a voice, paste your FAQs and hours." },
-            { n:3, icon:"🔗", t:"Connect cards in order",      d:"Drag the → handle on the right edge of a card onto another to draw a connection arrow." },
-            { n:4, icon:"💾", t:"Save — your agent is live",    d:"Hit Save agent. Your forwarding number activates instantly. Callers who don't reach you get answered by AI." },
-          ].map(s => `
-            <div class="dg-step-card">
-              <div class="dg-step-num">${s.n}</div>
-              <div class="dg-step-icon">${s.icon}</div>
-              <div class="dg-step-title">${s.t}</div>
-              <div class="dg-step-desc">${s.d}</div>
-            </div>`).join("")}
-        </div>
-        <div class="dg-flow-demo-wrap">
-          <div class="dg-flow-demo-label">Example minimal flow</div>
-          <div class="dg-flow-demo">
-            ${[
-              { label:"📞 Phone",    color:"#0D6EFD" },
-              { label:"🎙️ Voice",    color:"#F59E0B" },
-              { label:"🌍 Language", color:"#10B981" },
-              { label:"📄 Info",     color:"#6366F1" },
-              { label:"💬 WhatsApp", color:"#25D366" },
-            ].map((n, idx, arr) => `
-              <div class="dg-flow-node" style="border-color:${n.color}55;background:${n.color}11">${n.label}</div>
-              ${idx < arr.length-1 ? '<span class="dg-flow-arrow">→</span>' : ""}`).join("")}
-          </div>
-        </div>`;
+    function mkNode(c) {
+      return `<div class="dg-conn-node" style="border-color:${c.color}50;background:${c.color}10">
+        <span style="font-size:15px">${c.icon}</span>
+        <div><div class="dg-conn-node-lbl">${c.label}</div><div class="dg-conn-node-sub">${c.sub}</div></div>
+      </div>`;
     }
 
     function buildCards() {
       return `<div class="dg-cards-grid">${GUIDE_CARDS.map(c => `
         <div class="dg-card-item" style="--dg-c:${c.color}">
-          <div class="dg-card-top-stripe" style="background:linear-gradient(90deg,${c.color}33,transparent)"></div>
+          <div class="dg-card-stripe" style="background:${c.color}"></div>
           <div class="dg-card-head">
-            <div class="dg-card-icon-wrap" style="background:${c.color}1a;border:1.5px solid ${c.color}44">
-              <span style="font-size:18px">${c.icon}</span>
+            <div class="dg-card-ico" style="background:${c.color}1f;border:1.5px solid ${c.color}44">
+              <span style="font-size:16px">${c.icon}</span>
             </div>
-            <div style="flex:1;min-width:0">
-              <div class="dg-card-lbl">${c.label}</div>
-              <div class="dg-card-type">${c.type}</div>
-            </div>
+            <div class="dg-card-lbl" style="flex:1;min-width:0">${c.label}</div>
             <div class="dg-card-badge dg-badge-${c.badge.split(' ')[0].toLowerCase()}">${c.badge}</div>
           </div>
           <div class="dg-card-body">
             <div class="dg-card-desc">${c.desc}</div>
-            <div class="dg-card-field-demo">📝 ${escapeHtml(c.field)}</div>
-            <div class="dg-card-howto">💡 ${c.howto}</div>
+            ${c.fields.map(f => `<div class="dg-card-field">📝 ${escapeHtml(f)}</div>`).join("")}
+            <div class="dg-card-why">💡 ${c.why}</div>
           </div>
         </div>`).join("")}</div>`;
     }
 
     function buildConnect() {
       return `
-        <div class="dg-conn-section">
-          <div class="dg-conn-title">Connection rules at a glance</div>
-          <div class="dg-conn-rules">
-            ${CONN_RULES.map(r => `
-              <div class="dg-conn-rule ${r.ok ? "dg-rule-ok" : "dg-rule-no"}">
-                <div class="dg-rule-head">
-                  <span class="dg-rule-icon">${r.ok ? "✅" : "❌"}</span>
-                  <span class="dg-rule-from"><strong>${r.from}</strong> → ${r.to}</span>
-                </div>
-                <div class="dg-rule-note">${r.note}</div>
-              </div>`).join("")}
+        <div class="dg-conn-diagram">
+          <div class="dg-conn-diagram-title">How cards connect — the central hub model</div>
+          <div class="dg-conn-flow">
+            <div class="dg-conn-col">
+              ${FLOW_CONFIG.map(c => `${mkNode(c)}<div class="dg-conn-arr">→</div>`).join("")}
+            </div>
+            <div class="dg-conn-hub">${mkNode(FLOW_HUB)}</div>
+            <div class="dg-conn-col dg-conn-col-right">
+              ${FLOW_OUT.map(c => `<div class="dg-conn-arr">→</div>${mkNode(c)}`).join("")}
+            </div>
           </div>
         </div>
-        <div class="dg-conn-section">
-          <div class="dg-conn-title">How to draw a connection</div>
-          <div class="dg-how-connect">
-            ${[
-              { n:1, t:"Hover over any card", d:"A small circle handle appears on the right edge of the card (the → port)." },
-              { n:2, t:"Click & drag the handle", d:"Start dragging from the → handle on the source card. A preview line follows your cursor." },
-              { n:3, t:"Drop onto the target card", d:"Drag onto the destination card and release. A curved arrow appears between the two cards." },
-              { n:4, t:"Delete a connection", d:"Click anywhere on a connection line — a trash icon appears. Click it to remove the connection." },
-            ].map(s => `
-              <div class="dg-how-step">
-                <div class="dg-how-num">${s.n}</div>
-                <div><div class="dg-how-title">${s.t}</div><div class="dg-how-desc">${s.d}</div></div>
+        <div class="dg-conn-rules-section">
+          <div class="dg-conn-rules-title">Connection rules — what is allowed and why</div>
+          <div class="dg-conn-rules-list">
+            ${CONN_GUIDE_RULES.map(r => `
+              <div class="dg-conn-rule ${r.ok ? "dg-rule-ok" : "dg-rule-no"}">
+                <span class="dg-rule-icon">${r.ok ? "✅" : "❌"}</span>
+                <div>
+                  <div class="dg-rule-from"><strong>${r.from}</strong> → ${r.to}</div>
+                  <div class="dg-rule-why">${r.why}</div>
+                </div>
               </div>`).join("")}
           </div>
         </div>`;
     }
 
-    function buildUseCases() {
-      return `<div class="dg-uc-grid">${USE_CASES.map(uc => `
-        <div class="dg-uc-card" style="--uc-c:${uc.color}">
-          <div class="dg-uc-head">
-            <div class="dg-uc-icon-wrap" style="background:${uc.color}1a;border:1.5px solid ${uc.color}44">${uc.icon}</div>
-            <div style="flex:1">
-              <div class="dg-uc-title">${uc.title}</div>
-              <div class="dg-uc-sub">${uc.sub}</div>
-            </div>
-          </div>
-          <div class="dg-uc-flow-row">
-            <div class="dg-uc-flow-label">Recommended flow</div>
-            <div class="dg-uc-flow">
-              ${uc.flow.map((n,idx,arr) => `
-                <span class="dg-uc-node" style="border-color:${uc.color}33;background:${uc.color}0d">${n}</span>
-                ${idx < arr.length-1 ? '<span class="dg-uc-arrow">→</span>' : ''}`).join('')}
-            </div>
-          </div>
-          <div class="dg-uc-setup">
-            ${uc.setup.map(s => `
-              <div class="dg-uc-setup-row">
-                <span class="dg-uc-setup-card">${s.card}</span>
-                <span class="dg-uc-setup-tip">${s.tip}</span>
-              </div>`).join('')}
-          </div>
-        </div>`).join('')}</div>`;
-    }
-
-    function buildTips() {
-      return `<div class="dg-tips-list">${TIPS.map(t => `
-        <div class="dg-tip">
-          <div class="dg-tip-icon">${t.icon}</div>
-          <div><div class="dg-tip-title">${t.title}</div><div class="dg-tip-desc">${t.desc}</div></div>
-        </div>`).join("")}</div>`;
-    }
-
-    const TAB_FNS = { overview: buildOverview, cards: buildCards, connect: buildConnect, usecases: buildUseCases, tips: buildTips };
+    const TAB_FNS = { cards: buildCards, connect: buildConnect };
 
     const modal = h(`<div class="demo-guide-ov" id="dg-ov">
       <div class="demo-guide-modal">
         <div class="demo-guide-header">
           <div>
-            <div class="demo-guide-htitle">📖 Agent Builder — Complete Guide</div>
+            <div class="demo-guide-htitle">📖 Builder Guide</div>
             <div class="demo-guide-hsub">Everything you need to build your AI receptionist</div>
           </div>
           <button class="demo-guide-close" id="dg-close" title="Close">×</button>
         </div>
         <div class="demo-guide-tabs" id="dg-tabs">
-          <button class="dg-tab active" data-tab="overview">Overview</button>
-          <button class="dg-tab" data-tab="cards">Card types</button>
+          <button class="dg-tab active" data-tab="cards">Card Types</button>
           <button class="dg-tab" data-tab="connect">Connections</button>
-          <button class="dg-tab" data-tab="usecases">Use cases</button>
-          <button class="dg-tab" data-tab="tips">Tips</button>
         </div>
         <div class="demo-guide-body" id="dg-body"></div>
       </div>
@@ -5715,10 +5571,10 @@ route("agentFlow", async (id) => {
     function showTab(name) {
       modal.querySelectorAll(".dg-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
       const body = $("#dg-body", modal);
-      body.innerHTML = (TAB_FNS[name] || buildOverview)();
+      body.innerHTML = (TAB_FNS[name] || buildCards)();
       renderIcons(body);
     }
-    showTab("overview");
+    showTab("cards");
     modal.querySelectorAll(".dg-tab").forEach(t => t.addEventListener("click", () => showTab(t.dataset.tab)));
 
     const closeGuide = () => modal.remove();
