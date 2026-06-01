@@ -5151,7 +5151,6 @@ route("agentFlow", async (id) => {
   const FLOW_TUT_KEY = "oc_seen_flow_tutorial_v2";
   function showFlowTutorial() {
     if (localStorage.getItem(FLOW_TUT_KEY)) {
-      // Add a subtle "replay" button to the toolbar area
       const replayBtn = h(`<button class="btn btn-sm" id="fb-tut-replay" title="Replay tutorial" style="font-size:11px">📖 Tutorial</button>`);
       const bar = shellEl.querySelector(".fb-canvas-bar div");
       if (bar) bar.prepend(replayBtn);
@@ -5159,73 +5158,112 @@ route("agentFlow", async (id) => {
       return;
     }
 
-    // Steps: target is a CSS selector inside the page, or null for center-only
+    const phoneCard = () => state.cards.find(c => c.type === "phone");
+    const voiceCard = () => state.cards.find(c => c.type === "voice");
+
+    // Each step: icon, title, body (newline-split), detail (italic sub-note),
+    // target (CSS selector to spotlight, or null), arrow direction,
+    // check() → null | { type:"err"|"ok"|"hint", msg, list? }
     const STEPS = [
       {
         icon: "🎯", title: "Welcome to the Agent Builder",
-        body: "This canvas is your AI receptionist's brain. Cards represent the integrations your agent needs — voice, language, phone, bookings, and notifications. Build the flow in about 2 minutes.",
+        body: "This canvas is your AI receptionist's brain. Cards represent the integrations your agent uses during every call — voice, language, business knowledge, bookings, and notifications.",
+        detail: "Keyboard shortcut: ← → to navigate, Esc to close.",
+        target: null, arrow: null, check: null,
+      },
+      {
+        icon: "📦", title: "Step 1 — Drag cards onto the canvas",
+        body: "The panel on the right lists every available integration. Drag any card onto the canvas to add it, or click it to auto-place.",
+        detail: "Good starting set: Phone → Voice → Language → WhatsApp",
+        target: ".fb-glass-panel", arrow: "left", check: null,
+      },
+      {
+        icon: "📞", title: "Step 2 — Phone card is mandatory",
+        body: "Every agent must start with the Phone card. It holds your forwarding number — when a caller doesn't reach you, Harkly AI picks up within 2 seconds.\n\nEnter your forwarding number inside the card after adding it.",
+        detail: "Nothing works without the Phone card on the canvas.",
         target: null, arrow: null,
+        check: () => {
+          const pc = phoneCard();
+          if (!pc) return { type: "hint", msg: "⚠️  Phone card not on canvas yet. Drag it from the right panel to continue." };
+          const cfg = pc.config || {};
+          if (!cfg.phone) return { type: "hint", msg: "✏️  Phone card added! Now enter your forwarding number inside it." };
+          return { type: "ok", msg: "✅  Phone card configured with a forwarding number." };
+        },
       },
       {
-        icon: "📦", title: "Drag cards from the panel",
-        body: "The right panel has all available integrations. Drag any card onto the canvas — or click it to auto-place. Start with Phone, Voice, and Language if they're not already there.",
-        target: ".fb-glass-panel", arrow: "left",
+        icon: "🔗", title: "Step 3 — Connect cards with arrows",
+        body: "Hover over any card and drag the → handle on its RIGHT edge onto another card to create a connection. The arrow defines the order of operations during each call.",
+        detail: "Click any connection line to delete it.",
+        target: ".fb-port-out", arrow: "right", check: null,
       },
       {
-        icon: "📞", title: "Phone card = entry point",
-        body: "The Phone card is your starting point. Enter your forwarding number and your agent will auto-activate the moment it's saved. Nothing connects INTO the phone card — it always starts the flow.",
-        target: `.fb-card[data-cid="${state.cards.find(c=>c.type==='phone')?.id}"]`, arrow: "right",
+        icon: "🚫", title: "Connection rules — what is and isn't allowed",
+        body: "The builder enforces logical order:\n✅  Phone → Voice / Language / Info\n✅  Info → WhatsApp / Calendar / Gmail / Slack\n❌  Phone → WhatsApp (must go via Info first)\n❌  WhatsApp / Gmail → anything (they are terminal)",
+        detail: "Invalid connections are blocked with a clear error message.",
+        target: null, arrow: null, check: null,
       },
       {
-        icon: "🔗", title: "Connect cards with arrows",
-        body: "Drag the → handle on the RIGHT edge of a card onto another card to create a connection. The arrow shows the order of events during a call. Click any connection line to delete it.",
-        target: ".fb-port-out", arrow: "right",
-      },
-      {
-        icon: "🚫", title: "Smart connection rules",
-        body: "Not all connections make sense — and Harkly AI enforces logical rules:\n• Phone → Voice / Language / Info ✅\n• Info → WhatsApp / Calendar / Gmail ✅\n• WhatsApp → Phone ❌ (blocked)\n• Notification cards (WhatsApp, Gmail) are terminal — they end the flow.",
+        icon: "🎙️", title: "Step 4 — Set Voice & Language",
+        body: "Voice card: choose your agent's speaking character — warm, professional, calm, or friendly. Language card: pick from 30+ languages. Both sync live to the dashboard voice preview.",
+        detail: "Tip: try the voice preview on the dashboard before going live.",
         target: null, arrow: null,
+        check: () => {
+          if (!voiceCard()) return { type: "hint", msg: "💡  Drag the Voice card from the right panel to choose how your agent sounds." };
+          return null;
+        },
       },
       {
-        icon: "🎙️", title: "Voice & Language cards",
-        body: "Use the Voice card to pick your agent's voice character and the Language card to set the primary language. Changes sync instantly to the dashboard voice preview — test it live!",
-        target: `.fb-card[data-cid="${state.cards.find(c=>c.type==='voice')?.id}"]`, arrow: "right",
+        icon: "📄", title: "Step 5 — Business Info = the AI's brain",
+        body: "Paste your FAQs, opening hours, service menu, prices, and policies into the Info card. The richer this is, the smarter and more accurate your agent's answers will be.",
+        detail: "Example: 'Open Mon–Sat 9am–6pm. Haircuts £25, colour from £60.'",
+        target: null, arrow: null, check: null,
       },
       {
-        icon: "💬", title: "WhatsApp Notify = post-call",
-        body: "The WhatsApp card sends a call summary to the owner after every call. It must come AFTER info/booking cards — it can never connect directly to Phone or Voice.",
-        target: null, arrow: null,
-      },
-      {
-        icon: "💾", title: "Save to lock it in",
-        body: "Hit 'Save agent' when you're done. Voice and Language selections automatically update your agent's settings. If a phone number is set, your agent is already live!",
+        icon: "💾", title: "Step 6 — Save & activate",
+        body: "When the flow looks right, click Save agent. Your agent goes live instantly — any caller who doesn't reach you gets answered by your AI.",
+        detail: null,
         target: "#fb-save", arrow: "bottom",
+        check: () => {
+          const issues   = validateCards();
+          const hasPhone = !!phoneCard();
+          if (!hasPhone) return {
+            type: "err",
+            msg:  "⚠️  <strong>Phone card missing.</strong> Drag it from the right panel — it is the required entry point.",
+            list: [],
+          };
+          if (issues.length > 0) return {
+            type: "err",
+            msg:  `⚠️  <strong>${issues.length} issue${issues.length > 1 ? "s" : ""} to fix before saving:</strong>`,
+            list: issues.map(iss => `${cardMeta(iss.card.type).label}: add <strong>${iss.req.label}</strong>`),
+          };
+          return { type: "ok", msg: "✅  <strong>All set!</strong> Click Save agent to go live right now." };
+        },
       },
     ];
 
     let i = 0;
     const ov = h(`<div class="ftut2-overlay" id="ftut2-ov">
       <div class="ftut2-spotlight" id="ftut2-spot"></div>
-      <svg class="ftut2-svg-arrow" id="ftut2-svgarr" viewBox="0 0 ${window.innerWidth} ${window.innerHeight}">
+      <svg class="ftut2-svg-arrow" id="ftut2-svgarr" viewBox="0 0 ${window.innerWidth} ${window.innerHeight}" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <marker id="ftut2-mh" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-            <path d="M0 .5 L7.5 4 L0 7.5z" fill="#6366f1"/>
+          <marker id="ftut2-mh" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+            <path d="M0 1.5 L9 5 L0 8.5z" fill="#6366f1"/>
           </marker>
         </defs>
-        <line class="ftut2-arr-line" id="ftut2-arrline" x1="0" y1="0" x2="0" y2="0" marker-end="url(#ftut2-mh)"/>
+        <path class="ftut2-arr-path" id="ftut2-arrpath" d="" marker-end="url(#ftut2-mh)"/>
       </svg>
-      <div class="ftut2-arr-emoji" id="ftut2-arr"></div>
+      <div class="ftut2-pointer" id="ftut2-ptr" style="opacity:0"></div>
       <div class="ftut2-card" id="ftut2-card">
         <div class="ftut2-progress" id="ftut2-prog"></div>
         <div class="ftut2-meta">
           <span class="ftut2-icon" id="ftut2-icon"></span>
-          <span class="ftut2-step" id="ftut2-step"></span>
+          <span class="ftut2-step-badge" id="ftut2-step"></span>
         </div>
         <div class="ftut2-title" id="ftut2-title"></div>
         <div class="ftut2-body" id="ftut2-body"></div>
         <div class="ftut2-btns">
           <button class="ftut2-skip" id="ftut2-skip">Skip tour</button>
-          <div style="display:flex;gap:8px;align-items:center">
+          <div style="display:flex;gap:8px">
             <button class="ftut2-nav" id="ftut2-back" disabled>← Back</button>
             <button class="ftut2-nav ftut2-primary" id="ftut2-next">Next →</button>
           </div>
@@ -5233,7 +5271,8 @@ route("agentFlow", async (id) => {
       </div>
     </div>`);
     document.body.appendChild(ov);
-    void ov.offsetWidth; ov.classList.add("ftut2-in");
+    void ov.offsetWidth;
+    ov.classList.add("ftut2-in");
 
     function close() {
       localStorage.setItem(FLOW_TUT_KEY, "1");
@@ -5242,18 +5281,19 @@ route("agentFlow", async (id) => {
     }
 
     function place() {
-      const step = STEPS[i];
-      const spot     = $("#ftut2-spot", ov);
-      const arrEmoji = $("#ftut2-arr", ov);
-      const arrLine  = ov.querySelector("#ftut2-arrline");
-      const svgArr   = ov.querySelector("#ftut2-svgarr");
-      const card     = $("#ftut2-card", ov);
-      spot.style.cssText = "opacity:0;width:0;height:0";
-      arrEmoji.style.cssText = "opacity:0";
-      if (arrLine) { arrLine.setAttribute("x1","0"); arrLine.setAttribute("y1","0"); arrLine.setAttribute("x2","0"); arrLine.setAttribute("y2","0"); }
+      const step  = STEPS[i];
+      const spot  = $("#ftut2-spot", ov);
+      const ptr   = $("#ftut2-ptr", ov);
+      const path  = ov.querySelector("#ftut2-arrpath");
+      const svgEl = ov.querySelector("#ftut2-svgarr");
+      const card  = $("#ftut2-card", ov);
 
-      const cw = 360;
-      const ch = 280;
+      spot.className = "ftut2-spotlight ftut2-spot-hidden";
+      ptr.style.opacity = "0";
+      if (path) path.setAttribute("d", "");
+      ov.classList.remove("ftut2-centered");
+
+      const CW = 360;
       const vw = window.innerWidth;
       const vh = window.innerHeight;
 
@@ -5261,105 +5301,112 @@ route("agentFlow", async (id) => {
         const tEl = document.querySelector(step.target);
         if (tEl) {
           const r   = tEl.getBoundingClientRect();
-          const PAD = 10;
-          // Spotlight: glowing ring via CSS class (no inline box-shadow override needed)
-          spot.style.cssText = `position:fixed;left:${r.left-PAD}px;top:${r.top-PAD}px;width:${r.width+PAD*2}px;height:${r.height+PAD*2}px;opacity:1;pointer-events:none;z-index:10002;`;
+          const PAD = 12;
+          spot.className = "ftut2-spotlight";
+          spot.style.cssText = `left:${r.left-PAD}px;top:${r.top-PAD}px;width:${r.width+PAD*2}px;height:${r.height+PAD*2}px;`;
 
-          // Card placement + SVG arrow from card to spotlight
-          const a  = step.arrow || "right";
-          let cx, cy, lx1, ly1, lx2, ly2, emojiX, emojiY, emojiCls, emojiCh;
-          const tCX = r.left + r.width / 2;
+          const a   = step.arrow || "right";
+          const CH  = card.offsetHeight || 290;
+          const tCX = r.left + r.width  / 2;
           const tCY = r.top  + r.height / 2;
+          let cx, cy, ax, ay, bx, by, ptrX, ptrY, ptrCls, ptrCh;
 
           if (a === "left") {
-            cx = Math.max(12, r.left - cw - 40);
-            cy = Math.max(12, Math.min(vh - ch - 12, tCY - ch / 2));
-            lx1 = cx + cw; ly1 = cy + ch / 2;
-            lx2 = r.left - PAD - 8; ly2 = tCY;
-            emojiX = r.left - PAD - 34; emojiY = tCY;
-            emojiCls = "arr-left"; emojiCh = "➡️";
+            cx = Math.max(12, r.left - CW - 48);
+            cy = Math.max(12, Math.min(vh - CH - 12, tCY - CH / 2));
+            ax = cx + CW;        ay = cy + CH / 2;
+            bx = r.left - PAD - 8; by = tCY;
+            ptrX = r.left - PAD - 38; ptrY = tCY;
+            ptrCls = "arr-right"; ptrCh = "👉";
           } else if (a === "bottom") {
-            cx = Math.max(12, Math.min(vw - cw - 12, tCX - cw / 2));
-            cy = Math.max(12, r.top - ch - 40);
-            lx1 = cx + cw / 2; ly1 = cy + ch;
-            lx2 = tCX; ly2 = r.top - PAD - 8;
-            emojiX = tCX; emojiY = r.top - PAD - 34;
-            emojiCls = "arr-bot"; emojiCh = "⬇️";
+            cx = Math.max(12, Math.min(vw - CW - 12, tCX - CW / 2));
+            cy = Math.max(12, r.top - CH - 48);
+            ax = cx + CW / 2;  ay = cy + CH;
+            bx = tCX;          by = r.top - PAD - 8;
+            ptrX = tCX;        ptrY = r.top - PAD - 40;
+            ptrCls = "arr-bot"; ptrCh = "👇";
           } else {
-            // right (default) — card is to the right, arrow points left toward target
-            cx = Math.min(vw - cw - 12, r.right + 40);
-            cy = Math.max(12, Math.min(vh - ch - 12, tCY - ch / 2));
-            lx1 = cx; ly1 = cy + ch / 2;
-            lx2 = r.right + PAD + 8; ly2 = tCY;
-            emojiX = r.right + PAD + 8; emojiY = tCY;
-            emojiCls = "arr-right"; emojiCh = "⬅️";
+            cx = Math.min(vw - CW - 12, r.right + 48);
+            cy = Math.max(12, Math.min(vh - CH - 12, tCY - CH / 2));
+            ax = cx;             ay = cy + CH / 2;
+            bx = r.right + PAD + 8; by = tCY;
+            ptrX = r.right + PAD + 10; ptrY = tCY;
+            ptrCls = "arr-left"; ptrCh = "👈";
           }
 
-          card.style.cssText = `position:fixed;left:${cx}px;top:${cy}px;width:${cw}px;`;
+          card.style.cssText = `left:${cx}px;top:${cy}px;`;
 
-          // Draw SVG line from card edge to spotlight
-          if (arrLine && svgArr) {
-            svgArr.setAttribute("viewBox", `0 0 ${vw} ${vh}`);
-            arrLine.setAttribute("x1", String(lx1));
-            arrLine.setAttribute("y1", String(ly1));
-            arrLine.setAttribute("x2", String(lx2));
-            arrLine.setAttribute("y2", String(ly2));
+          // Curved bezier path
+          if (path && svgEl) {
+            svgEl.setAttribute("viewBox", `0 0 ${vw} ${vh}`);
+            const mx = (ax + bx) / 2;
+            const my = (ay + by) / 2;
+            const dx = bx - ax; const dy = by - ay;
+            const cpX = mx - dy * 0.28; const cpY = my + dx * 0.28;
+            path.setAttribute("d", `M ${ax} ${ay} Q ${cpX} ${cpY} ${bx} ${by}`);
           }
 
-          // Position bouncing emoji arrow
-          arrEmoji.className = `ftut2-arr-emoji ${emojiCls}`;
-          arrEmoji.textContent = emojiCh;
-          const eBase = emojiCls === "arr-bot"
-            ? `position:fixed;left:${emojiX}px;top:${emojiY}px;transform:translateX(-50%);opacity:1;`
-            : `position:fixed;left:${emojiX}px;top:${emojiY}px;opacity:1;`;
-          arrEmoji.style.cssText = eBase;
-
+          ptr.className = `ftut2-pointer ${ptrCls}`;
+          ptr.textContent = ptrCh;
+          ptr.style.cssText = ptrCls === "arr-bot"
+            ? `left:${ptrX}px;top:${ptrY}px;transform:translateX(-50%);opacity:1;`
+            : `left:${ptrX}px;top:${ptrY}px;transform:translateY(-50%);opacity:1;`;
           return;
         }
       }
-      // Centered card — no spotlight, no arrow
-      card.style.cssText = `position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:${cw}px;`;
+
+      // No target / target missing — centered card with dark background
+      ov.classList.add("ftut2-centered");
+      card.style.cssText = `left:50%;top:50%;transform:translate(-50%,-50%);`;
     }
 
     function render() {
-      const s = STEPS[i];
+      const s    = STEPS[i];
       const prog = $("#ftut2-prog", ov);
       prog.innerHTML = STEPS.map((_, j) => `<span class="ftut2-pd${j===i?" on":j<i?" done":""}"></span>`).join("");
-      $("#ftut2-icon",  ov).textContent = s.icon;
+
+      // Re-trigger icon animation
+      const iconEl = $("#ftut2-icon", ov);
+      iconEl.style.animation = "none"; void iconEl.offsetWidth; iconEl.style.animation = "";
+      iconEl.textContent = s.icon;
+
       $("#ftut2-step",  ov).textContent = `Step ${i+1} of ${STEPS.length}`;
       $("#ftut2-title", ov).textContent = s.title;
+
       const bodyEl = $("#ftut2-body", ov);
       bodyEl.innerHTML = "";
       s.body.split("\n").forEach(line => {
-        const p = document.createElement("p");
-        p.textContent = line;
-        p.style.margin = "3px 0";
-        bodyEl.appendChild(p);
+        const p = document.createElement("p"); p.textContent = line; bodyEl.appendChild(p);
       });
 
-      // On the Save step — show live validation state so the user knows if
-      // anything still needs fixing before they click Save.
-      if (i === STEPS.length - 1) {
-        const issues    = validateCards();
-        const hasPhone  = !!state.cards.find(c => c.type === "phone");
-        const feedbackEl = document.createElement("div");
-        if (!hasPhone) {
-          feedbackEl.className = "ftut2-err-blk";
-          feedbackEl.innerHTML = "⚠️ <strong>Phone card missing</strong> — drag it from the right panel onto the canvas first. The phone card is the required entry point.";
-        } else if (issues.length > 0) {
-          feedbackEl.className = "ftut2-err-blk";
-          feedbackEl.innerHTML = `⚠️ <strong>Fix before saving (${issues.length} issue${issues.length>1?"s":""}):</strong><ul style="margin:4px 0 0;padding-left:16px">${
-            issues.map(iss => `<li>${cardMeta(iss.card.type).label}: add <strong>${iss.req.label}</strong></li>`).join("")
-          }</ul>`;
-        } else {
-          feedbackEl.className = "ftut2-ok-blk";
-          feedbackEl.innerHTML = "✅ <strong>All set!</strong> Click Save &amp; activate to go live.";
+      if (s.detail) {
+        const d = document.createElement("div");
+        d.className = "ftut2-detail"; d.textContent = s.detail;
+        bodyEl.appendChild(d);
+      }
+
+      if (typeof s.check === "function") {
+        const result = s.check();
+        if (result) {
+          const fb = document.createElement("div");
+          if (result.type === "err") {
+            fb.className = "ftut2-err-blk";
+            fb.innerHTML = result.msg;
+            if (result.list && result.list.length)
+              fb.innerHTML += `<ul>${result.list.map(l=>`<li>${l}</li>`).join("")}</ul>`;
+          } else if (result.type === "ok") {
+            fb.className = "ftut2-ok-blk";
+            fb.innerHTML = result.msg;
+          } else {
+            fb.className = "ftut2-action-hint";
+            fb.textContent = result.msg;
+          }
+          bodyEl.appendChild(fb);
         }
-        bodyEl.appendChild(feedbackEl);
       }
 
       $("#ftut2-back", ov).disabled = i === 0;
-      $("#ftut2-next", ov).textContent = i === STEPS.length-1 ? "Let's build! 🚀" : "Next →";
+      $("#ftut2-next", ov).textContent = i === STEPS.length-1 ? "🚀  Let's build!" : "Next →";
       place();
     }
 
@@ -5372,106 +5419,172 @@ route("agentFlow", async (id) => {
       if (e.key === "ArrowRight" || e.key === "Enter") { if (i < STEPS.length-1) { i++; render(); } else close(); }
       if (e.key === "ArrowLeft") { if (i > 0) { i--; render(); } }
     });
-    window.addEventListener("resize", () => { if (document.body.contains(ov)) place(); });
+    window.addEventListener("resize", () => {
+      if (!document.body.contains(ov)) return;
+      const svg = ov.querySelector("#ftut2-svgarr");
+      if (svg) svg.setAttribute("viewBox", `0 0 ${window.innerWidth} ${window.innerHeight}`);
+      place();
+    });
     render();
   }
   requestAnimationFrame(showFlowTutorial);
 
   // ── Demo / How-to Guide ──────────────────────────────────────────────────
   function openDemoGuide() {
+    // ── Card definitions (mirrors builder INT_CARDS) ──────────────────────
     const GUIDE_CARDS = [
       { type: "phone",    label: "Phone Number",    color: "#0D6EFD", icon: "📞",
-        desc: "The starting point of every call flow. Enter your forwarding number — when callers dial your business line and you don't answer, Harkly AI picks up in under 2 seconds.",
-        field: "Forwarding: +1 555 0100", required: "Forwarding number" },
+        badge: "REQUIRED",
+        desc: "The entry point of every call flow. When a caller doesn't reach you, Harkly AI picks up your forwarding number in under 2 seconds and handles the conversation.",
+        field: "Forwarding: +1 (555) 010-0100",
+        howto: "Add your business forwarding number. Set your phone's 'Forward when unanswered' to this number." },
       { type: "voice",    label: "Voice Type",      color: "#F59E0B", icon: "🎙️",
-        desc: "Choose your agent's voice character. Pick from warm, professional, friendly or authoritative voices. This setting syncs instantly to the voice preview on the dashboard.",
-        field: "Voice: Maya — Warm & professional", required: null, optional: "Optional — defaults to Maya" },
-      { type: "language", label: "Languages",       color: "#10B981", icon: "🌍",
-        desc: "Set the primary language your AI speaks in. With 30+ languages available, your agent can greet callers in their native tongue from the very first word.",
-        field: "Language: English (US)", required: null, optional: "Optional — defaults to English" },
+        badge: "RECOMMENDED",
+        desc: "Pick your agent's voice character — warm and friendly, calm and professional, or authoritative. This setting syncs live to the voice preview on the dashboard.",
+        field: "Voice: Maya — Warm & professional",
+        howto: "Choose a voice that matches your brand tone. Preview it on the dashboard before going live." },
+      { type: "language", label: "Language",        color: "#10B981", icon: "🌍",
+        badge: "RECOMMENDED",
+        desc: "Set the primary language your AI speaks in. With 30+ languages available, your agent can greet international callers in their own language from the very first word.",
+        field: "Language: English (US)",
+        howto: "Pick the main language for your business. You can create multiple agents for different languages." },
       { type: "info",     label: "Business Info",   color: "#6366F1", icon: "📄",
-        desc: "Paste your FAQs, opening hours, service menu, pricing, or upload a PDF. This is the brain of the AI — the more you give it, the better it answers questions.",
-        field: "Paste FAQs, hours, menu…", required: null, optional: "Highly recommended" },
+        badge: "HIGHLY RECOMMENDED",
+        desc: "Paste your FAQs, opening hours, service menu, pricing, and policies here. This is the AI's brain — the richer this content, the more accurately it answers questions.",
+        field: "Paste FAQs, hours, menu, pricing…",
+        howto: "Start with hours, services and prices. Add FAQs over time as you see what callers ask." },
       { type: "whatsapp", label: "WhatsApp Notify", color: "#25D366", icon: "💬",
-        desc: "After every call ends, your agent sends a recap to this WhatsApp number: who called, why they called, and whether a booking was made. Terminal — always place at the end.",
-        field: "Owner WhatsApp: +44 7700 900000", required: "WhatsApp number" },
+        badge: "TERMINAL",
+        desc: "After every call, your agent sends a WhatsApp recap to the owner: caller number, reason for call, booking made, urgency level. Always place at the end of the flow.",
+        field: "Owner WhatsApp: +44 7700 900000",
+        howto: "Enter the WhatsApp number you want to receive call summaries on. Connect AFTER Info cards." },
       { type: "gcal",     label: "Google Calendar", color: "#1A73E8", icon: "📅",
-        desc: "Connect your Calendly or Google Meet link. When a caller wants to book, your agent captures their preferred time and drops it into your real calendar automatically.",
-        field: "Calendly URL: calendly.com/you", required: "Booking URL" },
+        badge: "OPTIONAL",
+        desc: "Connect your Calendly or Google Meet booking link. When a caller wants to book, the agent captures their details and drops the appointment into your real calendar.",
+        field: "Calendly URL: calendly.com/your-name",
+        howto: "Link your Calendly page. Great for clinics, salons, consultancies, hotels." },
       { type: "gmail",    label: "Gmail Follow-up", color: "#EA4335", icon: "📧",
-        desc: "Send the caller a personalised follow-up email after the call ends. Great for sending quotes, confirmation details, or a simple 'Thanks for calling'. Terminal step.",
-        field: "From: hello@yourbiz.com", required: "Gmail address" },
-      { type: "slack",    label: "Slack Alerts",    color: "#4A154B", icon: "🔔",
-        desc: "Get an instant Slack message when an urgent call comes in. Paste your Slack Incoming Webhook URL and your team is notified the moment something critical happens.",
-        field: "Webhook URL: hooks.slack.com/…", required: "Slack webhook URL" },
+        badge: "TERMINAL",
+        desc: "Send the caller a personalised follow-up email after the call ends — confirmation details, quotes, intake forms, or a simple 'Thanks for calling'. Always a terminal step.",
+        field: "From: hello@yourbusiness.com",
+        howto: "Enter the Gmail address you want emails sent from. Authorise Google access once in Settings." },
+      { type: "slack",    label: "Slack Alert",     color: "#4A154B", icon: "🔔",
+        badge: "OPTIONAL",
+        desc: "Get an instant Slack message when an urgent call comes in. Paste your Slack Incoming Webhook URL and your whole team is notified the moment something critical happens.",
+        field: "Webhook URL: hooks.slack.com/services/…",
+        howto: "Create an Incoming Webhook in your Slack workspace and paste the URL here." },
     ];
 
-    const CONN_RULES_HTML = [
-      { from: "📞 Phone",    to: "🎙️ Voice, 🌍 Language, 📄 Info",      ok: true  },
-      { from: "🎙️ Voice",    to: "🌍 Language, 📄 Info",                 ok: true  },
-      { from: "🌍 Language", to: "🎙️ Voice, 📄 Info",                    ok: true  },
-      { from: "📄 Info",     to: "💬 WhatsApp, 📅 Calendar, 📧 Gmail, 🔔 Slack", ok: true  },
-      { from: "📞 Phone",    to: "💬 WhatsApp (directly)",                ok: false },
-      { from: "💬 WhatsApp", to: "anything — it's terminal",              ok: false },
-      { from: "📧 Gmail",    to: "anything — it's terminal",              ok: false },
+    // ── Connection rules ──────────────────────────────────────────────────
+    const CONN_RULES = [
+      { from: "📞 Phone",    to: "🎙️ Voice / 🌍 Language / 📄 Info",          ok: true,  note: "Route the incoming call to voice setup or knowledge." },
+      { from: "🎙️ Voice",    to: "🌍 Language / 📄 Info",                      ok: true,  note: "Chain voice config into language or business info." },
+      { from: "🌍 Language", to: "🎙️ Voice / 📄 Info",                         ok: true,  note: "Language pairs with voice and knowledge steps." },
+      { from: "📄 Info",     to: "💬 WhatsApp / 📅 Calendar / 📧 Gmail / 🔔 Slack", ok: true, note: "After knowledge, route to notifications or bookings." },
+      { from: "📞 Phone",    to: "💬 WhatsApp (direct)",                        ok: false, note: "WhatsApp needs context from Info first." },
+      { from: "💬 WhatsApp", to: "Anything — it's terminal",                   ok: false, note: "Terminal cards cannot have outgoing connections." },
+      { from: "📧 Gmail",    to: "Anything — it's terminal",                   ok: false, note: "Terminal cards cannot have outgoing connections." },
     ];
 
+    // ── Use-case templates ────────────────────────────────────────────────
+    const USE_CASES = [
+      {
+        icon: "🦷", title: "Dental Clinic", sub: "Appointment booking & FAQ reception", color: "#0D6EFD",
+        flow: ["📞 Phone","🎙️ Voice","🌍 Language","📄 Info","📅 Calendar","💬 WhatsApp"],
+        setup: [
+          { card:"🎙️ Voice",    tip:"Choose Professional & calm — patients are often nervous." },
+          { card:"📄 Info",     tip:"Add hours, accepted insurance, emergency walk-in policy, treatment list with prices." },
+          { card:"📅 Calendar", tip:"Link your Calendly for check-up and consultation bookings." },
+          { card:"💬 WhatsApp", tip:"Set your front-desk WhatsApp to get a recap after every call." },
+        ],
+      },
+      {
+        icon: "🏨", title: "Hotel / B&B", sub: "Reservations & concierge queries", color: "#6366F1",
+        flow: ["📞 Phone","🎙️ Voice","🌍 Language","📄 Info","📅 Calendar","💬 WhatsApp"],
+        setup: [
+          { card:"🌍 Language", tip:"Add Spanish, French or German if you have international guests." },
+          { card:"📄 Info",     tip:"Room types, nightly rates, check-in/out times, amenities, local attractions, cancellation policy." },
+          { card:"📅 Calendar", tip:"Link a room-reservation booking page." },
+          { card:"🎙️ Voice",    tip:"Warm & welcoming — it's the first impression of the hotel." },
+        ],
+      },
+      {
+        icon: "🍽️", title: "Restaurant", sub: "Table reservations & menu enquiries", color: "#F59E0B",
+        flow: ["📞 Phone","🎙️ Voice","📄 Info","📅 Calendar","💬 WhatsApp"],
+        setup: [
+          { card:"📄 Info",     tip:"Full menu with prices, allergen info, daily specials, opening hours, address and parking." },
+          { card:"📅 Calendar", tip:"Link your OpenTable or Resy page for table reservations." },
+          { card:"🎙️ Voice",    tip:"Friendly & energetic to match the restaurant's vibe." },
+          { card:"💬 WhatsApp", tip:"Get an alert when a large-party booking (8+ people) is requested." },
+        ],
+      },
+      {
+        icon: "✂️", title: "Hair Salon / Spa", sub: "Appointment booking & service enquiries", color: "#EC4899",
+        flow: ["📞 Phone","🎙️ Voice","📄 Info","📅 Calendar","💬 WhatsApp"],
+        setup: [
+          { card:"📄 Info",     tip:"Services list with prices — cuts, colour, perms, blowdry, facials, waxing. Mention top stylists." },
+          { card:"📅 Calendar", tip:"One Calendly per stylist — create multiple agents for each team member." },
+          { card:"🎙️ Voice",    tip:"Warm & friendly mirrors the salon atmosphere perfectly." },
+          { card:"💬 WhatsApp", tip:"Quick notification to the front desk after every new appointment call." },
+        ],
+      },
+      {
+        icon: "⚖️", title: "Law Office", sub: "Client intake & consultation scheduling", color: "#10B981",
+        flow: ["📞 Phone","🎙️ Voice","📄 Info","📅 Calendar","📧 Gmail","💬 WhatsApp"],
+        setup: [
+          { card:"🎙️ Voice",    tip:"Professional & authoritative — builds immediate credibility and trust." },
+          { card:"📄 Info",     tip:"Practice areas, fee structure, what to prepare for a first consultation, disclaimers." },
+          { card:"📅 Calendar", tip:"Free-consultation booking link — qualify clients before they arrive." },
+          { card:"📧 Gmail",    tip:"Send a confirmation email with the intake form link immediately after the call." },
+          { card:"💬 WhatsApp", tip:"Urgent alert for time-sensitive legal matters." },
+        ],
+      },
+    ];
+
+    // ── Tips ──────────────────────────────────────────────────────────────
     const TIPS = [
-      { icon: "🚀", title: "Start minimal, grow later",
-        desc: "Begin with Phone → Voice → Language. Once that's working, add Info and WhatsApp. You don't need every card from day one." },
-      { icon: "📞", title: "Phone card is always required",
-        desc: "Nothing works without the Phone card. It's the entry point — your forwarding number goes here, and everything else connects through it." },
-      { icon: "💡", title: "Business Info makes the AI smart",
-        desc: "The AI answers questions by pulling from what you put in the Info card. FAQs, prices, hours, policies — the more detail, the better the answers." },
-      { icon: "🔗", title: "Drag the → handle to connect cards",
-        desc: "See the tiny circle on the right edge of each card? Drag it onto another card to create an arrow connection. Click any connection line to delete it." },
-      { icon: "🎨", title: "Differentiate agents by role",
-        desc: "Create multiple agents for different purposes — a 'Sales line' agent with English + Gmail, and a 'Support line' with Spanish + WhatsApp. Each gets its own number." },
-      { icon: "💾", title: "Save = go live immediately",
-        desc: "The moment you hit Save & activate, your forwarding number is active. Callers who don't reach you will be answered by your AI in seconds." },
+      { icon: "🚀", title: "Start with the minimum viable flow",
+        desc: "Begin with Phone → Voice → Language. Once that works, layer in Info and WhatsApp. A simple flow live today beats a perfect flow never." },
+      { icon: "📞", title: "Phone card is non-negotiable",
+        desc: "Every agent needs exactly one Phone card. It's the entry point and holds your forwarding number. Without it, nothing activates." },
+      { icon: "💡", title: "Business Info = the more, the smarter",
+        desc: "The AI answers questions directly from what you paste in the Info card. FAQs, pricing, hours, policies — the more detail, the fewer misses." },
+      { icon: "🔗", title: "Connect cards by dragging the → handle",
+        desc: "Hover over a card to reveal the → handle on its right edge. Drag it onto another card to create a flow connection. Click any arrow to delete it." },
+      { icon: "🎨", title: "One agent per phone line or persona",
+        desc: "Create separate agents for different roles — 'Sales line' in English, 'Support line' in Spanish, or one per stylist in your salon. Each gets its own Twilio number." },
+      { icon: "💬", title: "WhatsApp recap keeps you in control",
+        desc: "Add a WhatsApp card at the end of every flow. You get a post-call summary with caller number, intent, booking status and urgency — even while you're with a client." },
+      { icon: "📅", title: "Calendar card = no more double-bookings",
+        desc: "Connect your Calendly link to let the AI capture and schedule appointments directly into your calendar during the call — no human needed." },
+      { icon: "🔄", title: "Save means live — there's no draft mode",
+        desc: "Every time you hit Save agent the changes go live immediately. Test on a real phone first by calling your forwarding number from another device." },
     ];
 
-    const TAB_CONTENT = {
-      overview: `
+    // ── Tab content builders ──────────────────────────────────────────────
+    function buildOverview() {
+      return `
         <div class="dg-overview-hero">
-          <div class="dg-overview-title">Build your AI receptionist in 3 steps</div>
-          <div class="dg-overview-desc">The Agent Builder is a visual canvas. Drag integration cards onto the canvas, fill in the details, connect them in order, and save. Your AI receptionist is live the moment you hit Save.</div>
+          <div class="dg-overview-badge">📖 QUICK START</div>
+          <div class="dg-overview-title">Build your AI receptionist in 4 steps</div>
+          <div class="dg-overview-desc">The Agent Builder is a visual canvas. Drag integration cards on, fill in the details, draw connection arrows to define the call sequence, and save. Your AI is live the moment you hit Save.</div>
         </div>
         <div class="dg-steps-grid">
           ${[
-            { n:1, t:"Drag cards to canvas", d:"Open the right panel, drag Phone, Voice, Language and any other cards you need onto the canvas." },
-            { n:2, t:"Fill in each card",    d:"Click an input inside a card. Add your phone number, choose a voice, paste your FAQs." },
-            { n:3, t:"Connect cards",        d:"Drag the → handle on the right edge of a card onto another to draw an arrow connection." },
-            { n:4, t:"Save & go live",       d:"Hit Save & activate. Your forwarding number goes live immediately." },
-          ].map(s => `<div class="dg-step-card"><div class="dg-step-num">${s.n}</div><div class="dg-step-title">${s.t}</div><div class="dg-step-desc">${s.d}</div></div>`).join("")}
-        </div>`,
-
-      cards: `
-        <div class="dg-cards-grid">
-          ${GUIDE_CARDS.map(c => `
-            <div class="dg-card-item" style="--dg-c:${c.color}">
-              <div class="dg-card-head">
-                <div class="dg-card-icon-wrap" style="background:${c.color}1a;border:1.5px solid ${c.color}55">
-                  <span style="font-size:17px">${c.icon}</span>
-                </div>
-                <div>
-                  <div class="dg-card-lbl">${c.label}</div>
-                  <div class="dg-card-type">${c.type}</div>
-                </div>
-              </div>
-              <div class="dg-card-body">
-                <div class="dg-card-desc">${c.desc}</div>
-                <div class="dg-card-field-demo">${escapeHtml(c.field)}</div>
-                ${c.required
-                  ? `<div class="dg-card-required">⚠️ Required: ${c.required}</div>`
-                  : `<div class="dg-card-optional">✅ ${c.optional}</div>`}
-              </div>
+            { n:1, icon:"📦", t:"Drag cards onto the canvas",  d:"Open the right panel and drag Phone, Voice, Language and any extras you need onto the canvas." },
+            { n:2, icon:"✏️",  t:"Fill in each card's details", d:"Click inputs inside the cards. Add your phone number, choose a voice, paste your FAQs and hours." },
+            { n:3, icon:"🔗", t:"Connect cards in order",      d:"Drag the → handle on the right edge of a card onto another to draw a connection arrow." },
+            { n:4, icon:"💾", t:"Save — your agent is live",    d:"Hit Save agent. Your forwarding number activates instantly. Callers who don't reach you get answered by AI." },
+          ].map(s => `
+            <div class="dg-step-card">
+              <div class="dg-step-num">${s.n}</div>
+              <div class="dg-step-icon">${s.icon}</div>
+              <div class="dg-step-title">${s.t}</div>
+              <div class="dg-step-desc">${s.d}</div>
             </div>`).join("")}
-        </div>`,
-
-      connect: `
-        <div class="dg-conn-section">
-          <div class="dg-conn-title">Example flow</div>
+        </div>
+        <div class="dg-flow-demo-wrap">
+          <div class="dg-flow-demo-label">Example minimal flow</div>
           <div class="dg-flow-demo">
             ${[
               { label:"📞 Phone",    color:"#0D6EFD" },
@@ -5480,51 +5593,119 @@ route("agentFlow", async (id) => {
               { label:"📄 Info",     color:"#6366F1" },
               { label:"💬 WhatsApp", color:"#25D366" },
             ].map((n, idx, arr) => `
-              <div class="dg-flow-node" style="border-color:${n.color}44;background:${n.color}0d;color:#e2e8f0">${n.label}</div>
+              <div class="dg-flow-node" style="border-color:${n.color}55;background:${n.color}11">${n.label}</div>
               ${idx < arr.length-1 ? '<span class="dg-flow-arrow">→</span>' : ""}`).join("")}
           </div>
-        </div>
+        </div>`;
+    }
+
+    function buildCards() {
+      return `<div class="dg-cards-grid">${GUIDE_CARDS.map(c => `
+        <div class="dg-card-item" style="--dg-c:${c.color}">
+          <div class="dg-card-top-stripe" style="background:linear-gradient(90deg,${c.color}33,transparent)"></div>
+          <div class="dg-card-head">
+            <div class="dg-card-icon-wrap" style="background:${c.color}1a;border:1.5px solid ${c.color}44">
+              <span style="font-size:18px">${c.icon}</span>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div class="dg-card-lbl">${c.label}</div>
+              <div class="dg-card-type">${c.type}</div>
+            </div>
+            <div class="dg-card-badge dg-badge-${c.badge.split(' ')[0].toLowerCase()}">${c.badge}</div>
+          </div>
+          <div class="dg-card-body">
+            <div class="dg-card-desc">${c.desc}</div>
+            <div class="dg-card-field-demo">📝 ${escapeHtml(c.field)}</div>
+            <div class="dg-card-howto">💡 ${c.howto}</div>
+          </div>
+        </div>`).join("")}</div>`;
+    }
+
+    function buildConnect() {
+      return `
         <div class="dg-conn-section">
-          <div class="dg-conn-title">Connection rules</div>
+          <div class="dg-conn-title">Connection rules at a glance</div>
           <div class="dg-conn-rules">
-            ${CONN_RULES_HTML.map(r => `
-              <div class="dg-conn-rule">
-                <strong>${r.from}</strong> →
-                <span class="${r.ok ? "dg-conn-ok" : "dg-conn-no"}">${r.ok ? "✅" : "❌"} ${r.to}</span>
+            ${CONN_RULES.map(r => `
+              <div class="dg-conn-rule ${r.ok ? "dg-rule-ok" : "dg-rule-no"}">
+                <div class="dg-rule-head">
+                  <span class="dg-rule-icon">${r.ok ? "✅" : "❌"}</span>
+                  <span class="dg-rule-from"><strong>${r.from}</strong> → ${r.to}</span>
+                </div>
+                <div class="dg-rule-note">${r.note}</div>
               </div>`).join("")}
           </div>
         </div>
-        <div class="dg-conn-section" style="margin-top:20px">
-          <div class="dg-conn-title">How to connect</div>
-          <div style="font-size:13px;color:#94a3b8;line-height:1.7;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 16px">
-            1. Hover over any card and look for the small <strong style="color:#a5b4fc">→</strong> handle on its right edge.<br>
-            2. Click and drag from that handle onto another card.<br>
-            3. A curved arrow appears. Click the arrow line to delete it.<br>
-            4. Invalid connections are blocked automatically with a clear error message.
+        <div class="dg-conn-section">
+          <div class="dg-conn-title">How to draw a connection</div>
+          <div class="dg-how-connect">
+            ${[
+              { n:1, t:"Hover over any card", d:"A small circle handle appears on the right edge of the card (the → port)." },
+              { n:2, t:"Click & drag the handle", d:"Start dragging from the → handle on the source card. A preview line follows your cursor." },
+              { n:3, t:"Drop onto the target card", d:"Drag onto the destination card and release. A curved arrow appears between the two cards." },
+              { n:4, t:"Delete a connection", d:"Click anywhere on a connection line — a trash icon appears. Click it to remove the connection." },
+            ].map(s => `
+              <div class="dg-how-step">
+                <div class="dg-how-num">${s.n}</div>
+                <div><div class="dg-how-title">${s.t}</div><div class="dg-how-desc">${s.d}</div></div>
+              </div>`).join("")}
           </div>
-        </div>`,
+        </div>`;
+    }
 
-      tips: `<div class="dg-tips-list">${TIPS.map(t => `
+    function buildUseCases() {
+      return `<div class="dg-uc-grid">${USE_CASES.map(uc => `
+        <div class="dg-uc-card" style="--uc-c:${uc.color}">
+          <div class="dg-uc-head">
+            <div class="dg-uc-icon-wrap" style="background:${uc.color}1a;border:1.5px solid ${uc.color}44">${uc.icon}</div>
+            <div style="flex:1">
+              <div class="dg-uc-title">${uc.title}</div>
+              <div class="dg-uc-sub">${uc.sub}</div>
+            </div>
+          </div>
+          <div class="dg-uc-flow-row">
+            <div class="dg-uc-flow-label">Recommended flow</div>
+            <div class="dg-uc-flow">
+              ${uc.flow.map((n,idx,arr) => `
+                <span class="dg-uc-node" style="border-color:${uc.color}33;background:${uc.color}0d">${n}</span>
+                ${idx < arr.length-1 ? '<span class="dg-uc-arrow">→</span>' : ''}`).join('')}
+            </div>
+          </div>
+          <div class="dg-uc-setup">
+            ${uc.setup.map(s => `
+              <div class="dg-uc-setup-row">
+                <span class="dg-uc-setup-card">${s.card}</span>
+                <span class="dg-uc-setup-tip">${s.tip}</span>
+              </div>`).join('')}
+          </div>
+        </div>`).join('')}</div>`;
+    }
+
+    function buildTips() {
+      return `<div class="dg-tips-list">${TIPS.map(t => `
         <div class="dg-tip">
           <div class="dg-tip-icon">${t.icon}</div>
           <div><div class="dg-tip-title">${t.title}</div><div class="dg-tip-desc">${t.desc}</div></div>
-        </div>`).join("")}</div>`,
-    };
+        </div>`).join("")}</div>`;
+    }
+
+    const TAB_FNS = { overview: buildOverview, cards: buildCards, connect: buildConnect, usecases: buildUseCases, tips: buildTips };
 
     const modal = h(`<div class="demo-guide-ov" id="dg-ov">
       <div class="demo-guide-modal">
         <div class="demo-guide-header">
           <div>
-            <div class="demo-guide-htitle">📖 How to use the Agent Builder</div>
-            <div class="demo-guide-hsub">A complete guide to building your AI receptionist</div>
+            <div class="demo-guide-htitle">📖 Agent Builder — Complete Guide</div>
+            <div class="demo-guide-hsub">Everything you need to build your AI receptionist</div>
           </div>
-          <button class="demo-guide-close" id="dg-close">×</button>
+          <button class="demo-guide-close" id="dg-close" title="Close">×</button>
         </div>
         <div class="demo-guide-tabs" id="dg-tabs">
           <button class="dg-tab active" data-tab="overview">Overview</button>
           <button class="dg-tab" data-tab="cards">Card types</button>
           <button class="dg-tab" data-tab="connect">Connections</button>
-          <button class="dg-tab" data-tab="tips">Tips &amp; tricks</button>
+          <button class="dg-tab" data-tab="usecases">Use cases</button>
+          <button class="dg-tab" data-tab="tips">Tips</button>
         </div>
         <div class="demo-guide-body" id="dg-body"></div>
       </div>
@@ -5534,11 +5715,10 @@ route("agentFlow", async (id) => {
     function showTab(name) {
       modal.querySelectorAll(".dg-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
       const body = $("#dg-body", modal);
-      body.innerHTML = TAB_CONTENT[name] || "";
+      body.innerHTML = (TAB_FNS[name] || buildOverview)();
       renderIcons(body);
     }
     showTab("overview");
-
     modal.querySelectorAll(".dg-tab").forEach(t => t.addEventListener("click", () => showTab(t.dataset.tab)));
 
     const closeGuide = () => modal.remove();
