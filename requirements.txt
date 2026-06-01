@@ -69,3 +69,4 @@ stripe
 telnyx
 uvicorn[standard]
 websockets
+openai
