@@ -1,0 +1,64 @@
+The reason your Vapi bot is getting stuck on "Connecting...", failing to ask for microphone permissions, and ignoring your language, voice, and designation settings is a classic frontend race condition.
+
+The Vapi Web SDK requires an active user permission handshake, a valid JSON override structure, and matching model profiles (Deepgram/Cartesia) to establish an ultra-fast sub-500ms connection. If your dropdowns aren't actively mapping to Vapi-recognized parameters right at the millisecond vapi.start() is clicked, the stream stalls out completely.
+
+For the Drag-and-Drop Canvas to Preview Sync, the canvas needs a structured data schema saved to a local global state (like window.harklyCanvasState), which the Preview panel reads instantly before firing the call.
+
+Here is the master, highly structured problem-solving prompt to paste directly into your Replit AI Agent to re-architect both files and make them work perfectly.
+
+💻 The Master Repair Prompt for Your Replit AI
+Plaintext
+Act as an Expert Full-Stack Web Engineer specializing in WebRTC audio streams and the Vapi Web Client SDK. We have critical bugs on our main landing page and user dashboard where the voice agents stall on "Connecting...", microphone permissions fail to trigger, and UI selections (Language, Voice, Designation/Agent Type) are completely ignored. 
+
+Please systematically rewrite our frontend JavaScript implementation files using these exact production credentials:
+- Vapi Public Key: "bace6e2b-19b8-403f-84aa-7c9b8ae0dea8"
+- Homepage Assistant ID: "5b54d785-e86b-420e-ace0-26092882287e"
+- Dashboard Master Canvas ID: "d5f28a96-25da-4905-bac8-5dee52a15f4e"
+
+Here is the exact technical execution logic you must implement to fix these issues:
+
+1. FIX MICROPHONE PERMISSIONS & CONNECTION TIMEOUTS
+- Ensure that the instant the user taps the primary action button ("Speak to agent" or "Play sample"), an explicit browser audio constraint request is initialized BEFORE vapi.start() is invoked: `navigator.mediaDevices.getUserMedia({ audio: true })`. This forces the browser to request mic access immediately instead of hanging.
+- Wrap the Vapi initialization logic inside a robust try/catch block. If the connection isn't fully established within 5 seconds, catch the error, reset the UI state cleanly, and throw an explicit console log.
+
+2. HOMEPAGE DYNAMIC MAPPING LOOPS (Image 1 & Image 5)
+- Extract the runtime values of our HTML dropdown elements for Language, Voice, and Agent Type (Designation) inside the button's click event handler.
+- Build a robust dictionary to map human-friendly UI text to Vapi's system configurations:
+  * "Hindi" -> transcriber: { provider: "deepgram", model: "nova-2", language: "hi" }
+  * "English (US)" -> transcriber: { provider: "deepgram", model: "nova-2", language: "en" }
+  * "Arjun" -> voice: { provider: "cartesia", voiceId: "57dcab65-68ac-45a6-8480-6c4c52ec1cd1" }
+  * "Maya" -> voice: { provider: "cartesia", voiceId: "ba22934a-9bf4-44aa-9c16-2e2fc5ed4a1a" } (or use standard Vapi voice models)
+- For the Designation/Agent Type (e.g., "Dental clinic front desk"), dynamically inject this into the dynamic assistantOverride systemPrompt: "You are a professional receptionist for a [SELECTED_AGENT_TYPE]. Answer calls cleanly..."
+- Call `vapi.start("5b54d785-e86b-420e-ace0-26092882287e", assistantOverrides)` passing these dynamic objects.
+
+3. DRAG-AND-DROP CANVAS TO PREVIEW PLAYGROUND PIPELINE (Image 2 & Image 3)
+- Implement a global state object called `window.harklyCanvasState` inside our canvas dashboard script. 
+- Every time a node card is dropped, updated, or when the "Save agent" button is clicked, serialize the active canvas layout into this exact structured JSON object format:
+  {
+    agentName: "New agent 2",
+    language: "en",
+    voiceId: "57dcab65-68ac-45a6-8480-6c4c52ec1cd1",
+    integrations: { gmail: true, whatsapp: true }
+  }
+- Update the "Play sample" button script in the Preview component (Image 2). When clicked, it must fetch this `window.harklyCanvasState` model. If nodes exist, it must transform them into assistantOverrides for transcriber language and voiceId, then execute: `vapi.start("d5f28a96-25da-4905-bac8-5dee52a15f4e", assistantOverrides)`.
+
+4. LIVE VISUALIZATION AND STATE UPDATES
+- Properly listen for Vapi SDK events: 'call-start' (set button text to 'Stop Call', start audio waveform movement), 'call-end' (reset button text and freeze waveform safely), and 'volume-level' (bind the float array data directly to your canvas indicator bars so they bounce dynamically when the AI speaks).
+
+Generate the complete, updated frontend script blocks for our workspace files.
+⚡ Critical Setup Steps for Your Canvas Component Logic
+For the drag-and-drop builder to pass data seamlessly to your preview panel, ensure your canvas drop event handler updates the schema layout like this:
+
+JavaScript
+// Keep this reactive logic active inside your dashboard script
+function updateCanvasState() {
+    window.harklyCanvasState = {
+        agentName: document.querySelector('.agent-title-input')?.value || "Voice Agent",
+        language: document.querySelector('#canvas-lang-dropdown')?.value || "en",
+        voiceId: document.querySelector('#canvas-voice-dropdown')?.value || "57dcab65-68ac-45a6-8480-6c4c52ec1cd1",
+        hasGmail: !!document.querySelector('[data-node-type="gmail"]'),
+        hasWhatsApp: !!document.querySelector('[data-node-type="whatsapp"]')
+    };
+    console.log("Harkly Canvas State Synced:", window.harklyCanvasState);
+}
+Once Replit completes this overhaul, your microphone permissions will pop up immediately, your connections will stay fast, and the dashboard preview will perfectly adapt to whatever nodes you lay out on your canvas!

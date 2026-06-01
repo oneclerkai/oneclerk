@@ -4590,6 +4590,7 @@ route("agentFlow", async (id) => {
           <span class="fb-canvas-bar-title">Canvas · <span id="fb-cnt">0</span> cards</span>
           <div id="fb-act-bar" class="fb-act-bar"></div>
           <div style="display:flex;gap:6px">
+            <button class="btn btn-sm" id="fb-guide" title="How to use the builder" style="gap:5px"><i data-lucide="book-open" class="icon" style="width:13px;height:13px"></i>Guide</button>
             <button class="btn btn-sm" id="fb-clear">Clear</button>
             <button class="btn btn-primary btn-sm" id="fb-save"><i data-lucide="save" class="icon"></i>Save &amp; activate</button>
           </div>
@@ -4620,6 +4621,7 @@ route("agentFlow", async (id) => {
 
   page.appendChild(shellEl);
   renderIcons(shellEl);
+  shellEl.querySelector("#fb-guide")?.addEventListener("click", openDemoGuide);
 
   const canvasEl = $("#fb-canvas", shellEl);
   const itemsEl  = $("#fb-items", shellEl);
@@ -5203,9 +5205,16 @@ route("agentFlow", async (id) => {
 
     let i = 0;
     const ov = h(`<div class="ftut2-overlay" id="ftut2-ov">
-      <div class="ftut2-blur"></div>
       <div class="ftut2-spotlight" id="ftut2-spot"></div>
-      <div class="ftut2-arrow" id="ftut2-arr"></div>
+      <svg class="ftut2-svg-arrow" id="ftut2-svgarr" viewBox="0 0 ${window.innerWidth} ${window.innerHeight}">
+        <defs>
+          <marker id="ftut2-mh" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+            <path d="M0 .5 L7.5 4 L0 7.5z" fill="#6366f1"/>
+          </marker>
+        </defs>
+        <line class="ftut2-arr-line" id="ftut2-arrline" x1="0" y1="0" x2="0" y2="0" marker-end="url(#ftut2-mh)"/>
+      </svg>
+      <div class="ftut2-arr-emoji" id="ftut2-arr"></div>
       <div class="ftut2-card" id="ftut2-card">
         <div class="ftut2-progress" id="ftut2-prog"></div>
         <div class="ftut2-meta">
@@ -5234,58 +5243,82 @@ route("agentFlow", async (id) => {
 
     function place() {
       const step = STEPS[i];
-      const spot = $("#ftut2-spot", ov);
-      const arr  = $("#ftut2-arr", ov);
-      const card = $("#ftut2-card", ov);
-      spot.style.cssText = "opacity:0";
-      arr.style.cssText  = "opacity:0";
+      const spot     = $("#ftut2-spot", ov);
+      const arrEmoji = $("#ftut2-arr", ov);
+      const arrLine  = ov.querySelector("#ftut2-arrline");
+      const svgArr   = ov.querySelector("#ftut2-svgarr");
+      const card     = $("#ftut2-card", ov);
+      spot.style.cssText = "opacity:0;width:0;height:0";
+      arrEmoji.style.cssText = "opacity:0";
+      if (arrLine) { arrLine.setAttribute("x1","0"); arrLine.setAttribute("y1","0"); arrLine.setAttribute("x2","0"); arrLine.setAttribute("y2","0"); }
+
+      const cw = 360;
+      const ch = 280;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
 
       if (step.target) {
-        const tEl = step.target.startsWith("#") || step.target.startsWith(".")
-          ? document.querySelector(step.target)
-          : document.querySelector(step.target);
+        const tEl = document.querySelector(step.target);
         if (tEl) {
-          const r = tEl.getBoundingClientRect();
-          const PAD = 8;
-          spot.style.cssText = `
-            position:fixed;left:${r.left-PAD}px;top:${r.top-PAD}px;
-            width:${r.width+PAD*2}px;height:${r.height+PAD*2}px;
-            opacity:1;border-radius:10px;
-            box-shadow:0 0 0 4px rgba(255,205,92,.85),0 0 0 8px rgba(255,205,92,.18);
-            pointer-events:none;transition:all 200ms;z-index:10002;`;
+          const r   = tEl.getBoundingClientRect();
+          const PAD = 10;
+          // Spotlight: glowing ring via CSS class (no inline box-shadow override needed)
+          spot.style.cssText = `position:fixed;left:${r.left-PAD}px;top:${r.top-PAD}px;width:${r.width+PAD*2}px;height:${r.height+PAD*2}px;opacity:1;pointer-events:none;z-index:10002;`;
 
-          // Position card away from spotlight
-          const cw = 360, ch = 260;
-          const vw = window.innerWidth, vh = window.innerHeight;
-          let cx, cy;
-          const a = step.arrow;
+          // Card placement + SVG arrow from card to spotlight
+          const a  = step.arrow || "right";
+          let cx, cy, lx1, ly1, lx2, ly2, emojiX, emojiY, emojiCls, emojiCh;
+          const tCX = r.left + r.width / 2;
+          const tCY = r.top  + r.height / 2;
+
           if (a === "left") {
-            cx = Math.max(12, r.left - cw - 28);
-            cy = Math.max(12, Math.min(vh - ch - 12, r.top + r.height/2 - ch/2));
-            arr.style.cssText = `position:fixed;left:${r.left-22}px;top:${r.top+r.height/2}px;transform:translateY(-50%);font-size:22px;color:#ffcd5c;opacity:1;z-index:10003;`;
-            arr.textContent = "→";
-          } else if (a === "right") {
-            cx = Math.min(vw - cw - 12, r.right + 28);
-            cy = Math.max(12, Math.min(vh - ch - 12, r.top + r.height/2 - ch/2));
-            arr.style.cssText = `position:fixed;left:${r.right+6}px;top:${r.top+r.height/2}px;transform:translateY(-50%);font-size:22px;color:#ffcd5c;opacity:1;z-index:10003;`;
-            arr.textContent = "←";
+            cx = Math.max(12, r.left - cw - 40);
+            cy = Math.max(12, Math.min(vh - ch - 12, tCY - ch / 2));
+            lx1 = cx + cw; ly1 = cy + ch / 2;
+            lx2 = r.left - PAD - 8; ly2 = tCY;
+            emojiX = r.left - PAD - 34; emojiY = tCY;
+            emojiCls = "arr-left"; emojiCh = "➡️";
           } else if (a === "bottom") {
-            cx = Math.max(12, Math.min(vw - cw - 12, r.left + r.width/2 - cw/2));
-            cy = Math.max(12, r.top - ch - 28);
-            arr.style.cssText = `position:fixed;left:${r.left+r.width/2}px;top:${r.top-20}px;transform:translateX(-50%);font-size:22px;color:#ffcd5c;opacity:1;z-index:10003;`;
-            arr.textContent = "↓";
+            cx = Math.max(12, Math.min(vw - cw - 12, tCX - cw / 2));
+            cy = Math.max(12, r.top - ch - 40);
+            lx1 = cx + cw / 2; ly1 = cy + ch;
+            lx2 = tCX; ly2 = r.top - PAD - 8;
+            emojiX = tCX; emojiY = r.top - PAD - 34;
+            emojiCls = "arr-bot"; emojiCh = "⬇️";
           } else {
-            cx = Math.max(12, Math.min(vw - cw - 12, r.left + r.width/2 - cw/2));
-            cy = Math.max(12, r.bottom + 28);
-            arr.style.cssText = `position:fixed;left:${r.left+r.width/2}px;top:${r.bottom+4}px;transform:translateX(-50%);font-size:22px;color:#ffcd5c;opacity:1;z-index:10003;`;
-            arr.textContent = "↑";
+            // right (default) — card is to the right, arrow points left toward target
+            cx = Math.min(vw - cw - 12, r.right + 40);
+            cy = Math.max(12, Math.min(vh - ch - 12, tCY - ch / 2));
+            lx1 = cx; ly1 = cy + ch / 2;
+            lx2 = r.right + PAD + 8; ly2 = tCY;
+            emojiX = r.right + PAD + 8; emojiY = tCY;
+            emojiCls = "arr-right"; emojiCh = "⬅️";
           }
+
           card.style.cssText = `position:fixed;left:${cx}px;top:${cy}px;width:${cw}px;`;
+
+          // Draw SVG line from card edge to spotlight
+          if (arrLine && svgArr) {
+            svgArr.setAttribute("viewBox", `0 0 ${vw} ${vh}`);
+            arrLine.setAttribute("x1", String(lx1));
+            arrLine.setAttribute("y1", String(ly1));
+            arrLine.setAttribute("x2", String(lx2));
+            arrLine.setAttribute("y2", String(ly2));
+          }
+
+          // Position bouncing emoji arrow
+          arrEmoji.className = `ftut2-arr-emoji ${emojiCls}`;
+          arrEmoji.textContent = emojiCh;
+          const eBase = emojiCls === "arr-bot"
+            ? `position:fixed;left:${emojiX}px;top:${emojiY}px;transform:translateX(-50%);opacity:1;`
+            : `position:fixed;left:${emojiX}px;top:${emojiY}px;opacity:1;`;
+          arrEmoji.style.cssText = eBase;
+
           return;
         }
       }
-      // Centered card
-      card.style.cssText = "position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:380px;";
+      // Centered card — no spotlight, no arrow
+      card.style.cssText = `position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:${cw}px;`;
     }
 
     function render() {
@@ -5303,6 +5336,28 @@ route("agentFlow", async (id) => {
         p.style.margin = "3px 0";
         bodyEl.appendChild(p);
       });
+
+      // On the Save step — show live validation state so the user knows if
+      // anything still needs fixing before they click Save.
+      if (i === STEPS.length - 1) {
+        const issues    = validateCards();
+        const hasPhone  = !!state.cards.find(c => c.type === "phone");
+        const feedbackEl = document.createElement("div");
+        if (!hasPhone) {
+          feedbackEl.className = "ftut2-err-blk";
+          feedbackEl.innerHTML = "⚠️ <strong>Phone card missing</strong> — drag it from the right panel onto the canvas first. The phone card is the required entry point.";
+        } else if (issues.length > 0) {
+          feedbackEl.className = "ftut2-err-blk";
+          feedbackEl.innerHTML = `⚠️ <strong>Fix before saving (${issues.length} issue${issues.length>1?"s":""}):</strong><ul style="margin:4px 0 0;padding-left:16px">${
+            issues.map(iss => `<li>${cardMeta(iss.card.type).label}: add <strong>${iss.req.label}</strong></li>`).join("")
+          }</ul>`;
+        } else {
+          feedbackEl.className = "ftut2-ok-blk";
+          feedbackEl.innerHTML = "✅ <strong>All set!</strong> Click Save &amp; activate to go live.";
+        }
+        bodyEl.appendChild(feedbackEl);
+      }
+
       $("#ftut2-back", ov).disabled = i === 0;
       $("#ftut2-next", ov).textContent = i === STEPS.length-1 ? "Let's build! 🚀" : "Next →";
       place();
@@ -5321,6 +5376,179 @@ route("agentFlow", async (id) => {
     render();
   }
   requestAnimationFrame(showFlowTutorial);
+
+  // ── Demo / How-to Guide ──────────────────────────────────────────────────
+  function openDemoGuide() {
+    const GUIDE_CARDS = [
+      { type: "phone",    label: "Phone Number",    color: "#0D6EFD", icon: "📞",
+        desc: "The starting point of every call flow. Enter your forwarding number — when callers dial your business line and you don't answer, Harkly AI picks up in under 2 seconds.",
+        field: "Forwarding: +1 555 0100", required: "Forwarding number" },
+      { type: "voice",    label: "Voice Type",      color: "#F59E0B", icon: "🎙️",
+        desc: "Choose your agent's voice character. Pick from warm, professional, friendly or authoritative voices. This setting syncs instantly to the voice preview on the dashboard.",
+        field: "Voice: Maya — Warm & professional", required: null, optional: "Optional — defaults to Maya" },
+      { type: "language", label: "Languages",       color: "#10B981", icon: "🌍",
+        desc: "Set the primary language your AI speaks in. With 30+ languages available, your agent can greet callers in their native tongue from the very first word.",
+        field: "Language: English (US)", required: null, optional: "Optional — defaults to English" },
+      { type: "info",     label: "Business Info",   color: "#6366F1", icon: "📄",
+        desc: "Paste your FAQs, opening hours, service menu, pricing, or upload a PDF. This is the brain of the AI — the more you give it, the better it answers questions.",
+        field: "Paste FAQs, hours, menu…", required: null, optional: "Highly recommended" },
+      { type: "whatsapp", label: "WhatsApp Notify", color: "#25D366", icon: "💬",
+        desc: "After every call ends, your agent sends a recap to this WhatsApp number: who called, why they called, and whether a booking was made. Terminal — always place at the end.",
+        field: "Owner WhatsApp: +44 7700 900000", required: "WhatsApp number" },
+      { type: "gcal",     label: "Google Calendar", color: "#1A73E8", icon: "📅",
+        desc: "Connect your Calendly or Google Meet link. When a caller wants to book, your agent captures their preferred time and drops it into your real calendar automatically.",
+        field: "Calendly URL: calendly.com/you", required: "Booking URL" },
+      { type: "gmail",    label: "Gmail Follow-up", color: "#EA4335", icon: "📧",
+        desc: "Send the caller a personalised follow-up email after the call ends. Great for sending quotes, confirmation details, or a simple 'Thanks for calling'. Terminal step.",
+        field: "From: hello@yourbiz.com", required: "Gmail address" },
+      { type: "slack",    label: "Slack Alerts",    color: "#4A154B", icon: "🔔",
+        desc: "Get an instant Slack message when an urgent call comes in. Paste your Slack Incoming Webhook URL and your team is notified the moment something critical happens.",
+        field: "Webhook URL: hooks.slack.com/…", required: "Slack webhook URL" },
+    ];
+
+    const CONN_RULES_HTML = [
+      { from: "📞 Phone",    to: "🎙️ Voice, 🌍 Language, 📄 Info",      ok: true  },
+      { from: "🎙️ Voice",    to: "🌍 Language, 📄 Info",                 ok: true  },
+      { from: "🌍 Language", to: "🎙️ Voice, 📄 Info",                    ok: true  },
+      { from: "📄 Info",     to: "💬 WhatsApp, 📅 Calendar, 📧 Gmail, 🔔 Slack", ok: true  },
+      { from: "📞 Phone",    to: "💬 WhatsApp (directly)",                ok: false },
+      { from: "💬 WhatsApp", to: "anything — it's terminal",              ok: false },
+      { from: "📧 Gmail",    to: "anything — it's terminal",              ok: false },
+    ];
+
+    const TIPS = [
+      { icon: "🚀", title: "Start minimal, grow later",
+        desc: "Begin with Phone → Voice → Language. Once that's working, add Info and WhatsApp. You don't need every card from day one." },
+      { icon: "📞", title: "Phone card is always required",
+        desc: "Nothing works without the Phone card. It's the entry point — your forwarding number goes here, and everything else connects through it." },
+      { icon: "💡", title: "Business Info makes the AI smart",
+        desc: "The AI answers questions by pulling from what you put in the Info card. FAQs, prices, hours, policies — the more detail, the better the answers." },
+      { icon: "🔗", title: "Drag the → handle to connect cards",
+        desc: "See the tiny circle on the right edge of each card? Drag it onto another card to create an arrow connection. Click any connection line to delete it." },
+      { icon: "🎨", title: "Differentiate agents by role",
+        desc: "Create multiple agents for different purposes — a 'Sales line' agent with English + Gmail, and a 'Support line' with Spanish + WhatsApp. Each gets its own number." },
+      { icon: "💾", title: "Save = go live immediately",
+        desc: "The moment you hit Save & activate, your forwarding number is active. Callers who don't reach you will be answered by your AI in seconds." },
+    ];
+
+    const TAB_CONTENT = {
+      overview: `
+        <div class="dg-overview-hero">
+          <div class="dg-overview-title">Build your AI receptionist in 3 steps</div>
+          <div class="dg-overview-desc">The Agent Builder is a visual canvas. Drag integration cards onto the canvas, fill in the details, connect them in order, and save. Your AI receptionist is live the moment you hit Save.</div>
+        </div>
+        <div class="dg-steps-grid">
+          ${[
+            { n:1, t:"Drag cards to canvas", d:"Open the right panel, drag Phone, Voice, Language and any other cards you need onto the canvas." },
+            { n:2, t:"Fill in each card",    d:"Click an input inside a card. Add your phone number, choose a voice, paste your FAQs." },
+            { n:3, t:"Connect cards",        d:"Drag the → handle on the right edge of a card onto another to draw an arrow connection." },
+            { n:4, t:"Save & go live",       d:"Hit Save & activate. Your forwarding number goes live immediately." },
+          ].map(s => `<div class="dg-step-card"><div class="dg-step-num">${s.n}</div><div class="dg-step-title">${s.t}</div><div class="dg-step-desc">${s.d}</div></div>`).join("")}
+        </div>`,
+
+      cards: `
+        <div class="dg-cards-grid">
+          ${GUIDE_CARDS.map(c => `
+            <div class="dg-card-item" style="--dg-c:${c.color}">
+              <div class="dg-card-head">
+                <div class="dg-card-icon-wrap" style="background:${c.color}1a;border:1.5px solid ${c.color}55">
+                  <span style="font-size:17px">${c.icon}</span>
+                </div>
+                <div>
+                  <div class="dg-card-lbl">${c.label}</div>
+                  <div class="dg-card-type">${c.type}</div>
+                </div>
+              </div>
+              <div class="dg-card-body">
+                <div class="dg-card-desc">${c.desc}</div>
+                <div class="dg-card-field-demo">${escapeHtml(c.field)}</div>
+                ${c.required
+                  ? `<div class="dg-card-required">⚠️ Required: ${c.required}</div>`
+                  : `<div class="dg-card-optional">✅ ${c.optional}</div>`}
+              </div>
+            </div>`).join("")}
+        </div>`,
+
+      connect: `
+        <div class="dg-conn-section">
+          <div class="dg-conn-title">Example flow</div>
+          <div class="dg-flow-demo">
+            ${[
+              { label:"📞 Phone",    color:"#0D6EFD" },
+              { label:"🎙️ Voice",    color:"#F59E0B" },
+              { label:"🌍 Language", color:"#10B981" },
+              { label:"📄 Info",     color:"#6366F1" },
+              { label:"💬 WhatsApp", color:"#25D366" },
+            ].map((n, idx, arr) => `
+              <div class="dg-flow-node" style="border-color:${n.color}44;background:${n.color}0d;color:#e2e8f0">${n.label}</div>
+              ${idx < arr.length-1 ? '<span class="dg-flow-arrow">→</span>' : ""}`).join("")}
+          </div>
+        </div>
+        <div class="dg-conn-section">
+          <div class="dg-conn-title">Connection rules</div>
+          <div class="dg-conn-rules">
+            ${CONN_RULES_HTML.map(r => `
+              <div class="dg-conn-rule">
+                <strong>${r.from}</strong> →
+                <span class="${r.ok ? "dg-conn-ok" : "dg-conn-no"}">${r.ok ? "✅" : "❌"} ${r.to}</span>
+              </div>`).join("")}
+          </div>
+        </div>
+        <div class="dg-conn-section" style="margin-top:20px">
+          <div class="dg-conn-title">How to connect</div>
+          <div style="font-size:13px;color:#94a3b8;line-height:1.7;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 16px">
+            1. Hover over any card and look for the small <strong style="color:#a5b4fc">→</strong> handle on its right edge.<br>
+            2. Click and drag from that handle onto another card.<br>
+            3. A curved arrow appears. Click the arrow line to delete it.<br>
+            4. Invalid connections are blocked automatically with a clear error message.
+          </div>
+        </div>`,
+
+      tips: `<div class="dg-tips-list">${TIPS.map(t => `
+        <div class="dg-tip">
+          <div class="dg-tip-icon">${t.icon}</div>
+          <div><div class="dg-tip-title">${t.title}</div><div class="dg-tip-desc">${t.desc}</div></div>
+        </div>`).join("")}</div>`,
+    };
+
+    const modal = h(`<div class="demo-guide-ov" id="dg-ov">
+      <div class="demo-guide-modal">
+        <div class="demo-guide-header">
+          <div>
+            <div class="demo-guide-htitle">📖 How to use the Agent Builder</div>
+            <div class="demo-guide-hsub">A complete guide to building your AI receptionist</div>
+          </div>
+          <button class="demo-guide-close" id="dg-close">×</button>
+        </div>
+        <div class="demo-guide-tabs" id="dg-tabs">
+          <button class="dg-tab active" data-tab="overview">Overview</button>
+          <button class="dg-tab" data-tab="cards">Card types</button>
+          <button class="dg-tab" data-tab="connect">Connections</button>
+          <button class="dg-tab" data-tab="tips">Tips &amp; tricks</button>
+        </div>
+        <div class="demo-guide-body" id="dg-body"></div>
+      </div>
+    </div>`);
+    document.body.appendChild(modal);
+
+    function showTab(name) {
+      modal.querySelectorAll(".dg-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+      const body = $("#dg-body", modal);
+      body.innerHTML = TAB_CONTENT[name] || "";
+      renderIcons(body);
+    }
+    showTab("overview");
+
+    modal.querySelectorAll(".dg-tab").forEach(t => t.addEventListener("click", () => showTab(t.dataset.tab)));
+
+    const closeGuide = () => modal.remove();
+    modal.addEventListener("click", e => { if (e.target === modal) closeGuide(); });
+    $("#dg-close", modal).addEventListener("click", closeGuide);
+    document.addEventListener("keydown", function onDgKey(e) {
+      if (!document.body.contains(modal)) { document.removeEventListener("keydown", onDgKey); return; }
+      if (e.key === "Escape") closeGuide();
+    });
+  }
 
   renderIcons(page);
   return wrap;
