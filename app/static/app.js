@@ -4588,9 +4588,10 @@ route("agentFlow", async (id) => {
       <div class="fb-canvas-area">
         <div class="fb-canvas-bar">
           <span class="fb-canvas-bar-title">Canvas · <span id="fb-cnt">0</span> cards</span>
+          <div id="fb-act-bar" class="fb-act-bar"></div>
           <div style="display:flex;gap:6px">
             <button class="btn btn-sm" id="fb-clear">Clear</button>
-            <button class="btn btn-primary btn-sm" id="fb-save"><i data-lucide="save" class="icon"></i>Save agent</button>
+            <button class="btn btn-primary btn-sm" id="fb-save"><i data-lucide="save" class="icon"></i>Save &amp; activate</button>
           </div>
         </div>
         <div class="fb-canvas" id="fb-canvas">
@@ -4609,6 +4610,9 @@ route("agentFlow", async (id) => {
             <div class="fb-gp-sub">Drag to canvas · click to add</div>
           </div>
           <div class="fb-gp-list" id="fb-gp-list"></div>
+          <div class="fb-gp-divider"></div>
+          <div class="fb-gp-preview-head">Agent preview</div>
+          <div class="fb-gp-preview" id="fb-gp-preview"><div class="fb-pv-empty">Fill cards to see a live preview.</div></div>
         </div>
       </aside>
     </div>
@@ -4634,6 +4638,121 @@ route("agentFlow", async (id) => {
       <div class="fb-gpc-drag">drag</div>
     </div>`).join("");
   renderIcons(gpList);
+
+  // ── Card validation system ────────────────────────────────────────────────
+  const CARD_REQUIRED = {
+    phone:    [{ field: "phone",    label: "forwarding number" }],
+    whatsapp: [{ field: "whatsapp", label: "WhatsApp number"   }],
+    gmail:    [{ field: "email",    label: "Gmail address"     }],
+    gcal:     [{ field: "calendly", label: "booking URL"       }],
+    slack:    [{ field: "webhook",  label: "Slack webhook URL" }],
+    voice:    [],
+    language: [],
+    info:     [],
+  };
+  const ACTIVATION_LABELS = {
+    phone_number:     "a forwarding phone number",
+    business_name:    "a business name (Settings tab)",
+    greeting_message: "a greeting message (Settings tab)",
+    telnyx_phone:     "a Telnyx phone number",
+  };
+
+  function validateCards() {
+    const issues = [];
+    state.cards.forEach(card => {
+      (CARD_REQUIRED[card.type] || []).forEach(req => {
+        if (!String(card.config?.[req.field] || "").trim()) {
+          issues.push({ card, req });
+        }
+      });
+    });
+    return issues;
+  }
+
+  function updateActivationBar() {
+    const barEl  = shellEl.querySelector("#fb-act-bar");
+    const prvEl  = shellEl.querySelector("#fb-gp-preview");
+    const issues = validateCards();
+
+    // ── Per-card invalid highlighting ─────────────────────────────────────
+    state.cards.forEach(card => {
+      const cardEl = itemsEl.querySelector(`[data-cid="${card.id}"]`);
+      if (!cardEl) return;
+      const cardIssues = issues.filter(i => i.card.id === card.id);
+      cardEl.classList.toggle("fb-card-invalid", cardIssues.length > 0);
+      let badge = cardEl.querySelector(".fb-valid-badge");
+      if (cardIssues.length > 0) {
+        if (!badge) {
+          badge = document.createElement("span");
+          badge.className = "fb-valid-badge";
+          const head = cardEl.querySelector(".fb-card-head");
+          if (head) head.insertBefore(badge, head.querySelector(".fb-card-x"));
+        }
+        badge.textContent = "!";
+        badge.title = "Required: " + cardIssues.map(i => i.req.label).join(", ");
+      } else {
+        badge?.remove();
+      }
+    });
+
+    // ── Activation status bar ─────────────────────────────────────────────
+    if (barEl) {
+      const phoneCard = state.cards.find(c => c.type === "phone");
+      const hasPhone  = !!String(phoneCard?.config?.phone || "").trim();
+      if (a.is_active) {
+        barEl.innerHTML = `<span class="fb-act-chip fb-act-live"><span class="fb-act-dot"></span>Agent is live</span>`;
+      } else if (issues.length === 0 && hasPhone) {
+        barEl.innerHTML = `<span class="fb-act-chip fb-act-ready">✅ Ready — click Save to go live</span>`;
+      } else {
+        const reasons = [];
+        if (!phoneCard)  reasons.push("Drag the Phone card to start");
+        else if (!hasPhone) reasons.push("Phone card: add forwarding number");
+        issues.forEach(i => reasons.push(`${cardMeta(i.card.type).label}: add ${i.req.label}`));
+        const tip = reasons.join(" · ");
+        barEl.innerHTML = `<span class="fb-act-chip fb-act-warn" title="${tip}">⚠️ ${reasons[0]}${reasons.length > 1 ? `<em class="fb-act-more"> +${reasons.length - 1} more</em>` : ""}</span>`;
+      }
+    }
+
+    // ── Live preview panel ────────────────────────────────────────────────
+    if (!prvEl) return;
+    const vc = state.cards.find(c => c.type === "voice");
+    const lc = state.cards.find(c => c.type === "language");
+    const pc = state.cards.find(c => c.type === "phone");
+    const wc = state.cards.find(c => c.type === "whatsapp");
+    const ic = state.cards.find(c => c.type === "info");
+    const gc = state.cards.find(c => c.type === "gcal");
+
+    if (!pc && !vc && !lc) {
+      prvEl.innerHTML = `<div class="fb-pv-empty">Fill cards to see a live preview.</div>`;
+      return;
+    }
+
+    const voiceName = PREVIEW_VOICES.find(v => v.id === (vc?.config?.voice || "maya"))?.label || "Maya";
+    const langName  = lc?.config?.language || "English (US)";
+    const phoneNum  = pc?.config?.phone || a.forwarding_number || "—";
+    const waNum     = wc?.config?.whatsapp || cfg.owner_whatsapp || "—";
+    const calUrl    = gc?.config?.calendly || cfg.calendly_url || "";
+    const infoSnip  = ic?.config?.text ? ic.config.text.slice(0, 80) + (ic.config.text.length > 80 ? "…" : "") : "";
+
+    const row = (lbl, val, cls = "") =>
+      val && val !== "—"
+        ? `<div class="fb-pv-row"><span class="fb-pv-lbl">${lbl}</span><span class="fb-pv-val ${cls}">${escapeHtml(val)}</span></div>`
+        : `<div class="fb-pv-row fb-pv-row-dim"><span class="fb-pv-lbl">${lbl}</span><span class="fb-pv-val fb-pv-miss">not set</span></div>`;
+
+    const statusCls = a.is_active ? "fb-pv-live" : "fb-pv-draft";
+    const statusLbl = a.is_active ? "🟢 Live" : "⬜ Draft";
+
+    prvEl.innerHTML = `
+      <div class="fb-pv-row"><span class="fb-pv-lbl">Status</span><span class="fb-pv-val ${statusCls}">${statusLbl}</span></div>
+      <div class="fb-pv-row"><span class="fb-pv-lbl">Agent</span><span class="fb-pv-val">${escapeHtml(a.name || "—")}</span></div>
+      ${row("Voice",    voiceName)}
+      ${row("Language", langName)}
+      ${row("Phone",    phoneNum)}
+      ${wc ? row("WhatsApp", waNum) : ""}
+      ${gc ? row("Booking",  calUrl || "—") : ""}
+      ${infoSnip ? `<div class="fb-pv-info">${escapeHtml(infoSnip)}</div>` : ""}
+    `;
+  }
 
   function cardBodyHTML(card) {
     const c = card.config || {};
@@ -4829,6 +4948,7 @@ route("agentFlow", async (id) => {
               language: LANG_MAP[lc?.config?.language] || "en-US",
             };
           })();
+          updateActivationBar();
           checkAutoActivate();
         };
         inp.addEventListener("change", upd);
@@ -4863,6 +4983,7 @@ route("agentFlow", async (id) => {
     cntEl.textContent = state.cards.length;
     hintEl.style.display = state.cards.length ? "none" : "flex";
     renderEdges();
+    updateActivationBar();
   }
 
   // Mouse tracking for ghost edge
@@ -4895,26 +5016,37 @@ route("agentFlow", async (id) => {
     renderCanvas();
   });
 
-  // Save — canvas cards drive the agent's top-level voice_id and language
+  // Save + activate — validates cards, saves agent, then tries to activate
   $("#fb-save", shellEl).addEventListener("click", async () => {
+    const issues = validateCards();
+    if (issues.length > 0) {
+      const msgs = issues.map(i => `${cardMeta(i.card.type).label}: ${i.req.label}`);
+      toast(`Fill required fields first — ${msgs.join(" · ")}`, "error");
+      updateActivationBar();
+      return;
+    }
+    const btn = shellEl.querySelector("#fb-save");
+    const origHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.textContent = "Saving…";
     try {
       const nc = { ...cfg, flow_v2: { cards: state.cards, edges: state.edges } };
       let canvasVoiceId = a.voice_id;
       let canvasLanguage = a.language;
       state.cards.forEach(card => {
         const c = card.config || {};
-        if (card.type === "voice"    && c.voice)    { nc.voice_id = c.voice;          canvasVoiceId = c.voice; }
-        if (card.type === "language" && c.language)  { nc.language = c.language;       canvasLanguage = c.language; }
-        if (card.type === "phone"    && c.phone)     nc.forwarding_number = c.phone;
-        if (card.type === "gcal"     && c.calendly)  nc.calendly_url = c.calendly;
-        if (card.type === "whatsapp" && c.whatsapp)  nc.owner_whatsapp = c.whatsapp;
+        if (card.type === "voice"    && c.voice)    { nc.voice_id = c.voice;         canvasVoiceId = c.voice; }
+        if (card.type === "language" && c.language) { nc.language = c.language;      canvasLanguage = c.language; }
+        if (card.type === "phone"    && c.phone)    nc.forwarding_number = c.phone;
+        if (card.type === "gcal"     && c.calendly) nc.calendly_url = c.calendly;
+        if (card.type === "whatsapp" && c.whatsapp) nc.owner_whatsapp = c.whatsapp;
         if (card.type === "info") {
           if (c.text) nc.business_info = c.text;
           if (c.url)  nc.business_url  = c.url;
         }
       });
       const fwdNum = state.cards.find(c => c.type === "phone")?.config?.phone || a.forwarding_number;
-      await api(`/agents/${id}`, {
+      const saved = await api(`/agents/${id}`, {
         method: "PUT",
         body: {
           name: a.name,
@@ -4925,8 +5057,35 @@ route("agentFlow", async (id) => {
           config: nc,
         },
       });
-      toast("Agent saved!", "success");
-    } catch (e) { toast(e.message, "error"); }
+      // Merge fresh data from server back into local agent object
+      if (saved?.agent) Object.assign(a, saved.agent);
+
+      if (!a.is_active) {
+        const missing = saved?.agent?.activation_missing || [];
+        if (missing.length === 0) {
+          // All requirements met — activate now
+          try {
+            await api(`/agents/${id}/activate`, { method: "POST" });
+            a.is_active = true;
+            toast("🎉 Agent saved and is now live!", "success");
+          } catch (ae) {
+            toast("Saved ✓ — activation failed: " + ae.message, "warn");
+          }
+        } else {
+          const human = missing.map(k => ACTIVATION_LABELS[k] || k).join(", ");
+          toast(`Saved ✓ — to go live, also provide: ${human}`, "warn");
+        }
+      } else {
+        toast("Agent saved!", "success");
+      }
+      updateActivationBar();
+    } catch (e) {
+      toast(e.message, "error");
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = origHTML;
+      renderIcons(btn);
+    }
   });
 
   // Clear
@@ -4936,35 +5095,53 @@ route("agentFlow", async (id) => {
   });
 
   renderCanvas();
+  updateActivationBar();
 
-  // ── Auto-activate when phone number is filled ────────────────────────────────
+  // ── Auto-activate when phone number is filled (on input, not on Save) ────────
   let _activating = false;
   async function checkAutoActivate() {
     if (_activating || a.is_active) return;
     const phoneCard = state.cards.find(c => c.type === "phone");
     const hasPhone  = !!(phoneCard?.config?.phone?.trim());
     if (!hasPhone) return;
+    // Only auto-activate if all required cards are filled
+    if (validateCards().length > 0) return;
     _activating = true;
     try {
       const nc2 = { ...cfg, flow_v2: { cards: state.cards, edges: state.edges } };
       state.cards.forEach(card => {
         const c2 = card.config || {};
-        if (card.type === "voice"    && c2.voice)    nc2.voice_id          = c2.voice;
-        if (card.type === "language" && c2.language) nc2.language           = c2.language;
-        if (card.type === "phone"    && c2.phone)    nc2.forwarding_number  = c2.phone;
-        if (card.type === "gcal"     && c2.calendly) nc2.calendly_url       = c2.calendly;
-        if (card.type === "whatsapp" && c2.whatsapp) nc2.owner_whatsapp     = c2.whatsapp;
-        if (card.type === "info"     && c2.text)     nc2.business_info      = c2.text;
+        if (card.type === "voice"    && c2.voice)    nc2.voice_id         = c2.voice;
+        if (card.type === "language" && c2.language) nc2.language          = c2.language;
+        if (card.type === "phone"    && c2.phone)    nc2.forwarding_number = c2.phone;
+        if (card.type === "gcal"     && c2.calendly) nc2.calendly_url      = c2.calendly;
+        if (card.type === "whatsapp" && c2.whatsapp) nc2.owner_whatsapp    = c2.whatsapp;
+        if (card.type === "info"     && c2.text)     nc2.business_info     = c2.text;
       });
-      await api(`/agents/${id}`, { method: "PUT", body: {
+      const saved2 = await api(`/agents/${id}`, { method: "PUT", body: {
         name: a.name, twilio_number: a.twilio_number || "",
         forwarding_number: nc2.forwarding_number || a.forwarding_number || "",
         config: nc2,
       }});
-      await api(`/agents/${id}/activate`, { method: "POST" });
-      a.is_active = true;
-      toast("🎉 Your agent is now live and will answer calls!", "success");
-    } catch (_) { /* silent — user can activate manually via Save */ }
+      if (saved2?.agent) Object.assign(a, saved2.agent);
+      const missing2 = saved2?.agent?.activation_missing || [];
+      if (missing2.length === 0) {
+        await api(`/agents/${id}/activate`, { method: "POST" });
+        a.is_active = true;
+        toast("🎉 Your agent is now live and will answer calls!", "success");
+        updateActivationBar();
+      } else {
+        const human = missing2.map(k => ACTIVATION_LABELS[k] || k).join(", ");
+        toast(`Phone saved ✓ — to go live, also add: ${human}`, "warn");
+      }
+    } catch (ae) {
+      // Non-silent: tell the user what's blocking activation
+      const msg = ae?.message || "";
+      if (msg && !msg.includes("Request failed")) {
+        toast(`Couldn't auto-activate: ${msg}`, "warn");
+      }
+      updateActivationBar();
+    }
     _activating = false;
   }
 

@@ -85,14 +85,17 @@ def _connection_status(agent: Agent) -> dict:
 
 
 def _missing_activation_requirements(agent: Agent) -> list[str]:
-    cfg = agent.config or {}
+    """Return a list of field keys that must be present before activation.
+    Accepts any of: telnyx_phone, twilio_number, or forwarding_number.
+    """
     missing: list[str] = []
-    if not str(cfg.get("business_name") or "").strip():
-        missing.append("business_name")
-    if not str(cfg.get("greeting_message") or "").strip():
-        missing.append("greeting_message")
-    if not str(agent.telnyx_phone or "").strip():
-        missing.append("telnyx_phone")
+    has_phone = bool(
+        str(agent.telnyx_phone or "").strip()
+        or str(agent.twilio_number or "").strip()
+        or str(agent.forwarding_number or "").strip()
+    )
+    if not has_phone:
+        missing.append("phone_number")
     return missing
 
 
