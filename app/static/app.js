@@ -1173,7 +1173,26 @@ function initVoiceTester(root) {
       } else {
         setButtonConnecting();
         status.innerHTML = `<strong>Connecting…</strong>`;
-        vapi.start("d5f28a96-25da-4905-bac8-5dee52a15f4e");
+
+        // Build overrides from the Language and Voice dropdowns
+        const homepageLangVal  = langSel  ? langSel.value  : "English (US)";
+        const homepageVoiceVal = voiceSel ? voiceSel.value : "Maya — warm, mid-30s";
+        // Extract voice key: "Maya — warm, mid-30s" → "maya"
+        const homepageVoiceKey = homepageVoiceVal.split("—")[0].trim().toLowerCase();
+        const homepageCartesiaId = CARTESIA_VOICE_MAP[homepageVoiceKey];
+        // Reuse TRY_LANG_MAP for BCP-47 code
+        const homepageBcp47 = (TRY_LANG_MAP[homepageLangVal] || {}).code || "en-US";
+        const homepageDeepgramLang = homepageBcp47 === "en-GB" ? "en-GB" : homepageBcp47.split("-")[0];
+
+        const homepageOverrides = {};
+        if (homepageCartesiaId) {
+          homepageOverrides.voice = { provider: "cartesia", voiceId: homepageCartesiaId };
+        }
+        if (homepageDeepgramLang !== "en") {
+          homepageOverrides.transcriber = { provider: "deepgram", language: homepageDeepgramLang };
+        }
+
+        vapi.start("5b54d785-e86b-420e-ace0-26092882287e", homepageOverrides);
       }
     });
   } else {
@@ -2081,7 +2100,7 @@ route("dashboard", async () => {
     }));
 
     // ── Vapi-powered dashboard preview ──────────────────────────────────────
-    const DASH_ASSISTANT_ID = "5b54d785-e86b-420e-ace0-26092882287e";
+    const DASH_ASSISTANT_ID = "d5f28a96-25da-4905-bac8-5dee52a15f4e";
     let dashCallActive = false;
     const dashVapi = getVapi();
 
@@ -2110,6 +2129,14 @@ route("dashboard", async () => {
         playBtn.classList.remove("playing");
         playBtn.disabled = false;
         console.log("[Harkly AI] Dashboard preview call ended.");
+      });
+      dashVapi.on("speech-start", () => {
+        speaking = true;
+        level = 0.85;
+      });
+      dashVapi.on("speech-end", () => {
+        speaking = false;
+        level = 0.12;
       });
       dashVapi.on("volume-level", (vol) => {
         level = 0.12 + vol * 0.80;
@@ -4590,7 +4617,7 @@ route("agentFlow", async (id) => {
   }
 
   // ── Play / Stop button wired to Vapi ────────────────────────────────────────
-  const CANVAS_ASSISTANT_ID = "5b54d785-e86b-420e-ace0-26092882287e";
+  const CANVAS_ASSISTANT_ID = "d5f28a96-25da-4905-bac8-5dee52a15f4e";
   const playBtn  = document.getElementById("fb-play");
   const playLbl  = document.getElementById("fb-play-lbl");
   let canvasCallActive = false;
@@ -4614,10 +4641,22 @@ route("agentFlow", async (id) => {
       console.log("[Harkly AI] Canvas preview call ended.");
     });
 
+    vapi.on("speech-start", () => {
+      playBtn.classList.add("agent-speaking");
+    });
+
+    vapi.on("speech-end", () => {
+      playBtn.classList.remove("agent-speaking");
+    });
+
+    vapi.on("volume-level", (vol) => {
+      playBtn.style.setProperty("--vapi-vol", vol.toFixed(3));
+    });
+
     vapi.on("error", (err) => {
       canvasCallActive = false;
       playLbl.textContent = "▶ Play sample";
-      playBtn.classList.remove("playing");
+      playBtn.classList.remove("playing", "agent-speaking");
       playBtn.disabled = false;
       console.error("[Harkly AI] Vapi error:", err);
     });

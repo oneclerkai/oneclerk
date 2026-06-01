@@ -4857,10 +4857,23 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   border: 1px solid rgba(140,100,255,.8);
   color: #fff; font-size: 12px; font-weight: 700; font-family: inherit;
   cursor: pointer; white-space: nowrap;
-  transition: background 130ms, transform 130ms;
+  transition: background 130ms, transform 130ms, box-shadow 130ms;
 }
 .fb-play:hover { background: rgba(140,100,255,.88); transform: scale(1.03); }
 .fb-play:active { transform: scale(.97); }
+.fb-play.playing {
+  background: rgba(220,38,38,.75);
+  border-color: rgba(220,38,38,.9);
+}
+.fb-play.playing:hover { background: rgba(220,38,38,.9); }
+.fb-play.agent-speaking {
+  box-shadow: 0 0 0 4px rgba(140,100,255,calc(0.18 + var(--vapi-vol, 0) * 0.5));
+  animation: fb-speak-pulse 0.6s ease-in-out infinite alternate;
+}
+@keyframes fb-speak-pulse {
+  from { box-shadow: 0 0 0 2px rgba(140,100,255,0.25); }
+  to   { box-shadow: 0 0 0 7px rgba(140,100,255,0.08); }
+}
 
 /* ── Calendar: enhanced note squares ─────────────── */
 .cl-bigcal-usernote {
