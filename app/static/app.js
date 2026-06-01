@@ -4659,24 +4659,94 @@ route("agentFlow", async (id) => {
   }
 
   function bezier(sx, sy, tx, ty) {
-    const dx = Math.max(55, Math.abs(tx - sx) * 0.52);
-    return `M${sx} ${sy} C${sx+dx} ${sy},${tx-dx} ${ty},${tx} ${ty}`;
+    const dx = Math.max(80, Math.abs(tx - sx) * 0.5);
+    const dy = (ty - sy) * 0.1;
+    return `M${sx} ${sy} C${sx+dx} ${sy+dy},${tx-dx} ${ty-dy},${tx} ${ty}`;
+  }
+
+  // Connection validation rules — what each card type may output to
+  const CONN_RULES = {
+    phone:    ["voice", "language", "info"],
+    voice:    ["language", "info"],
+    language: ["voice", "info"],
+    info:     ["gcal", "whatsapp", "gmail", "slack"],
+    gcal:     ["whatsapp", "gmail", "slack"],
+    whatsapp: [],
+    gmail:    [],
+    slack:    [],
+  };
+  const CONN_DENY_REASONS = {
+    phone:    "Phone is the starting point — nothing should connect into it from another card.",
+    whatsapp: "WhatsApp Notify is a terminal step. It sends a summary and the flow ends there.",
+    gmail:    "Gmail is a terminal step. It sends a follow-up email and the flow ends there.",
+    slack:    "Slack is a terminal step. It sends an alert and the flow ends there.",
+  };
+  function canConnect(fromType, toType) {
+    if (fromType === toType) return { ok: false, reason: "A card cannot connect to itself." };
+    if (toType === "phone") return { ok: false, reason: CONN_DENY_REASONS.phone };
+    const allowed = CONN_RULES[fromType] || [];
+    if (!allowed.includes(toType)) {
+      const hint = allowed.length
+        ? `"${fromType}" can connect to: ${allowed.join(", ")}.`
+        : (CONN_DENY_REASONS[fromType] || `"${fromType}" has no valid outgoing connections.`);
+      return { ok: false, reason: hint };
+    }
+    return { ok: true };
+  }
+  // Show a brief non-blocking banner
+  function connErrBanner(msg) {
+    document.querySelectorAll(".fb-conn-err").forEach(e => e.remove());
+    const el = document.createElement("div");
+    el.className = "fb-conn-err";
+    el.textContent = "⚠️ " + msg;
+    el.style.cssText = "position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#fef2f2;border:1.5px solid #fca5a5;color:#b91c1c;padding:9px 18px;border-radius:11px;font-size:12.5px;z-index:9999;box-shadow:0 3px 12px rgba(239,68,68,.18);max-width:440px;text-align:center;pointer-events:none;transition:opacity .3s";
+    document.body.appendChild(el);
+    setTimeout(() => { el.style.opacity = "0"; setTimeout(() => el.remove(), 320); }, 3200);
   }
 
   function renderEdges() {
-    svgEl.innerHTML = `<defs><marker id="fbarr" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0 .5 L6 3.5 L0 6.5z" fill="rgba(99,102,241,.75)"/></marker></defs>`;
+    svgEl.innerHTML = `<defs>
+      <marker id="fbarr" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+        <path d="M0 .5 L7 4 L0 7.5z" fill="rgba(99,102,241,.85)"/>
+      </marker>
+      <marker id="fbarr-ghost" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+        <path d="M0 .5 L7 4 L0 7.5z" fill="rgba(59,130,246,.75)"/>
+      </marker>
+      <filter id="fb-glow">
+        <feGaussianBlur stdDeviation="2" result="blur"/>
+        <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+      </filter>
+    </defs>`;
     state.edges.forEach((e, i) => {
       const fc = state.cards.find(c => c.id === e.from);
       const tc = state.cards.find(c => c.id === e.to);
       if (!fc || !tc) return;
       const s = portPos(fc, "out"), t = portPos(tc, "in");
+      // Shadow/glow path
+      const glow = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      glow.setAttribute("d", bezier(s.x, s.y, t.x, t.y));
+      glow.setAttribute("stroke", "rgba(99,102,241,0.18)");
+      glow.setAttribute("stroke-width", "7");
+      glow.setAttribute("fill", "none");
+      glow.style.pointerEvents = "none";
+      svgEl.appendChild(glow);
+      // Main path
       const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
       p.setAttribute("d", bezier(s.x, s.y, t.x, t.y));
       p.setAttribute("class", "fb-edge");
       p.setAttribute("marker-end", "url(#fbarr)");
       p.dataset.idx = i;
       p.style.pointerEvents = "stroke";
-      p.addEventListener("click", ev => { ev.stopPropagation(); if (confirm("Remove connection?")) { state.edges.splice(i,1); renderEdges(); } });
+      p.addEventListener("click", ev => {
+        ev.stopPropagation();
+        if (confirm("Remove this connection?")) { state.edges.splice(i, 1); renderEdges(); }
+      });
+      // Hover tooltip hint
+      p.addEventListener("mouseenter", () => { p.style.strokeWidth = "3"; p.style.opacity = "0.9"; });
+      p.addEventListener("mouseleave", () => { p.style.strokeWidth = ""; p.style.opacity = ""; });
+      const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+      title.textContent = "Click to remove this connection";
+      p.appendChild(title);
       svgEl.appendChild(p);
     });
     if (state.dragEdgeFrom) {
@@ -4686,6 +4756,7 @@ route("agentFlow", async (id) => {
         const gp = document.createElementNS("http://www.w3.org/2000/svg", "path");
         gp.setAttribute("d", bezier(s.x, s.y, state.mouse.x, state.mouse.y));
         gp.setAttribute("class", "fb-edge fb-edge-ghost");
+        gp.setAttribute("marker-end", "url(#fbarr-ghost)");
         svgEl.appendChild(gp);
       }
     }
@@ -4748,6 +4819,16 @@ route("agentFlow", async (id) => {
           // Bridge canvas selections → dashboard preview (persisted across navigation)
           if (card.type === "voice"    && inp.dataset.field === "voice")    localStorage.setItem("oc_last_voice", inp.value);
           if (card.type === "language" && inp.dataset.field === "language") localStorage.setItem("oc_last_lang",  inp.value);
+          // Sync canvas state to global preview state
+          (function syncCanvasState() {
+            const vc = state.cards.find(c => c.type === "voice");
+            const lc = state.cards.find(c => c.type === "language");
+            const LANG_MAP = { "English (US)": "en-US", "Hindi (हिंदी)": "hi-IN", "Spanish": "es-ES", "Arabic (عربي)": "ar-SA", "Tamil (தமிழ்)": "ta-IN", "French": "fr-FR", "Mandarin": "zh-CN", "Portuguese": "pt-PT", "German": "de-DE", "Japanese": "ja-JP" };
+            window.harklyCanvasState = {
+              voiceId:  (vc?.config?.voice) || "maya",
+              language: LANG_MAP[lc?.config?.language] || "en-US",
+            };
+          })();
           checkAutoActivate();
         };
         inp.addEventListener("change", upd);
@@ -4760,13 +4841,20 @@ route("agentFlow", async (id) => {
         state.dragEdgeFrom = card.id;
       });
 
-      // In port → complete edge
+      // In port → complete edge (with connection validation)
       el.querySelector(".fb-port-in").addEventListener("mouseup", ev => {
         if (state.dragEdgeFrom && state.dragEdgeFrom !== card.id) {
-          if (!state.edges.find(e => e.from === state.dragEdgeFrom && e.to === card.id))
-            state.edges.push({ from: state.dragEdgeFrom, to: card.id });
+          const fromCard = state.cards.find(c => c.id === state.dragEdgeFrom);
+          if (fromCard) {
+            const check = canConnect(fromCard.type, card.type);
+            if (!check.ok) {
+              connErrBanner(check.reason);
+            } else if (!state.edges.find(e => e.from === state.dragEdgeFrom && e.to === card.id)) {
+              state.edges.push({ from: state.dragEdgeFrom, to: card.id });
+              renderEdges();
+            }
+          }
           state.dragEdgeFrom = null;
-          renderEdges();
           ev.stopPropagation();
         }
       });
@@ -4880,72 +4968,179 @@ route("agentFlow", async (id) => {
     _activating = false;
   }
 
-  // ── Animated first-time tutorial ─────────────────────────────────────────────
-  const FLOW_TUT_KEY = "oc_seen_flow_tutorial";
+  // ── Blur-based step-by-step tutorial with arrow pointers ─────────────────────
+  const FLOW_TUT_KEY = "oc_seen_flow_tutorial_v2";
   function showFlowTutorial() {
-    if (localStorage.getItem(FLOW_TUT_KEY)) return;
+    if (localStorage.getItem(FLOW_TUT_KEY)) {
+      // Add a subtle "replay" button to the toolbar area
+      const replayBtn = h(`<button class="btn btn-sm" id="fb-tut-replay" title="Replay tutorial" style="font-size:11px">📖 Tutorial</button>`);
+      const bar = shellEl.querySelector(".fb-canvas-bar div");
+      if (bar) bar.prepend(replayBtn);
+      replayBtn.addEventListener("click", () => { localStorage.removeItem(FLOW_TUT_KEY); replayBtn.remove(); showFlowTutorial(); });
+      return;
+    }
+
+    // Steps: target is a CSS selector inside the page, or null for center-only
     const STEPS = [
-      { icon: "🎯", title: "Welcome to your Agent Builder",
-        body: "This canvas is your AI receptionist's brain. Cards represent everything your agent needs to handle calls — voice, language, bookings, and more." },
-      { icon: "📞", title: "Start with your Phone card",
-        body: "The Phone card is already on the canvas. Enter your forwarding number there — the moment it's filled in your agent activates automatically. No extra steps!" },
-      { icon: "🎙️", title: "Pick a voice & language",
-        body: "The Voice and Language cards let you choose how your agent sounds. Click the dropdown in each card to customise. You can change these any time." },
-      { icon: "📋", title: "Add business knowledge",
-        body: "Open the Info card and type your hours, services, pricing, and FAQs. Your agent uses this to answer callers accurately in real time." },
-      { icon: "🔗", title: "Connect cards with arrows",
-        body: "Drag the → handle on the right edge of any card onto another card to create a connection. This tells the AI the order of operations during a call." },
-      { icon: "💾", title: "Save to lock it in",
-        body: "Hit Save agent when you're done. If your phone number is filled in, the agent is already live — saving just stores the latest settings." },
+      {
+        icon: "🎯", title: "Welcome to the Agent Builder",
+        body: "This canvas is your AI receptionist's brain. Cards represent the integrations your agent needs — voice, language, phone, bookings, and notifications. Build the flow in about 2 minutes.",
+        target: null, arrow: null,
+      },
+      {
+        icon: "📦", title: "Drag cards from the panel",
+        body: "The right panel has all available integrations. Drag any card onto the canvas — or click it to auto-place. Start with Phone, Voice, and Language if they're not already there.",
+        target: ".fb-glass-panel", arrow: "left",
+      },
+      {
+        icon: "📞", title: "Phone card = entry point",
+        body: "The Phone card is your starting point. Enter your forwarding number and your agent will auto-activate the moment it's saved. Nothing connects INTO the phone card — it always starts the flow.",
+        target: `.fb-card[data-cid="${state.cards.find(c=>c.type==='phone')?.id}"]`, arrow: "right",
+      },
+      {
+        icon: "🔗", title: "Connect cards with arrows",
+        body: "Drag the → handle on the RIGHT edge of a card onto another card to create a connection. The arrow shows the order of events during a call. Click any connection line to delete it.",
+        target: ".fb-port-out", arrow: "right",
+      },
+      {
+        icon: "🚫", title: "Smart connection rules",
+        body: "Not all connections make sense — and Harkly AI enforces logical rules:\n• Phone → Voice / Language / Info ✅\n• Info → WhatsApp / Calendar / Gmail ✅\n• WhatsApp → Phone ❌ (blocked)\n• Notification cards (WhatsApp, Gmail) are terminal — they end the flow.",
+        target: null, arrow: null,
+      },
+      {
+        icon: "🎙️", title: "Voice & Language cards",
+        body: "Use the Voice card to pick your agent's voice character and the Language card to set the primary language. Changes sync instantly to the dashboard voice preview — test it live!",
+        target: `.fb-card[data-cid="${state.cards.find(c=>c.type==='voice')?.id}"]`, arrow: "right",
+      },
+      {
+        icon: "💬", title: "WhatsApp Notify = post-call",
+        body: "The WhatsApp card sends a call summary to the owner after every call. It must come AFTER info/booking cards — it can never connect directly to Phone or Voice.",
+        target: null, arrow: null,
+      },
+      {
+        icon: "💾", title: "Save to lock it in",
+        body: "Hit 'Save agent' when you're done. Voice and Language selections automatically update your agent's settings. If a phone number is set, your agent is already live!",
+        target: "#fb-save", arrow: "bottom",
+      },
     ];
+
     let i = 0;
-    const ov = h(`<div class="ftut-overlay">
-      <div class="ftut-card" id="ftut-card">
-        <div class="ftut-header">
-          <span class="ftut-icon" id="ftut-icon"></span>
-          <span class="ftut-count" id="ftut-count"></span>
+    const ov = h(`<div class="ftut2-overlay" id="ftut2-ov">
+      <div class="ftut2-blur"></div>
+      <div class="ftut2-spotlight" id="ftut2-spot"></div>
+      <div class="ftut2-arrow" id="ftut2-arr"></div>
+      <div class="ftut2-card" id="ftut2-card">
+        <div class="ftut2-progress" id="ftut2-prog"></div>
+        <div class="ftut2-meta">
+          <span class="ftut2-icon" id="ftut2-icon"></span>
+          <span class="ftut2-step" id="ftut2-step"></span>
         </div>
-        <div class="ftut-title" id="ftut-title"></div>
-        <div class="ftut-body"  id="ftut-body"></div>
-        <div class="ftut-dots" id="ftut-dots">${STEPS.map((_, j) =>
-          `<span class="ftut-dot${j === 0 ? " on" : ""}"></span>`).join("")}
-        </div>
-        <div class="ftut-btns">
-          <button class="ftut-skip" id="ftut-skip">Skip tour</button>
-          <div style="display:flex;gap:6px;align-items:center">
-            <button class="ftut-nav-btn" id="ftut-back" disabled>← Back</button>
-            <button class="ftut-nav-btn ftut-nav-primary" id="ftut-next">Next →</button>
+        <div class="ftut2-title" id="ftut2-title"></div>
+        <div class="ftut2-body" id="ftut2-body"></div>
+        <div class="ftut2-btns">
+          <button class="ftut2-skip" id="ftut2-skip">Skip tour</button>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="ftut2-nav" id="ftut2-back" disabled>← Back</button>
+            <button class="ftut2-nav ftut2-primary" id="ftut2-next">Next →</button>
           </div>
         </div>
       </div>
     </div>`);
     document.body.appendChild(ov);
-    void ov.offsetWidth;
-    ov.classList.add("ftut-in");
+    void ov.offsetWidth; ov.classList.add("ftut2-in");
 
     function close() {
       localStorage.setItem(FLOW_TUT_KEY, "1");
-      ov.classList.remove("ftut-in"); ov.classList.add("ftut-out");
-      setTimeout(() => ov.remove(), 280);
+      ov.classList.add("ftut2-out");
+      setTimeout(() => { ov.remove(); showFlowTutorial(); }, 260);
     }
+
+    function place() {
+      const step = STEPS[i];
+      const spot = $("#ftut2-spot", ov);
+      const arr  = $("#ftut2-arr", ov);
+      const card = $("#ftut2-card", ov);
+      spot.style.cssText = "opacity:0";
+      arr.style.cssText  = "opacity:0";
+
+      if (step.target) {
+        const tEl = step.target.startsWith("#") || step.target.startsWith(".")
+          ? document.querySelector(step.target)
+          : document.querySelector(step.target);
+        if (tEl) {
+          const r = tEl.getBoundingClientRect();
+          const PAD = 8;
+          spot.style.cssText = `
+            position:fixed;left:${r.left-PAD}px;top:${r.top-PAD}px;
+            width:${r.width+PAD*2}px;height:${r.height+PAD*2}px;
+            opacity:1;border-radius:10px;
+            box-shadow:0 0 0 4px rgba(255,205,92,.85),0 0 0 8px rgba(255,205,92,.18);
+            pointer-events:none;transition:all 200ms;z-index:10002;`;
+
+          // Position card away from spotlight
+          const cw = 360, ch = 260;
+          const vw = window.innerWidth, vh = window.innerHeight;
+          let cx, cy;
+          const a = step.arrow;
+          if (a === "left") {
+            cx = Math.max(12, r.left - cw - 28);
+            cy = Math.max(12, Math.min(vh - ch - 12, r.top + r.height/2 - ch/2));
+            arr.style.cssText = `position:fixed;left:${r.left-22}px;top:${r.top+r.height/2}px;transform:translateY(-50%);font-size:22px;color:#ffcd5c;opacity:1;z-index:10003;`;
+            arr.textContent = "→";
+          } else if (a === "right") {
+            cx = Math.min(vw - cw - 12, r.right + 28);
+            cy = Math.max(12, Math.min(vh - ch - 12, r.top + r.height/2 - ch/2));
+            arr.style.cssText = `position:fixed;left:${r.right+6}px;top:${r.top+r.height/2}px;transform:translateY(-50%);font-size:22px;color:#ffcd5c;opacity:1;z-index:10003;`;
+            arr.textContent = "←";
+          } else if (a === "bottom") {
+            cx = Math.max(12, Math.min(vw - cw - 12, r.left + r.width/2 - cw/2));
+            cy = Math.max(12, r.top - ch - 28);
+            arr.style.cssText = `position:fixed;left:${r.left+r.width/2}px;top:${r.top-20}px;transform:translateX(-50%);font-size:22px;color:#ffcd5c;opacity:1;z-index:10003;`;
+            arr.textContent = "↓";
+          } else {
+            cx = Math.max(12, Math.min(vw - cw - 12, r.left + r.width/2 - cw/2));
+            cy = Math.max(12, r.bottom + 28);
+            arr.style.cssText = `position:fixed;left:${r.left+r.width/2}px;top:${r.bottom+4}px;transform:translateX(-50%);font-size:22px;color:#ffcd5c;opacity:1;z-index:10003;`;
+            arr.textContent = "↑";
+          }
+          card.style.cssText = `position:fixed;left:${cx}px;top:${cy}px;width:${cw}px;`;
+          return;
+        }
+      }
+      // Centered card
+      card.style.cssText = "position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:380px;";
+    }
+
     function render() {
       const s = STEPS[i];
-      $("#ftut-icon",  ov).textContent = s.icon;
-      $("#ftut-count", ov).textContent = `${i + 1} / ${STEPS.length}`;
-      $("#ftut-title", ov).textContent = s.title;
-      $("#ftut-body",  ov).textContent  = s.body;
-      $("#ftut-back",  ov).disabled = i === 0;
-      $("#ftut-next",  ov).textContent  = i === STEPS.length - 1 ? "Let's build! 🚀" : "Next →";
-      ov.querySelectorAll(".ftut-dot").forEach((d, j) => d.classList.toggle("on", j === i));
+      const prog = $("#ftut2-prog", ov);
+      prog.innerHTML = STEPS.map((_, j) => `<span class="ftut2-pd${j===i?" on":j<i?" done":""}"></span>`).join("");
+      $("#ftut2-icon",  ov).textContent = s.icon;
+      $("#ftut2-step",  ov).textContent = `Step ${i+1} of ${STEPS.length}`;
+      $("#ftut2-title", ov).textContent = s.title;
+      const bodyEl = $("#ftut2-body", ov);
+      bodyEl.innerHTML = "";
+      s.body.split("\n").forEach(line => {
+        const p = document.createElement("p");
+        p.textContent = line;
+        p.style.margin = "3px 0";
+        bodyEl.appendChild(p);
+      });
+      $("#ftut2-back", ov).disabled = i === 0;
+      $("#ftut2-next", ov).textContent = i === STEPS.length-1 ? "Let's build! 🚀" : "Next →";
+      place();
     }
-    $("#ftut-next", ov).addEventListener("click", () => { if (i >= STEPS.length - 1) { close(); return; } i++; render(); });
-    $("#ftut-back", ov).addEventListener("click", () => { if (i > 0) { i--; render(); } });
-    $("#ftut-skip", ov).addEventListener("click", close);
+
+    $("#ftut2-next", ov).addEventListener("click", () => { if (i >= STEPS.length-1) { close(); return; } i++; render(); });
+    $("#ftut2-back", ov).addEventListener("click", () => { if (i > 0) { i--; render(); } });
+    $("#ftut2-skip", ov).addEventListener("click", close);
     document.addEventListener("keydown", function onK(e) {
       if (!document.body.contains(ov)) { document.removeEventListener("keydown", onK); return; }
-      if (e.key === "Escape" || e.key === "ArrowRight") { if (e.key === "Escape") close(); else { i = Math.min(i + 1, STEPS.length - 1); render(); } }
-      if (e.key === "ArrowLeft") { i = Math.max(i - 1, 0); render(); }
+      if (e.key === "Escape") { close(); return; }
+      if (e.key === "ArrowRight" || e.key === "Enter") { if (i < STEPS.length-1) { i++; render(); } else close(); }
+      if (e.key === "ArrowLeft") { if (i > 0) { i--; render(); } }
     });
+    window.addEventListener("resize", () => { if (document.body.contains(ov)) place(); });
     render();
   }
   requestAnimationFrame(showFlowTutorial);

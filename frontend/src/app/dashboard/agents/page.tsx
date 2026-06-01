@@ -162,14 +162,24 @@ export default function AgentsPage() {
     } : undefined
 
     return (
-      <div className="space-y-4">
-        <button
-          onClick={() => { setView('list'); setSelected(null) }}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 font-medium"
-        >
-          &larr; Back to agents
-        </button>
-        <AgentBuilder initial={initial} onSave={handleSave} isSaving={isSaving} />
+      <div className="flex flex-col" style={{ minHeight: 'calc(100vh - 120px)' }}>
+        <div className="flex items-center gap-2 px-1 py-3 flex-shrink-0">
+          <button
+            onClick={() => { setView('list'); setSelected(null) }}
+            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 font-medium"
+          >
+            &larr; Back to agents
+          </button>
+          {selected && (
+            <>
+              <span className="text-gray-300">/</span>
+              <span className="text-sm font-semibold text-gray-900">{selected.name}</span>
+            </>
+          )}
+        </div>
+        <div className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden" style={{ minHeight: 560 }}>
+          <AgentBuilder initial={initial} onSave={handleSave} isSaving={isSaving} />
+        </div>
         {toast && <Toast msg={toast.msg} type={toast.type} />}
       </div>
     )
