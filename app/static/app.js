@@ -555,18 +555,18 @@ const PREVIEW_LANG_MAP = {
 // required by the Vapi API to avoid 400 Bad Request errors.
 // - transcriber: Deepgram nova-2 with dynamic language code
 // - model:       Google Gemini 2.5 Flash with dynamic system prompt
-// - voice:       Cartesia with dynamic voiceId from HARKLY_VOICE_MAP
+// - voice:       Cartesia sonic-multilingual with explicit language code (required for non-English)
 function buildVapiOverrides(voice, lang, agentType) {
   const cartesiaId = HARKLY_VOICE_MAP[voice?.id] || HARKLY_VOICE_MAP["maya"];
   const langCode   = HARKLY_LANG_MAP[lang] || "en";
 
   const promptTemplate = agentType && HARKLY_PROMPT_MAP[agentType]
     ? HARKLY_PROMPT_MAP[agentType]
-    : `You are a warm, professional AI receptionist. Always respond in ${lang || "English"}. Be concise and helpful.`;
+    : `You are a warm, professional AI receptionist. Be concise and helpful.`;
 
-  const systemPrompt = langCode !== "en" && !agentType
-    ? `${promptTemplate} The caller prefers ${lang}. Respond entirely in ${lang}. Do not switch to English.`
-    : promptTemplate;
+  // Always inject a hard language instruction so the model never defaults to English
+  const langName = lang || "English";
+  const systemPrompt = `${promptTemplate} CRITICAL INSTRUCTION: You MUST speak and respond ONLY in ${langName}. Never use English unless ${langName} is English. Do not switch languages under any circumstances.`;
 
   return {
     transcriber: {
@@ -585,6 +585,7 @@ function buildVapiOverrides(voice, lang, agentType) {
       provider: "cartesia",
       model:    "sonic-multilingual",
       voiceId:  cartesiaId,
+      language: langCode,
     },
   };
 }
@@ -1343,12 +1344,17 @@ function initVoiceTester(root) {
 
         console.log("[Harkly Vapi] Homepage tester — assistantOverrides:", JSON.stringify(overrides, null, 2));
         status.innerHTML = `<strong>Connecting…</strong> Starting call in ${langVal}…`;
-        // 5 s timeout guard
-        const timeout = setTimeout(() => {
+        startVapiCall("5b54d785-e86b-420e-ace0-26092882287e", overrides, {
+          onStart: () => { clearTimeout(connectTimeout); setButtonActive(); status.innerHTML = `<strong>Connected.</strong> Speak — the agent is listening.`; listening = true; },
+          onEnd:   () => { setButtonIdle(); status.innerHTML = `Call ended. Tap the mic to start a new conversation.`; listening = false; agentSpeaking = false; },
+          onSpeechStart: () => { agentSpeaking = true; status.innerHTML = `<strong>Agent speaking…</strong>`; },
+          onSpeechEnd:   () => { agentSpeaking = false; status.innerHTML = `<strong>Listening…</strong> Go ahead and speak.`; },
+          onError: () => { setButtonIdle(); status.innerHTML = `Something went wrong — tap the mic to try again.`; listening = false; agentSpeaking = false; },
+        });
+        // 8 s timeout guard
+        const connectTimeout = setTimeout(() => {
           if (!vapiCallActive) { setButtonIdle(); status.innerHTML = `Connection timed out — tap again to retry.`; }
-        }, 5000);
-        vapi.once("call-start", () => clearTimeout(timeout));
-        vapi.start("5b54d785-e86b-420e-ace0-26092882287e", overrides);
+        }, 8000);
       })();
     });
   } else {
@@ -2482,8 +2488,8 @@ route("dashboard", async () => {
     return {
       syncAgent(agent) {
         if (!agent) return;
-        const vid = agent.config?.voice_id || agent.voice_id;
-        const v = vid ? (PREVIEW_VOICES.find(x => x.id === vid) || selectedVoice) : selectedVoice;
+        const vid = agent.config?.voice_id || agent.config?.voice || agent.voice_id;
+        const v = vid ? (PREVIEW_VOICES.find(x => x.id === vid || x.label.toLowerCase() === String(vid).toLowerCase()) || selectedVoice) : selectedVoice;
         selectedVoice = v; currentPitch = v.pitch;
         page.querySelectorAll(".dash-prev-voice").forEach(b => b.classList.toggle("active", b.dataset.vid === v.id));
 
@@ -2549,7 +2555,7 @@ route("dashboard", async () => {
       am.innerHTML = agentList.slice(0, 6).map(a => {
         const cfg = a.config || {};
         const lang  = cfg.language || a.language || "English (US)";
-        const voice = cfg.voice_id || a.voice_id || "maya";
+        const voice = cfg.voice_id || cfg.voice || a.voice_id || "maya";
         const vLabel = PREVIEW_VOICES.find(v => v.id === voice)?.label || voice;
         const hasPhone = !!(a.twilio_number || cfg.forwarding_number || cfg.phone);
         return `
