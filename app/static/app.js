@@ -739,8 +739,8 @@ route("auth", async () => {
         <div class="lp-hero-inner">
           <span class="lp-eyebrow"><span class="pulse"></span><span>VOICE AI · LIVE 24/7</span></span>
           <h1 class="lp-title lp-title-one">
-            <span class="lp-title-line opacity-[1]">Your Phone Rings. <em class="opacity-[0.8]">Harkly AI</em> Answers.</span>
-            <span class="lp-title-line opacity-[1]">Human-Like Voice. <em class="opacity-[0.85]">Every Call. 24/7.</em></span>
+            <span class="lp-title-line opacity-[1] text-[48px]">Your Phone Rings. <em class="opacity-[1]">Harkly AI</em> Answers.</span>
+            <span class="lp-title-line opacity-[1] text-[48px]">Human-Like Voice. <em class="opacity-[1]">Every Call. 24/7.</em></span>
           </h1>
           <div class="lp-sub" id="lp-sub-rotate">
             <span id="lp-sub-text"></span><span class="caret"></span>
