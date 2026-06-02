@@ -3,3 +3,4 @@
 - [Canvas→dashboard bridge](canvas-dashboard-bridge.md) — localStorage keys oc_last_voice / oc_last_lang sync canvas card changes to dashboard preview
 - [Flow builder tutorial](flow-tutorial.md) — spotlight uses box-shadow:0 0 0 9999px trick (no blur); curved bezier SVG path arrow; per-step check() validation; ftut2-centered class for dark bg on steps without a target
 - [Demo guide modal](demo-guide.md) — 5-tab modal (Overview/Card Types/Connections/Use Cases/Tips); badge classes: dg-badge-required/terminal/recommended/highly/optional; Use Cases has 5 industry templates built inline
+- [Flow builder config pipeline](flow-builder-config-pipeline.md) — flow_v2 card data is promoted to top-level config fields by _normalize_agent_config; AI brain reads business_* keys with fallbacks to old field names

@@ -45,6 +45,13 @@ class AgentConfig(BaseModel):
     # Business info from canvas info card
     business_info: str = ""
     business_url: str = ""
+    business_hours: str = ""
+    business_services: str = ""
+    business_pricing: str = ""
+    business_address: str = ""
+    business_faq: str = ""
+    # Agent persona from agent card
+    agent_persona: str = ""
     # Visual flow builder data: { nodes: [...], edges: [...] }
     flow: dict[str, Any] | None = None
     builder_layout: dict[str, Any] | None = None
@@ -131,6 +138,28 @@ def _normalize_agent_config(config: dict[str, Any] | None) -> dict[str, Any]:
     if cfg.get("google_credentials"):
         cfg["google_calendar_connected"] = True
         cfg["gmail_connected"] = True
+    # Extract flow_v2 card data → top-level config so AI brain can read it directly
+    fv2 = cfg.get("flow_v2") or {}
+    for card in fv2.get("cards", []):
+        ctype = card.get("type", "")
+        cc = card.get("config") or {}
+        if ctype == "agent" and cc.get("text"):
+            cfg.setdefault("agent_persona", cc["text"])
+        elif ctype == "info":
+            if cc.get("bizname"):   cfg.setdefault("business_name",     cc["bizname"])
+            if cc.get("hours"):     cfg.setdefault("business_hours",    cc["hours"])
+            if cc.get("services"):  cfg.setdefault("business_services", cc["services"])
+            if cc.get("pricing"):   cfg.setdefault("business_pricing",  cc["pricing"])
+            if cc.get("address"):   cfg.setdefault("business_address",  cc["address"])
+            if cc.get("faq"):       cfg.setdefault("business_faq",      cc["faq"])
+            if cc.get("url"):       cfg.setdefault("business_url",      cc["url"])
+            if cc.get("text"):      cfg.setdefault("business_info",     cc["text"])
+        elif ctype == "whatsapp" and cc.get("whatsapp"):
+            cfg.setdefault("owner_whatsapp", cc["whatsapp"])
+        elif ctype == "gcal" and cc.get("calendly"):
+            cfg.setdefault("calendly_url", cc["calendly"])
+        elif ctype == "language" and cc.get("language"):
+            cfg.setdefault("language", cc["language"])
     return cfg
 
 

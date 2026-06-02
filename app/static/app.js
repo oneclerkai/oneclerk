@@ -2281,6 +2281,10 @@ route("dashboard", async () => {
   const page = $("#page", wrap);
   page.innerHTML = `
     <div class="grid grid-cols-4 mb-6" id="stats">${skeleton(1)}</div>
+    <div class="dash-sparkline-row mb-4" id="dash-sparkline" style="display:none">
+      <div class="dash-spark-label">Calls — last 7 days</div>
+      <div class="dash-spark-bars" id="dash-spark-bars"></div>
+    </div>
     <div class="grid" style="grid-template-columns: 1.7fr 1fr; gap:16px">
       <div class="card p-5">
         <div class="flex items-center justify-between mb-4">
@@ -2488,16 +2492,37 @@ route("dashboard", async () => {
   })();
 
   try {
-    const [stats, agents, recent] = await Promise.all([api("/dashboard/stats"), api("/agents/list"), api("/calls/recent")]);
+    const [stats, agents, recent, weekly] = await Promise.all([
+      api("/dashboard/stats"),
+      api("/agents/list"),
+      api("/calls/recent"),
+      api("/dashboard/weekly").catch(() => null),
+    ]);
     const active = (agents.agents || []).filter(a => a.is_active).length;
     const total = (agents.agents || []).length;
     $("#stats", page).innerHTML = [
-      statCard({ label: "Calls today", value: stats.calls_today ?? 0, sub: `${stats.calls_total ?? 0} all-time`, icon: "phone" }),
-      statCard({ label: "Bookings", value: stats.bookings ?? 0, sub: "from AI conversations", icon: "calendar-check", accent: true }),
-      statCard({ label: "Urgent", value: stats.urgent_calls ?? 0, sub: "flagged for follow-up", icon: "alert-triangle" }),
-      statCard({ label: "Active agents", value: active, sub: `${total} total`, icon: "bot" }),
+      statCard({ label: "Calls today",    value: stats.calls_today    ?? 0, sub: `${stats.calls_total ?? 0} all-time`,                    icon: "phone" }),
+      statCard({ label: "Bookings today", value: stats.bookings_today ?? 0, sub: `${stats.bookings  ?? 0} total`,                         icon: "calendar-check", accent: true }),
+      statCard({ label: "Urgent today",   value: stats.urgent_today   ?? 0, sub: `${stats.urgent_calls ?? 0} total flagged`,               icon: "alert-triangle" }),
+      statCard({ label: "Minutes saved",  value: stats.total_minutes  ?? 0, sub: `${active} of ${total} agent${total !== 1 ? "s" : ""} live`, icon: "clock" }),
     ].join("");
     renderIcons($("#stats", page));
+
+    // Weekly sparkline
+    if (weekly?.days?.length) {
+      const sparksEl = $("#dash-spark-bars", page);
+      const max = Math.max(1, ...weekly.days.map(d => d.count));
+      sparksEl.innerHTML = weekly.days.map(d => {
+        const pct = Math.max(6, Math.round((d.count / max) * 100));
+        const isToday = d.date === new Date().toLocaleDateString("en-US", { weekday: "short" }).slice(0,3);
+        return `<div class="dash-spark-col">
+          <div class="dash-spark-bar${isToday ? " dash-spark-today" : ""}" style="height:${pct}%" title="${d.count} calls"></div>
+          <div class="dash-spark-day">${d.date}</div>
+        </div>`;
+      }).join("");
+      $("#dash-sparkline", page).style.display = "";
+    }
+
     renderRecentCalls($("#recent", page), (recent.calls || []).slice(0, 6));
     const agentList = agents.agents || [];
     const am = $("#agents-mini", page);
@@ -4843,21 +4868,87 @@ route("agentFlow", async (id) => {
       ${wc ? row("WhatsApp", waNum) : ""}
       ${gc ? row("Booking",  calUrl || "—") : ""}
       ${infoSnip ? `<div class="fb-pv-info">${escapeHtml(infoSnip)}</div>` : ""}
+        <canvas id="fb-pv-wave" class="fb-pv-wave"></canvas>
       <button class="fb-pv-talk-btn" id="fb-pv-talk" data-voice="${escapeHtml(voiceForPreview)}" data-lang="${escapeHtml(langForPreview)}">
-        <svg viewBox="0 0 20 20" style="width:14px;height:14px;margin-right:5px"><path d="M10 12a2 2 0 0 0 2-2V5a2 2 0 0 0-4 0v5a2 2 0 0 0 2 2zm4-2a4 4 0 0 1-8 0H4a6 6 0 0 0 12 0h-2z" fill="currentColor"/></svg>
-        Talk to your agent
+        <svg viewBox="0 0 20 20" style="width:14px;height:14px;margin-right:5px;flex-shrink:0"><path d="M10 12a2 2 0 0 0 2-2V5a2 2 0 0 0-4 0v5a2 2 0 0 0 2 2zm4-2a4 4 0 0 1-8 0H4a6 6 0 0 0 12 0h-2z" fill="currentColor"/></svg>
+        <span id="fb-pv-talk-lbl">Talk to your agent</span>
       </button>
     `;
-    // Wire the "Talk to your agent" button to the existing Vapi preview system
-    prvEl.querySelector("#fb-pv-talk")?.addEventListener("click", () => {
+
+    // ── Inline Vapi preview for the flow builder ──────────────────────────
+    const FLOW_PREV_AID = "d5f28a96-25da-4905-bac8-5dee52a15f4e";
+    let fbCallActive = false;
+    const talkBtn  = prvEl.querySelector("#fb-pv-talk");
+    const talkLbl  = prvEl.querySelector("#fb-pv-talk-lbl");
+    const waveEl   = prvEl.querySelector("#fb-pv-wave");
+
+    // Mini waveform
+    if (waveEl) {
+      const wCtx = waveEl.getContext("2d");
+      const dpr  = window.devicePixelRatio || 1;
+      let wT = 0, wLv = 0.08, wSpk = false, wRaf;
+      function wResize() { const r = waveEl.getBoundingClientRect(); waveEl.width = r.width*dpr; waveEl.height = r.height*dpr; }
+      wResize();
+      window.addEventListener("resize", wResize);
+      function wDraw() {
+        wT += 0.04; wLv += ((wSpk ? 0.82 : 0.08) - wLv) * 0.06;
+        const w = waveEl.width, h = waveEl.height;
+        if (!w || !h) { wRaf = requestAnimationFrame(wDraw); return; }
+        wCtx.fillStyle = "rgba(10,15,30,0.96)"; wCtx.fillRect(0, 0, w, h);
+        const bars = 22, gap = 3 * dpr, bw = (w - gap*(bars-1)) / bars;
+        for (let i = 0; i < bars; i++) {
+          const ph = i*0.52 + wT;
+          const amp = Math.sin(ph)*0.4 + Math.sin(ph*1.9)*0.32 + Math.sin(ph*0.55)*0.28;
+          const bh = Math.max(3*dpr, Math.abs(amp)*wLv*h*0.88);
+          const x = i*(bw+gap), y = (h-bh)/2;
+          const ratio = i/(bars-1);
+          const r2 = Math.round(99+ratio*156), g2 = Math.round(102-ratio*72), b2 = Math.round(241-ratio*80);
+          wCtx.fillStyle = `rgba(${r2},${g2},${b2},0.9)`;
+          wCtx.beginPath(); wCtx.roundRect(x, y, bw, bh, 2); wCtx.fill();
+        }
+        wRaf = requestAnimationFrame(wDraw);
+      }
+      requestAnimationFrame(() => { wResize(); wDraw(); });
+
+      // Expose so parent can animate
+      talkBtn._wSpk = (v) => { wSpk = v; };
+    }
+
+    // Expose globally so any other widget can trigger it
+    window._vapiStart = (_vid, _lang) => { talkBtn?.click(); };
+
+    talkBtn?.addEventListener("click", () => {
       localStorage.setItem("oc_last_voice", voiceForPreview);
       localStorage.setItem("oc_last_lang",  langForPreview);
-      // Find and click the preview play button if the preview widget exists on this page
-      const playBtn = document.querySelector("#svp-btn") || document.querySelector(".fb-play");
-      if (playBtn) { playBtn.click(); return; }
-      // Otherwise start Vapi with canvas voice/language
-      if (window._vapiStart) { window._vapiStart(voiceForPreview, langForPreview); return; }
-      alert("Save & activate your agent first, then use the preview on the Setup tab to talk to it.");
+      if (fbCallActive) { stopVapiCall(); return; }
+      if (!getVapi()) { toast("Vapi unavailable — allow microphone access and retry", "error"); return; }
+      if (talkLbl) talkLbl.textContent = "Connecting…";
+      talkBtn.disabled = true;
+      const voiceObj = PREVIEW_VOICES.find(v => v.id === voiceForPreview) || PREVIEW_VOICES[0];
+      startVapiCall(FLOW_PREV_AID, buildVapiOverrides(voiceObj, langForPreview), {
+        onStart: () => {
+          fbCallActive = true;
+          if (talkLbl) talkLbl.textContent = "Stop call";
+          talkBtn.classList.add("playing"); talkBtn.disabled = false;
+          talkBtn._wSpk?.(true);
+        },
+        onEnd: () => {
+          fbCallActive = false;
+          if (talkLbl) talkLbl.textContent = "Talk to your agent";
+          talkBtn.classList.remove("playing"); talkBtn.disabled = false;
+          talkBtn._wSpk?.(false);
+        },
+        onSpeechStart: () => { talkBtn._wSpk?.(true);  },
+        onSpeechEnd:   () => { talkBtn._wSpk?.(false); },
+        onVolume: () => {},
+        onError: () => {
+          fbCallActive = false;
+          if (talkLbl) talkLbl.textContent = "Talk to your agent";
+          talkBtn.classList.remove("playing"); talkBtn.disabled = false;
+          talkBtn._wSpk?.(false);
+          toast("Could not start preview — allow microphone access and retry", "error");
+        },
+      });
     });
     renderIcons(prvEl);
   }

@@ -100,28 +100,48 @@ def _faq_pairs(faqs: Any) -> list[dict]:
 
 def build_system_prompt(agent) -> str:
     context = agent.business_context if hasattr(agent, "business_context") else (agent.config or {})
-    services = ", ".join(_service_names(context.get("services", [])))
-    faq_text = "\n".join(
-        f"Q: {item['question']} A: {item['answer']}" for item in _faq_pairs(context.get("faqs", []))
-    )
+
+    # Resolve all fields — new canvas keys take priority, old keys are fallbacks
+    biz_name    = (context.get("business_name") or "").strip() or agent.name
+    biz_hours   = (context.get("business_hours") or context.get("operating_hours") or "Mon-Sat 9am-6pm").strip()
+    biz_address = (context.get("business_address") or context.get("address") or context.get("location") or "Please ask for our address").strip()
+    biz_url     = (context.get("business_url") or "").strip()
+    biz_info    = (context.get("business_info") or "").strip()
+    agent_persona = (context.get("agent_persona") or "").strip()
+    pricing     = (context.get("business_pricing") or context.get("pricing") or "").strip()
     timezone_str = context.get("timezone", "Asia/Kolkata")
-    return f"""You are {agent.name}, AI receptionist for {context.get('business_name', agent.name)}.
 
+    # Services: prefer business_services (canvas), fallback to services
+    raw_services = context.get("business_services") or context.get("services") or ""
+    services = ", ".join(_service_names(raw_services)) if raw_services else "General business support"
+
+    # FAQs: prefer business_faq (canvas), fallback to faqs
+    raw_faqs = context.get("business_faq") or context.get("faqs") or ""
+    faq_text = "\n".join(
+        f"Q: {item['question']} A: {item['answer']}" for item in _faq_pairs(raw_faqs)
+    ) if raw_faqs else ""
+
+    persona_block = f"\nAGENT PERSONA:\n{agent_persona}\n" if agent_persona else ""
+    pricing_line  = f"\n- Pricing: {pricing}" if pricing else ""
+    url_line      = f"\n- Website: {biz_url}" if biz_url else ""
+    info_block    = f"\nADDITIONAL CONTEXT:\n{biz_info}\n" if biz_info else ""
+
+    return f"""You are {agent.name}, AI receptionist for {biz_name}.{persona_block}
 BUSINESS INFO:
-- Hours: {context.get('hours') or context.get('operating_hours', 'Mon-Sat 9am-6pm')}
-- Services: {services or 'General business support'}
-- Address: {context.get('address') or context.get('location', 'Please ask for our address')}
+- Hours: {biz_hours}
+- Services: {services}
+- Address: {biz_address}{pricing_line}{url_line}
 - Timezone: {timezone_str}
-
+{info_block}
 FAQS:
-{faq_text}
+{faq_text or 'None on file — answer best you can or offer a callback.'}
 
 BOOKING RULES (TWO-STEP — CRITICAL):
 Step 1: When the caller asks to book, FIRST check availability and propose exactly TWO specific
         time slots in {timezone_str} timezone (e.g. "I have Tuesday 3 PM or Wednesday 10 AM").
-        Set booking_step=\"propose\" in your response.
+        Set booking_step="propose" in your response.
 Step 2: Only after the caller confirms one slot, confirm the booking.
-        Set booking_detected=true and booking_step=\"confirm\" in your response.
+        Set booking_detected=true and booking_step="confirm" in your response.
 Never book without explicit caller confirmation of a specific slot.
 
 RULES (CRITICAL - follow exactly):

@@ -7101,6 +7101,19 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   border-color: rgba(99,102,241,0.75); color: #c4b5fd; transform: scale(1.02);
 }
 .fb-pv-talk-btn:active { transform: scale(0.97); }
+.fb-pv-talk-btn.playing {
+  background: linear-gradient(135deg, rgba(239,68,68,0.22) 0%, rgba(220,38,38,0.18) 100%);
+  border-color: rgba(239,68,68,0.55); color: #fca5a5;
+  animation: fbTalkPulse 1.4s ease-in-out infinite;
+}
+@keyframes fbTalkPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.25); }
+  50%      { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
+}
+.fb-pv-wave {
+  display: block; width: 100%; height: 42px;
+  margin-top: 10px; border-radius: 8px; overflow: hidden;
+}
 
 /* ── Tutorial card — liquid glass upgrade ───────────────────────────── */
 .ftut2-card {
@@ -7161,4 +7174,36 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   font-size: 11.5px; color: #64748b; line-height: 1.5;
   border-left: 2px solid rgba(99,102,241,0.3); padding-left: 8px;
   font-style: italic;
+}
+
+/* ── Dashboard weekly sparkline ─────────────────────────────────────── */
+.dash-sparkline-row {
+  display: flex; align-items: flex-end; gap: 12px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 14px 18px;
+}
+.dash-spark-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--muted); white-space: nowrap;
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  margin-right: 4px;
+}
+.dash-spark-bars {
+  display: flex; align-items: flex-end; gap: 6px; flex: 1; height: 52px;
+}
+.dash-spark-col {
+  display: flex; flex-direction: column; align-items: center;
+  flex: 1; height: 100%; justify-content: flex-end; gap: 4px;
+}
+.dash-spark-bar {
+  width: 100%; border-radius: 4px 4px 0 0;
+  background: rgba(99,102,241,0.30);
+  transition: background 200ms;
+}
+.dash-spark-bar:hover  { background: rgba(99,102,241,0.55); }
+.dash-spark-today      { background: rgba(99,102,241,0.75); }
+.dash-spark-today:hover { background: rgba(99,102,241,0.95); }
+.dash-spark-day {
+  font-size: 10px; color: var(--muted); font-weight: 600;
+  letter-spacing: 0.03em;
 }

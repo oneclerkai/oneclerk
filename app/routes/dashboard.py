@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -128,6 +128,33 @@ async def stats(
         "total_minutes": int(int(minutes_raw) // 60),
     }
     return summary
+
+
+@router.get("/weekly")
+async def weekly_calls(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return per-day call counts for the last 7 days (most recent last)."""
+    days: list[dict] = []
+    now = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    for i in range(6, -1, -1):
+        day_start = now - timedelta(days=i)
+        day_end   = day_start + timedelta(days=1)
+        count = (
+            await db.execute(
+                select(func.count(Call.id)).where(
+                    Call.user_id == current_user.id,
+                    Call.created_at >= day_start,
+                    Call.created_at <  day_end,
+                )
+            )
+        ).scalar_one()
+        days.append({
+            "date":  day_start.strftime("%a"),
+            "count": int(count),
+        })
+    return {"days": days}
 
 
 @router.get("/overview")
