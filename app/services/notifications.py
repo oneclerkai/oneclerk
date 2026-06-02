@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from app.config import settings
 
@@ -13,6 +16,34 @@ try:
     from twilio.rest import Client as TwilioClient
 except ImportError:  # pragma: no cover
     TwilioClient = None  # type: ignore[assignment]
+
+
+def _smtp_ready() -> bool:
+    return bool(settings.SYSTEM_GMAIL_USER and settings.SYSTEM_GMAIL_APP_PASS)
+
+
+async def _send_via_smtp(to_email: str, subject: str, html_body: str) -> bool:
+    """Send email via Gmail SMTP using an App Password.
+
+    Used as fallback when RESEND_API_KEY is not configured.
+    Requires SYSTEM_GMAIL_USER and SYSTEM_GMAIL_APP_PASS in settings.
+    """
+    if not _smtp_ready():
+        return False
+
+    def _send() -> None:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = settings.SYSTEM_GMAIL_USER
+        msg["To"] = to_email
+        msg.attach(MIMEText(html_body, "html"))
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(settings.SYSTEM_GMAIL_USER, settings.SYSTEM_GMAIL_APP_PASS)
+            server.sendmail(settings.SYSTEM_GMAIL_USER, to_email, msg.as_string())
+
+    await asyncio.to_thread(_send)
+    return True
 
 
 def _email_html(otp: str) -> str:
@@ -52,24 +83,27 @@ def _email_link_html(verification_link: str) -> str:
 
 
 async def send_email_otp(email: str, otp: str) -> bool:
-    if not settings.RESEND_API_KEY:
-        return False
-    if resend is None:
-        raise RuntimeError("resend package is not installed")
+    subject = "Your Harkly AI verification code"
+    html = _email_html(otp)
+    if settings.RESEND_API_KEY:
+        if resend is None:
+            raise RuntimeError("resend package is not installed")
 
-    def _send() -> None:
-        resend.api_key = settings.RESEND_API_KEY
-        resend.Emails.send(
-            {
-                "from": settings.RESEND_FROM_EMAIL,
-                "to": email,
-                "subject": "Your OneClerk verification code",
-                "html": _email_html(otp),
-            }
-        )
+        def _send() -> None:
+            resend.api_key = settings.RESEND_API_KEY
+            resend.Emails.send(
+                {
+                    "from": settings.RESEND_FROM_EMAIL,
+                    "to": email,
+                    "subject": subject,
+                    "html": html,
+                }
+            )
 
-    await asyncio.to_thread(_send)
-    return True
+        await asyncio.to_thread(_send)
+        return True
+
+    return await _send_via_smtp(email, subject, html)
 
 
 async def send_sms_otp(phone_number: str, otp: str) -> bool:
@@ -96,21 +130,58 @@ async def send_sms_otp(phone_number: str, otp: str) -> bool:
 
 async def send_email_verification_link(email: str, verification_link: str) -> bool:
     """Send a verification link instead of OTP for email verification."""
-    if not settings.RESEND_API_KEY:
-        return False
-    if resend is None:
-        raise RuntimeError("resend package is not installed")
+    subject = "Verify your Harkly AI email"
+    html = _email_link_html(verification_link)
+    if settings.RESEND_API_KEY:
+        if resend is None:
+            raise RuntimeError("resend package is not installed")
 
-    def _send() -> None:
-        resend.api_key = settings.RESEND_API_KEY
-        resend.Emails.send(
-            {
-                "from": settings.RESEND_FROM_EMAIL,
-                "to": email,
-                "subject": "Verify your OneClerk email",
-                "html": _email_link_html(verification_link),
-            }
-        )
+        def _send() -> None:
+            resend.api_key = settings.RESEND_API_KEY
+            resend.Emails.send(
+                {
+                    "from": settings.RESEND_FROM_EMAIL,
+                    "to": email,
+                    "subject": subject,
+                    "html": html,
+                }
+            )
 
-    await asyncio.to_thread(_send)
-    return True
+        await asyncio.to_thread(_send)
+        return True
+
+    return await _send_via_smtp(email, subject, html)
+
+
+async def send_signup_confirmation(email: str, name: str = "") -> bool:
+    """Send a welcome / account-confirmed email after successful signup.
+
+    Tries Resend first, falls back to Gmail SMTP.
+    """
+    greeting = f"Hi {name}," if name else "Hi there,"
+    html = f"""
+    <div style="font-family:Inter,Arial,sans-serif;background:#f6f7fb;padding:32px">
+      <div style="max-width:520px;margin:auto;background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e8eaf2">
+        <div style="font-size:22px;font-weight:700;color:#111827">Harkly AI</div>
+        <h1 style="font-size:24px;color:#111827;margin:24px 0 8px">Welcome aboard 🎉</h1>
+        <p style="color:#4b5563;line-height:1.6">{greeting}<br><br>
+          Your account is all set. Head to the dashboard to create your first AI receptionist — it takes less than 5 minutes.
+        </p>
+        <div style="text-align:center;margin:32px 0">
+          <a href="https://harkly.ai/app" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:16px 32px;border-radius:8px;font-weight:600;font-size:16px">
+            Open Dashboard
+          </a>
+        </div>
+        <p style="color:#6b7280;font-size:13px">Questions? Reply to this email — we read every one.</p>
+      </div>
+    </div>
+    """
+    subject = "Welcome to Harkly AI — your account is ready"
+    if settings.RESEND_API_KEY and resend is not None:
+        def _send() -> None:
+            resend.api_key = settings.RESEND_API_KEY
+            resend.Emails.send({"from": settings.RESEND_FROM_EMAIL, "to": email, "subject": subject, "html": html})
+        await asyncio.to_thread(_send)
+        return True
+
+    return await _send_via_smtp(email, subject, html)

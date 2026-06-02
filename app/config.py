@@ -60,6 +60,17 @@ class Settings(BaseSettings):
     VOICE_ES_FEMALE: str = "MF3mGyEYCl7XYWbV9V6O"
 
     GOOGLE_CLIENT_ID: str | None = None
+    GOOGLE_CLIENT_SECRET: str | None = None
+    GOOGLE_REFRESH_TOKEN: str | None = None
+    GOOGLE_CALENDAR_ID: str = "primary"
+
+    RAZORPAY_KEY_ID: str | None = None
+    RAZORPAY_KEY_SECRET: str | None = None
+
+    FORWARD_TARGET_PHONE: str | None = None
+
+    SYSTEM_GMAIL_USER: str | None = None
+    SYSTEM_GMAIL_APP_PASS: str | None = None
 
     STRIPE_SECRET_KEY: str | None = None
     STRIPE_WEBHOOK_SECRET: str | None = None
@@ -103,6 +114,8 @@ class Settings(BaseSettings):
             "deepgram": bool(self.DEEPGRAM_API_KEY),
             "elevenlabs": bool(self.ELEVENLABS_API_KEY),
             "stripe": bool(self.STRIPE_SECRET_KEY),
+            "razorpay": bool(self.RAZORPAY_KEY_ID and self.RAZORPAY_KEY_SECRET),
+            "google_calendar": bool(self.GOOGLE_CLIENT_ID and self.GOOGLE_CLIENT_SECRET and self.GOOGLE_REFRESH_TOKEN),
             "whatsapp": bool(self.WHATSAPP_FROM and self.WHATSAPP_API_URL),
         }
 

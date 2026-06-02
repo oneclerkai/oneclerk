@@ -1,0 +1,34 @@
+Copy and paste this entire block directly into your Replit AI Chat window. This will instruct the AI to rewrite your backend files to handle live Razorpay webhooks, real Google Calendar tokens, and Vapi's native call-forwarding structure.
+
+Plaintext
+Act as a Senior Full-Stack Engineer. We are upgrading Harkly AI from simulated tools to a fully operational production backend. 
+
+Please modify our Node.js Express application to implement the following changes:
+
+1. SWITCH STRIPE TO RAZORPAY PAYMENT GATEWAY
+- Install the 'razorpay' npm package.
+- Create a route 'POST /api/payments/create-order' that receives an amount and currency from the client, initializes Razorpay with process.env.RAZORPAY_KEY_ID and process.env.RAZORPAY_KEY_SECRET, and creates an order payload.
+- Create a verification endpoint 'POST /api/payments/verify' to validate the razorpay_payment_id, razorpay_order_id, and razorpay_signature using crypto HMAC SHA256 hashing. On success, mark the user's agent limit as unlocked in the database.
+
+2. REAL GOOGLE CALENDAR API INTEGRATION
+- In our '/api/vapi-webhook' route, update the 'book_appointment_calendar' function. Instead of console logging, use the 'googleapis' library or a secure axios OAuth fetch stream.
+- It must read process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, and process.env.GOOGLE_REFRESH_TOKEN to auto-refresh access, then create a real calendar event on the target calendar with the customer_name, email, date, and time.
+
+3. VAPI CALL TRANSFORMATION & REAL-TIME PHONE FORWARDING
+- Add a new tool handler in our Vapi webhook path called 'connect_to_human'.
+- When the AI caller requests to speak to a real human, an manager, or an emergency operator, your backend must return a clean, structured JSON response that Vapi recognizes as a call transfer instruction:
+  {
+    "results": [
+      {
+        "toolCallId": id,
+        "result": "Connecting you to the live manager now.",
+        "forwardToPhoneNumber": process.env.FORWARD_TARGET_PHONE
+      }
+    ]
+  }
+
+4. USER SIGNUP & CALL COMPLETION EMAIL VERIFICATIONS
+- Configure a robust 'nodemailer' module using process.env.SYSTEM_GMAIL_USER and process.env.SYSTEM_GMAIL_APP_PASS.
+- Create a route 'POST /api/auth/send-verification' that dispatches a secure registration confirmation link to new users on the platform.
+
+Ensure all new routes are cleanly modularized, protected with try/catch blocks, and use process.env

@@ -39,3 +39,6 @@ class User(Base):
     rollover_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     usage_alert_80_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     usage_alert_100_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    razorpay_payment_id: Mapped[str] = mapped_column(String, nullable=True)
+    razorpay_order_id: Mapped[str] = mapped_column(String, nullable=True)
