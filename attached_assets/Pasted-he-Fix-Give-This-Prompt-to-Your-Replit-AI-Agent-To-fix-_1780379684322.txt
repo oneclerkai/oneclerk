@@ -1,0 +1,45 @@
+he Fix: Give This Prompt to Your Replit AI Agent
+To fix the sluggish response times and fully unlock all languages on both the main website and the dashboard preview, paste this exact repair script into your Replit AI Chat:
+
+Plaintext
+Act as an Expert WebRTC & Vapi Integration Engineer. Please completely rewrite our frontend Vapi connection scripts (for both the main website landing page and the dashboard preview component) to fix lag issues, delayed response times, and broken language/voice switching.
+
+Implement this clean logic:
+
+1. FORCE PRE-FLIGHT MICROPHONE APPROVAL
+Ensure that the moment a user clicks "Speak to agent" or "Play sample", the browser runs:
+await navigator.mediaDevices.getUserMedia({ audio: true });
+Only call vapi.start() AFTER this promise fully resolves. This eliminates connection lag.
+
+2. IMPLEMENT THE MULTI-LINGUAL VOICE CONFIGURATION DICTIONARY
+Create a robust configuration mapper inside the script to handle our dropdown selections. When passing assistantOverrides, you MUST explicitly inject the "sonic-multilingual" model property for Cartesia, otherwise the agent will lag or fail to switch languages:
+
+const languageMapping = {
+  "en": { transcriber: "en", voiceLang: "en" },
+  "hi": { transcriber: "hi", voiceLang: "hi" },
+  "es": { transcriber: "es", voiceLang: "es" },
+  "fr": { transcriber: "fr", voiceLang: "fr" }
+};
+
+const voiceMapping = {
+  "Maya": "244f6fbf-8afb-47e2-8958-3d1487216a90",
+  "Arjun": "57dcab65-68ac-45a6-8480-6c4c52ec1cd1"
+};
+
+3. CLEAN ASSISTANT OVERRIDES OBJECT
+Construct the exact nested JSON layout structure that Vapi requires to prevent 400 errors:
+const assistantOverrides = {
+  transcriber: {
+    provider: "deepgram",
+    model: "nova-2",
+    language: languageMapping[selectedLang].transcriber
+  },
+  voice: {
+    provider: "cartesia",
+    model: "sonic-multilingual",
+    voiceId: voiceMapping[selectedVoice],
+    language: languageMapping[selectedLang].voiceLang
+  }
+};
+
+Execute this clean configuration update across our public and preview entry files immediately.

@@ -18,14 +18,11 @@ function getVapi() {
   return _vapiInstance;
 }
 
-// Eagerly boot the singleton and silently pre-warm mic permission so the
-// browser handshake has already happened before the user's first click.
+// Eagerly boot the Vapi singleton so the SDK's WebSocket and STUN pre-warm
+// happens before the user's first click.  We do NOT request mic here — that
+// must follow a user gesture or browsers silently deny it, giving no benefit.
 (function _eagerBoot() {
-  getVapi(); // force construction now, not on first click
-  // If mic is already permitted, this resolves instantly (no UI prompt).
-  navigator.mediaDevices?.getUserMedia({ audio: true })
-    .then(() => { _micPermitted = true; })
-    .catch(() => {}); // silent — will re-request at click time if denied
+  getVapi(); // force SDK construction now so it can pre-warm its WebSocket
 })();
 
 // ── Safe Vapi call helper ─────────────────────────────────────────────────────
@@ -560,21 +557,62 @@ const PREVIEW_LANG_MAP = {
   "Ukrainian (Українська)":"uk-UA","Amharic (አማርኛ)":"am-ET","Hausa (Hausa)":"ha-NG",
 };
 
+// ── Language-specific opening greetings ───────────────────────────────────────
+// Overriding firstMessage forces the agent to open in the target language,
+// establishing the correct conversational context from the very first word.
+// Without this, the base Vapi assistant's English firstMessage dominates.
+const HARKLY_FIRST_MSG = {
+  "en":  "Hello! How can I help you today?",
+  "en-GB": "Hello! How can I help you today?",
+  "hi":  "नमस्ते! मैं आपकी कैसे मदद कर सकता हूँ?",
+  "es":  "¡Hola! ¿En qué puedo ayudarle hoy?",
+  "fr":  "Bonjour! Comment puis-je vous aider aujourd'hui?",
+  "zh":  "您好！我今天可以怎么帮您？",
+  "pt":  "Olá! Como posso ajudá-lo hoje?",
+  "ar":  "مرحباً! كيف يمكنني مساعدتك اليوم؟",
+  "vi":  "Xin chào! Tôi có thể giúp gì cho bạn hôm nay?",
+  "de":  "Hallo! Wie kann ich Ihnen heute helfen?",
+  "ja":  "こんにちは！本日はどのようにお手伝いできますか？",
+  "ko":  "안녕하세요! 오늘 어떻게 도와드릴까요?",
+  "ru":  "Здравствуйте! Чем могу помочь?",
+  "it":  "Ciao! Come posso aiutarti oggi?",
+  "tr":  "Merhaba! Bugün size nasıl yardımcı olabilirim?",
+  "pl":  "Cześć! Jak mogę ci pomóc?",
+  "nl":  "Hallo! Hoe kan ik u helpen?",
+  "bn":  "হ্যালো! আজ আমি আপনাকে কীভাবে সাহায্য করতে পারি?",
+  "ta":  "வணக்கம்! இன்று நான் உங்களுக்கு எப்படி உதவ முடியும்?",
+  "te":  "నమస్కారం! నేను ఈరోజు మీకు ఎలా సహాయపడగలను?",
+  "mr":  "नमस्कार! मी आज तुम्हाला कशी मदत करू शकतो?",
+  "ur":  "ہیلو! میں آج آپ کی کیا مدد کر سکتا ہوں؟",
+  "fa":  "سلام! امروز چطور می‌توانم کمکتان کنم؟",
+  "ms":  "Halo! Bagaimana saya boleh membantu anda hari ini?",
+  "uk":  "Привіт! Як я можу вам допомогти сьогодні?",
+  "sw":  "Habari! Naweza kukusaidia vipi leo?",
+  "fil": "Kumusta! Paano kita matutulungan ngayon?",
+  "am":  "ሰላም! ዛሬ እንዴት ልረዳዎ?",
+  "ha":  "Sannu! Yaya zan iya taimaka muku yau?",
+  "th":  "สวัสดี! วันนี้ฉันช่วยคุณได้อย่างไร?",
+};
+
 // ── Shared Vapi override builder ──────────────────────────────────────────────
-// Builds a fully valid Vapi assistantOverrides payload using the nested schema
-// required by the Vapi API to avoid 400 Bad Request errors.
-// - transcriber: Deepgram nova-2 with dynamic language code
-// - model:       Google Gemini 2.5 Flash with dynamic system prompt
-// - voice:       Cartesia sonic-multilingual with explicit language code (required for non-English)
+// Builds a fully valid Vapi assistantOverrides payload.
+// KEY REQUIREMENTS for language switching:
+//   1. firstMessage     — overrides the base assistant's English greeting (CRITICAL)
+//   2. transcriber.language — tells Deepgram which language to expect from the user
+//   3. voice.model      — must be "sonic-multilingual" (not sonic-english)
+//   4. voice.language   — tells Cartesia which language to synthesise
+//   5. Language instruction at TOP of system prompt so the LLM obeys it
 function buildVapiOverrides(voice, lang, agentType, agentConfig) {
   const cartesiaId = HARKLY_VOICE_MAP[voice?.id] || HARKLY_VOICE_MAP["maya"];
   const langCode   = HARKLY_LANG_MAP[lang] || "en";
+  // Clean language name for the system prompt (strip native script in parens)
+  const langName   = (lang || "English").split(" (")[0];
 
   const promptTemplate = agentType && HARKLY_PROMPT_MAP[agentType]
     ? HARKLY_PROMPT_MAP[agentType]
-    : `You are a warm, professional AI receptionist. Be concise and helpful.`;
+    : "You are a warm, professional AI receptionist. Be concise and helpful.";
 
-  // Build business context from canvas/agent config so the agent "knows" its business
+  // Business context from canvas/agent config
   const ctx = agentConfig || {};
   const ctxLines = [];
   if (ctx.business_name)     ctxLines.push(`Business: ${ctx.business_name}`);
@@ -585,31 +623,36 @@ function buildVapiOverrides(voice, lang, agentType, agentConfig) {
   if (ctx.business_address)  ctxLines.push(`Address: ${ctx.business_address}`);
   if (ctx.business_faq)      ctxLines.push(`FAQ: ${ctx.business_faq}`);
   if (ctx.calendly_url)      ctxLines.push(`Bookings: ${ctx.calendly_url}`);
-  const ctxBlock = ctxLines.length ? `\nBUSINESS CONTEXT:\n${ctxLines.join('\n')}\n` : '';
+  const ctxBlock = ctxLines.length ? `\n\nBUSINESS CONTEXT:\n${ctxLines.join('\n')}` : '';
 
-  const langName = lang || "English";
-  const systemPrompt = `${promptTemplate}${ctxBlock} CRITICAL INSTRUCTION: You MUST speak and respond ONLY in ${langName}. Never use English unless ${langName} is English. Do not switch languages under any circumstances.`;
+  // Language rule goes FIRST in the prompt — LLMs follow the first instruction most reliably
+  const systemPrompt = [
+    `[LANGUAGE RULE] You MUST speak and respond ONLY in ${langName}. Every single word of every response must be in ${langName}. Never use English unless ${langName} is English. This rule overrides everything else.`,
+    ``,
+    promptTemplate,
+    ctxBlock,
+  ].join("\n");
 
   return {
-    // Disable Krisp noise-cancellation — its init failure adds 2-3s of connection lag
-    backgroundDenoisingEnabled: false,
+    backgroundDenoisingEnabled: false,        // Krisp init failure adds ~2s lag — keep disabled
+    firstMessage: HARKLY_FIRST_MSG[langCode] || HARKLY_FIRST_MSG["en"],  // speak target lang immediately
     transcriber: {
       provider: "deepgram",
       model:    "nova-2",
-      language: langCode,
+      language: langCode,                     // tells Deepgram which lang to transcribe
     },
     model: {
       provider: "google",
-      model:    "gemini-2.5-flash",
+      model:    "gemini-2.0-flash",           // 2.0-flash has no thinking overhead → much faster
       messages: [
         { role: "system", content: systemPrompt },
       ],
     },
     voice: {
       provider: "cartesia",
-      model:    "sonic-multilingual",
+      model:    "sonic-multilingual",         // MUST be sonic-multilingual, not sonic-english
       voiceId:  cartesiaId,
-      language: langCode,
+      language: langCode,                     // tells Cartesia which lang to synthesise
     },
   };
 }
@@ -4733,7 +4776,19 @@ route("preview", async () => {
   const pvCtrl = mountVoicePreview(stageEl, selLang);
   if (pvCtrl) {
     pvCtrl.setVoice(selVoice);
-    pvCtrl.setAgentConfig(selAgent?.config || null);
+    // Merge canvas business context (from flow builder) with saved agent config.
+    // Canvas state takes priority since it reflects the user's latest edits.
+    const mergedCfg = Object.assign({}, selAgent?.config || {}, {
+      business_name:     _cs?.business_name     || selAgent?.config?.business_name     || "",
+      business_info:     _cs?.business_info     || selAgent?.config?.business_info     || "",
+      business_hours:    _cs?.business_hours    || selAgent?.config?.business_hours    || "",
+      business_services: _cs?.business_services || selAgent?.config?.business_services || "",
+      business_pricing:  _cs?.business_pricing  || selAgent?.config?.business_pricing  || "",
+      business_address:  _cs?.business_address  || selAgent?.config?.business_address  || "",
+      business_faq:      _cs?.business_faq      || selAgent?.config?.business_faq      || "",
+      calendly_url:      _cs?.calendly_url      || selAgent?.config?.calendly_url      || "",
+    });
+    pvCtrl.setAgentConfig(mergedCfg);
   }
 
   const voiceSel = $("#pv2-voice-sel", page);
@@ -5403,10 +5458,26 @@ route("agentFlow", async (id) => {
             const ac = state.cards.find(c => c.type === "agent");
             const vc = state.cards.find(c => c.type === "voice");
             const lc = state.cards.find(c => c.type === "language");
+            const ic = state.cards.find(c => c.type === "info");
+            const gc = state.cards.find(c => c.type === "gcal");
             const LANG_MAP = PREVIEW_LANG_MAP;
             const voiceId  = ac?.config?.voice    || vc?.config?.voice    || "maya";
             const langKey  = ac?.config?.language || lc?.config?.language || "English (US)";
-            window.harklyCanvasState = { voiceId, language: LANG_MAP[langKey] || "en-US" };
+            // Include full business context so the preview agent "knows" the business
+            const ic_cfg   = ic?.config || {};
+            window.harklyCanvasState = {
+              voiceId,
+              language: LANG_MAP[langKey] || "en-US",
+              // business data — maps directly to buildVapiOverrides agentConfig fields
+              business_name:     ic_cfg.bizname   || ac?.config?.business_name || "",
+              business_info:     ic_cfg.text      || "",
+              business_hours:    ic_cfg.hours     || "",
+              business_services: ic_cfg.services  || "",
+              business_pricing:  ic_cfg.pricing   || "",
+              business_address:  ic_cfg.address   || "",
+              business_faq:      ic_cfg.faq       || "",
+              calendly_url:      gc?.config?.calendly || "",
+            };
           })();
           updateActivationBar();
           checkAutoActivate();
