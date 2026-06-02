@@ -591,6 +591,8 @@ function buildVapiOverrides(voice, lang, agentType, agentConfig) {
   const systemPrompt = `${promptTemplate}${ctxBlock} CRITICAL INSTRUCTION: You MUST speak and respond ONLY in ${langName}. Never use English unless ${langName} is English. Do not switch languages under any circumstances.`;
 
   return {
+    // Disable Krisp noise-cancellation — its init failure adds 2-3s of connection lag
+    backgroundDenoisingEnabled: false,
     transcriber: {
       provider: "deepgram",
       model:    "nova-2",
@@ -1346,39 +1348,40 @@ function initVoiceTester(root) {
       setButtonConnecting();
       status.innerHTML = `<strong>Connecting…</strong> Requesting mic access…`;
 
-      // Async IIFE — request mic BEFORE Vapi.start for instant permission pop-up
       (async () => {
-        try {
-          await navigator.mediaDevices.getUserMedia({ audio: true });
-        } catch (_) {
-          setButtonIdle();
-          status.innerHTML = `<strong style="color:#ff5868">Mic blocked.</strong> Allow microphone access in your browser, then tap again.`;
-          return;
+        // Only request mic if not already permitted (avoids the duplicate getUserMedia roundtrip)
+        if (!_micPermitted) {
+          try {
+            await navigator.mediaDevices.getUserMedia({ audio: true });
+            _micPermitted = true;
+          } catch (_) {
+            setButtonIdle();
+            status.innerHTML = `<strong style="color:#ff5868">Mic blocked.</strong> Allow microphone access in your browser, then tap again.`;
+            return;
+          }
         }
 
         const langVal   = langSel  ? langSel.value  : "English (US)";
         const voiceVal  = voiceSel ? voiceSel.value : "Maya — warm, mid-30s";
         const agentType = agentSel ? agentSel.value : "professional front desk receptionist";
 
-        // Map dropdown label → PREVIEW_VOICES id → Cartesia voice ID via HARKLY_VOICE_MAP
         const voiceKey = voiceVal.split("—")[0].trim().toLowerCase();
         const voiceObj = PREVIEW_VOICES.find(v => v.id === voiceKey) || PREVIEW_VOICES[0];
-        // Build the fully-nested Vapi assistantOverrides payload (Cartesia + Gemini + Deepgram)
         const overrides = buildVapiOverrides(voiceObj, langVal, agentType);
 
-        console.log("[Harkly Vapi] Homepage tester — assistantOverrides:", JSON.stringify(overrides, null, 2));
         status.innerHTML = `<strong>Connecting…</strong> Starting call in ${langVal}…`;
+        let connectTimeout;
         startVapiCall("5b54d785-e86b-420e-ace0-26092882287e", overrides, {
           onStart: () => { clearTimeout(connectTimeout); setButtonActive(); status.innerHTML = `<strong>Connected.</strong> Speak — the agent is listening.`; listening = true; },
-          onEnd:   () => { setButtonIdle(); status.innerHTML = `Call ended. Tap the mic to start a new conversation.`; listening = false; agentSpeaking = false; },
+          onEnd:   () => { clearTimeout(connectTimeout); setButtonIdle(); status.innerHTML = `Call ended. Tap the mic to start a new conversation.`; listening = false; agentSpeaking = false; },
           onSpeechStart: () => { agentSpeaking = true; status.innerHTML = `<strong>Agent speaking…</strong>`; },
           onSpeechEnd:   () => { agentSpeaking = false; status.innerHTML = `<strong>Listening…</strong> Go ahead and speak.`; },
-          onError: () => { setButtonIdle(); status.innerHTML = `Something went wrong — tap the mic to try again.`; listening = false; agentSpeaking = false; },
+          onError: () => { clearTimeout(connectTimeout); setButtonIdle(); status.innerHTML = `Something went wrong — tap the mic to try again.`; listening = false; agentSpeaking = false; },
         });
-        // 8 s timeout guard
-        const connectTimeout = setTimeout(() => {
-          if (!vapiCallActive) { setButtonIdle(); status.innerHTML = `Connection timed out — tap again to retry.`; }
-        }, 8000);
+        // 25s timeout — enough for any cold WebRTC establishment; resets on error/end too
+        connectTimeout = setTimeout(() => {
+          if (!vapiCallActive) { setButtonIdle(); status.innerHTML = `Taking longer than usual — tap again to retry.`; }
+        }, 25000);
       })();
     });
   } else {
@@ -4336,24 +4339,21 @@ route("agentSetup", async (id) => {
         if (svpCallActive) { stopVapiCall(); return; }
         if (!getVapi()) { toast("Vapi unavailable — check your connection", "error"); return; }
         svpLbl.textContent = "Connecting…"; svpPlay.disabled = true;
+        let svpTimeout;
+        const svpReset = () => { clearTimeout(svpTimeout); svpCallActive = false; spk2 = false; svpLbl.textContent = "Play"; svpPlay.classList.remove("playing"); svpPlay.disabled = false; };
         startVapiCall(SVP_ASSISTANT_ID, svpOverrides(), {
           onStart: () => {
+            clearTimeout(svpTimeout);
             svpCallActive = true; spk2 = true;
             svpLbl.textContent = "🛑 Stop"; svpPlay.classList.add("playing"); svpPlay.disabled = false;
           },
-          onEnd: () => {
-            svpCallActive = false; spk2 = false;
-            svpLbl.textContent = "Play"; svpPlay.classList.remove("playing"); svpPlay.disabled = false;
-          },
+          onEnd:         () => { svpReset(); },
           onSpeechStart: () => { spk2 = true;  lv2 = 0.88; },
           onSpeechEnd:   () => { spk2 = false; lv2 = 0.12; },
           onVolume: (vol) => { lv2 = 0.12 + vol * 0.80; },
-          onError: () => {
-            svpCallActive = false; spk2 = false;
-            svpLbl.textContent = "Play"; svpPlay.classList.remove("playing"); svpPlay.disabled = false;
-            toast("Could not start preview — allow microphone access and retry", "error");
-          },
+          onError: () => { svpReset(); toast("Could not start preview — allow microphone access and retry", "error"); },
         });
+        svpTimeout = setTimeout(() => { if (!svpCallActive) svpReset(); }, 25000);
       });
     })();
 
@@ -5145,30 +5145,29 @@ route("agentFlow", async (id) => {
         }
         if (card.type === "gcal" && cc.calendly) _cardCfg.calendly_url = cc.calendly;
       });
+      let fbConnTimeout;
+      const fbReset = () => {
+        clearTimeout(fbConnTimeout);
+        fbCallActive = false;
+        if (talkLbl) talkLbl.textContent = "Talk to your agent";
+        talkBtn.classList.remove("playing"); talkBtn.disabled = false;
+        talkBtn._wSpk?.(false);
+      };
       startVapiCall(FLOW_PREV_AID, buildVapiOverrides(voiceObj, langForPreview, null, _cardCfg), {
         onStart: () => {
+          clearTimeout(fbConnTimeout);
           fbCallActive = true;
           if (talkLbl) talkLbl.textContent = "Stop call";
           talkBtn.classList.add("playing"); talkBtn.disabled = false;
           talkBtn._wSpk?.(true);
         },
-        onEnd: () => {
-          fbCallActive = false;
-          if (talkLbl) talkLbl.textContent = "Talk to your agent";
-          talkBtn.classList.remove("playing"); talkBtn.disabled = false;
-          talkBtn._wSpk?.(false);
-        },
+        onEnd:         () => { fbReset(); },
         onSpeechStart: () => { talkBtn._wSpk?.(true);  },
         onSpeechEnd:   () => { talkBtn._wSpk?.(false); },
         onVolume: () => {},
-        onError: () => {
-          fbCallActive = false;
-          if (talkLbl) talkLbl.textContent = "Talk to your agent";
-          talkBtn.classList.remove("playing"); talkBtn.disabled = false;
-          talkBtn._wSpk?.(false);
-          toast("Could not start preview — allow microphone access and retry", "error");
-        },
+        onError: () => { fbReset(); toast("Could not start preview — allow microphone access and retry", "error"); },
       });
+      fbConnTimeout = setTimeout(() => { if (!fbCallActive) fbReset(); }, 25000);
     });
     renderIcons(prvEl);
   }
