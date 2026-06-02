@@ -5212,11 +5212,68 @@ route("agentFlow", async (id) => {
     // Expose globally so any other widget can trigger it
     window._vapiStart = (_vid, _lang) => { talkBtn?.click(); };
 
+    // Mic permission state machine
+    let _micState = "unknown"; // unknown | ok | blocked | requesting
+    const micBanner = document.createElement("div");
+    micBanner.className = "fb-mic-banner fb-mic-req";
+    micBanner.innerHTML = `<span class="fb-mic-ico">🎙️</span><div class="fb-mic-txt"><b>Microphone access needed</b>Click "Talk to your agent" — your browser will ask for mic permission.</div>`;
+    talkBtn?.parentNode?.insertBefore(micBanner, talkBtn);
+
+    const setMicState = (state, msg) => {
+      _micState = state;
+      micBanner.className = `fb-mic-banner fb-mic-${state === "ok" ? "ok" : state === "blocked" ? "err" : "req"}`;
+      if (state === "ok") {
+        micBanner.innerHTML = `<span class="fb-mic-ico">✅</span><div class="fb-mic-txt"><b>Microphone ready</b>${msg || "Tap the button below to call your agent."}</div>`;
+        talkBtn?.classList.remove("mic-blocked");
+        if (talkBtn) talkBtn.disabled = false;
+      } else if (state === "blocked") {
+        micBanner.innerHTML = `<span class="fb-mic-ico">🚫</span><div class="fb-mic-txt"><b>Microphone blocked</b>${msg || "Allow mic access in your browser settings, then refresh."}</div>`;
+        talkBtn?.classList.add("mic-blocked");
+      } else {
+        micBanner.innerHTML = `<span class="fb-mic-ico">🎙️</span><div class="fb-mic-txt"><b>Microphone access needed</b>${msg || 'Click \u201cTalk to your agent\u201d — your browser will ask for mic permission.'}</div>`;
+        talkBtn?.classList.remove("mic-blocked");
+      }
+    };
+    // Probe mic permission silently on load (doesn't show browser prompt)
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: "microphone" }).then(ps => {
+        if (ps.state === "granted")  setMicState("ok",      "Microphone ready.");
+        if (ps.state === "denied")   setMicState("blocked", "Open browser settings → Site settings → Microphone and allow this site.");
+        ps.onchange = () => {
+          if (ps.state === "granted") setMicState("ok");
+          if (ps.state === "denied")  setMicState("blocked", "Open browser settings → Site settings → Microphone and allow this site.");
+        };
+      }).catch(() => {});
+    }
+
     talkBtn?.addEventListener("click", () => {
       localStorage.setItem("oc_last_voice", voiceForPreview);
       localStorage.setItem("oc_last_lang",  langForPreview);
       if (fbCallActive) { stopVapiCall(); return; }
-      if (!getVapi()) { toast("Vapi unavailable — allow microphone access and retry", "error"); return; }
+      if (_micState === "blocked") { toast("Microphone is blocked — allow mic in browser settings and refresh", "error"); return; }
+      if (!getVapi()) { toast("Vapi unavailable — check your connection and retry", "error"); return; }
+
+      // If mic permission unknown, request it first, then proceed
+      if (_micState !== "ok") {
+        setMicState("requesting", "Requesting microphone access…");
+        talkBtn.disabled = true;
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then(stream => {
+            stream.getTracks().forEach(t => t.stop()); // immediately release
+            setMicState("ok", "Microphone ready — connecting…");
+            talkBtn.disabled = false;
+            talkBtn.click(); // re-fire after permission granted
+          })
+          .catch(err => {
+            const msg = err.name === "NotAllowedError"
+              ? "Open browser settings → Site settings → Microphone and allow this site."
+              : `Could not access mic: ${err.message}`;
+            setMicState("blocked", msg);
+            toast("Microphone blocked — " + msg, "error");
+          });
+        return;
+      }
+
       if (talkLbl) talkLbl.textContent = "Connecting…";
       talkBtn.disabled = true;
       const voiceObj = PREVIEW_VOICES.find(v => v.id === voiceForPreview) || PREVIEW_VOICES[0];
@@ -5269,16 +5326,23 @@ route("agentFlow", async (id) => {
       <textarea class="fb-ci" style="resize:vertical;min-height:60px" data-field="text" placeholder="Describe your agent — persona, tone, speciality…">${escapeHtml(c.text||'')}</textarea>`;
     if (card.type === "voice") return `<select class="fb-ci" data-field="voice">${PREVIEW_VOICES.map(v => `<option value="${v.id}"${c.voice===v.id?" selected":""}>${v.label} — ${v.sub}</option>`).join("")}</select>`;
     if (card.type === "language") {
-      const sel = (c.language || "English (US)").split(",").map(s => s.trim()).filter(Boolean);
+      const parts = (c.language || "English (US)").split(",").map(s => s.trim()).filter(Boolean);
+      const primary = parts[0] || "English (US)";
+      const secondary = parts[1] || "";
+      const opts = PREVIEW_LANGS.map(l => `<option value="${escapeHtml(l)}"${l===primary?" selected":""}>${escapeHtml(l)}</option>`).join("");
+      const opts2 = `<option value="">None (single language)</option>` +
+        PREVIEW_LANGS.filter(l => l !== primary).map(l => `<option value="${escapeHtml(l)}"${l===secondary?" selected":""}>${escapeHtml(l)}</option>`).join("");
       return `
         <input class="fb-ci-lang-hidden" data-field="language" value="${escapeHtml(c.language||'English (US)')}" style="display:none" readonly/>
-        <div class="fb-lang-chips-grid">
-          ${PREVIEW_LANGS.map(l => {
-            const isOn = sel.includes(l);
-            return `<button type="button" class="fb-lang-chip${isOn?' sel':''}" data-lang="${escapeHtml(l)}">${escapeHtml(l.split(" ")[0])}</button>`;
-          }).join("")}
+        <div class="fb-lang-select-wrap">
+          <select class="fb-lang-sel" data-lang-primary>${opts}</select>
         </div>
-        <div class="fb-lang-sel-label">Selected: <span class="fb-lang-sel-val">${sel.join(", ") || "None"}</span></div>`;
+        <div class="fb-lang-select-wrap" style="margin-top:5px">
+          <select class="fb-lang-sel2" data-lang-secondary>
+            ${opts2}
+          </select>
+        </div>
+        <div class="fb-lang-hint">Primary language · Optional second language for bilingual calls</div>`;
     }
     if (card.type === "phone") return ci("Forwarding number e.g. +1 555 0100", "phone", c.phone);
     if (card.type === "whatsapp") return ci("WhatsApp number for summaries", "whatsapp", c.whatsapp);
@@ -5463,22 +5527,30 @@ route("agentFlow", async (id) => {
         renderCanvas();
       });
 
-      // Language multi-select chip toggle
-      el.querySelectorAll(".fb-lang-chip").forEach(chip => {
-        chip.addEventListener("click", () => {
-          chip.classList.toggle("sel");
-          const hidden = el.querySelector(".fb-ci-lang-hidden[data-field='language']");
-          if (!hidden) return;
-          const selLangs = Array.from(el.querySelectorAll(".fb-lang-chip.sel")).map(c => c.dataset.lang);
-          hidden.value = selLangs.join(", ") || "English (US)";
-          hidden.removeAttribute("readonly");
-          hidden.dispatchEvent(new Event("input", { bubbles: true }));
-          hidden.setAttribute("readonly", "");
-          // Update summary label
-          const lbl = el.querySelector(".fb-lang-sel-val");
-          if (lbl) lbl.textContent = selLangs.join(", ") || "None";
-        });
-      });
+      // Language dropdown — primary + secondary selects update the hidden input
+      const syncLangDropdowns = () => {
+        const hidden = el.querySelector(".fb-ci-lang-hidden[data-field='language']");
+        if (!hidden) return;
+        const primSel = el.querySelector("[data-lang-primary]");
+        const secSel  = el.querySelector("[data-lang-secondary]");
+        const primary   = primSel?.value || "English (US)";
+        const secondary = secSel?.value  || "";
+        // Update secondary options to exclude current primary
+        if (secSel) {
+          const prev = secSel.value;
+          secSel.innerHTML = `<option value="">None (single language)</option>` +
+            PREVIEW_LANGS.filter(l => l !== primary).map(l =>
+              `<option value="${escapeHtml(l)}"${l===prev&&l!==primary?" selected":""}>${escapeHtml(l)}</option>`
+            ).join("");
+        }
+        const newVal = secondary ? `${primary}, ${secondary}` : primary;
+        hidden.value = newVal;
+        hidden.removeAttribute("readonly");
+        hidden.dispatchEvent(new Event("input", { bubbles: true }));
+        hidden.setAttribute("readonly", "");
+      };
+      el.querySelector("[data-lang-primary]")?.addEventListener("change",   syncLangDropdowns);
+      el.querySelector("[data-lang-secondary]")?.addEventListener("change", syncLangDropdowns);
 
       // Field changes → sync preview
       el.querySelectorAll("[data-field]").forEach(inp => {
