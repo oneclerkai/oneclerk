@@ -76,7 +76,7 @@ const HARKLY_VOICE_MAP = {
   "chris":  "2ee87190-8f84-4925-97da-e52547f9462c", // energetic male
 };
 
-// Deepgram transcriber language codes (BCP-47 → single/dual code for nova-2)
+// Deepgram transcriber language codes (BCP-47 → short code for Vapi/Deepgram)
 const HARKLY_LANG_MAP = {
   "English (US)":            "en",
   "English (UK)":            "en-GB",
@@ -108,6 +108,24 @@ const HARKLY_LANG_MAP = {
   "Ukrainian (Українська)":  "uk",
   "Amharic (አማርኛ)":         "am",
   "Hausa (Hausa)":           "ha",
+};
+
+// Deepgram nova-2 only natively supports a subset of languages.
+// For the rest, "multi" enables auto-detection. zh must be zh-CN.
+// Reference: https://developers.deepgram.com/docs/models-languages-overview
+const DEEPGRAM_CODE = {
+  "en":    "en",    "en-GB": "en-GB",
+  "hi":    "hi",    "es":    "es",     "fr":  "fr",
+  "zh":    "zh-CN", "pt":    "pt",     "vi":  "vi",
+  "ru":    "ru",    "ja":    "ja",     "ko":  "ko",
+  "de":    "de",    "it":    "it",     "tr":  "tr",
+  "pl":    "pl",    "nl":    "nl",     "ta":  "ta",
+  "ms":    "ms",    "uk":    "uk",     "sv":  "sv",
+  // Languages not natively in nova-2 → use multi (auto-detect)
+  "ar":    "multi", "bn":    "multi",  "th":  "multi",
+  "sw":    "multi", "fil":   "multi",  "mr":  "multi",
+  "te":    "multi", "ur":    "multi",  "fa":  "multi",
+  "am":    "multi", "ha":    "multi",
 };
 
 // System prompt templates keyed by agent-type designation
@@ -603,10 +621,11 @@ const HARKLY_FIRST_MSG = {
 //   4. voice.language   — tells Cartesia which language to synthesise
 //   5. Language instruction at TOP of system prompt so the LLM obeys it
 function buildVapiOverrides(voice, lang, agentType, agentConfig) {
-  const cartesiaId = HARKLY_VOICE_MAP[voice?.id] || HARKLY_VOICE_MAP["maya"];
-  const langCode   = HARKLY_LANG_MAP[lang] || "en";
+  const cartesiaId   = HARKLY_VOICE_MAP[voice?.id] || HARKLY_VOICE_MAP["maya"];
+  const langCode     = HARKLY_LANG_MAP[lang] || "en";
+  const deepgramCode = DEEPGRAM_CODE[langCode] || "multi"; // "multi" = auto-detect
   // Clean language name for the system prompt (strip native script in parens)
-  const langName   = (lang || "English").split(" (")[0];
+  const langName     = (lang || "English").split(" (")[0];
 
   const promptTemplate = agentType && HARKLY_PROMPT_MAP[agentType]
     ? HARKLY_PROMPT_MAP[agentType]
@@ -634,16 +653,18 @@ function buildVapiOverrides(voice, lang, agentType, agentConfig) {
   ].join("\n");
 
   return {
-    backgroundDenoisingEnabled: false,        // Krisp init failure adds ~2s lag — keep disabled
-    firstMessage: HARKLY_FIRST_MSG[langCode] || HARKLY_FIRST_MSG["en"],  // speak target lang immediately
+    backgroundDenoisingEnabled: false,        // Krisp init adds ~2s lag — keep disabled
+    firstMessage: HARKLY_FIRST_MSG[langCode] || HARKLY_FIRST_MSG["en"],
     transcriber: {
       provider: "deepgram",
-      model:    "nova-2",
-      language: langCode,                     // tells Deepgram which lang to transcribe
+      // nova-2 for natively-supported langs; falls back to "multi" auto-detect for the rest
+      model:    deepgramCode === "multi" ? "nova-2-general" : "nova-2",
+      language: deepgramCode,
     },
     model: {
       provider: "google",
-      model:    "gemini-2.0-flash",           // 2.0-flash has no thinking overhead → much faster
+      model:    "gemini-2.0-flash",           // no thinking overhead → fastest responses
+      temperature: 0,                         // deterministic = less compute = lower latency
       messages: [
         { role: "system", content: systemPrompt },
       ],
@@ -652,7 +673,7 @@ function buildVapiOverrides(voice, lang, agentType, agentConfig) {
       provider: "cartesia",
       model:    "sonic-multilingual",         // MUST be sonic-multilingual, not sonic-english
       voiceId:  cartesiaId,
-      language: langCode,                     // tells Cartesia which lang to synthesise
+      language: langCode,                     // Cartesia uses the short BCP-47 code
     },
   };
 }
@@ -1353,46 +1374,23 @@ function initVoiceTester(root) {
       vapiCallActive = true;
     }
 
-    vapi.on("call-start", () => {
-      setButtonActive();
-      status.innerHTML = `<strong>Connected.</strong> Speak — the agent is listening.`;
-      listening = true;
-    });
-
-    vapi.on("call-end", () => {
-      setButtonIdle();
-      status.innerHTML = `Call ended. Tap the mic to start a new conversation.`;
-      listening = false;
-      agentSpeaking = false;
-    });
-
-    vapi.on("speech-start", () => {
-      agentSpeaking = true;
-      status.innerHTML = `<strong>Agent speaking…</strong>`;
-    });
-
-    vapi.on("speech-end", () => {
-      agentSpeaking = false;
-      status.innerHTML = `<strong>Listening…</strong> Go ahead and speak.`;
-    });
-
-    vapi.on("error", () => {
-      setButtonIdle();
-      status.innerHTML = `Something went wrong — tap the mic to try again.`;
-      listening = false;
-      agentSpeaking = false;
-    });
+    // Pre-warm mic on pointerdown (fires ~200ms before 'click' resolves).
+    // This starts the browser's permission flow instantly so vapi.start()
+    // can proceed without waiting the full round-trip when 'click' fires.
+    btn.addEventListener("pointerdown", () => {
+      if (!_micPermitted && !vapiCallActive) {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then(() => { _micPermitted = true; })
+          .catch(() => {});
+      }
+    }, { passive: true });
 
     btn.addEventListener("click", () => {
-      if (vapiCallActive) {
-        vapi.stop();
-        return;
-      }
+      if (vapiCallActive) { vapi.stop(); return; }
       setButtonConnecting();
       status.innerHTML = `<strong>Connecting…</strong> Requesting mic access…`;
 
       (async () => {
-        // Only request mic if not already permitted (avoids the duplicate getUserMedia roundtrip)
         if (!_micPermitted) {
           try {
             await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1405,26 +1403,55 @@ function initVoiceTester(root) {
         }
 
         const langVal   = langSel  ? langSel.value  : "English (US)";
-        const voiceVal  = voiceSel ? voiceSel.value : "Maya — warm, mid-30s";
+        const voiceVal  = voiceSel ? voiceSel.value : "maya";
         const agentType = agentSel ? agentSel.value : "professional front desk receptionist";
 
-        const voiceKey = voiceVal.split("—")[0].trim().toLowerCase();
+        // Support "Maya — warm, mid-30s" format or plain id
+        const voiceKey = voiceVal.includes("—") ? voiceVal.split("—")[0].trim().toLowerCase() : voiceVal.toLowerCase();
         const voiceObj = PREVIEW_VOICES.find(v => v.id === voiceKey) || PREVIEW_VOICES[0];
         const overrides = buildVapiOverrides(voiceObj, langVal, agentType);
 
-        status.innerHTML = `<strong>Connecting…</strong> Starting call in ${langVal}…`;
+        status.innerHTML = `<strong>Connecting…</strong> Starting call in ${escapeHtml(langVal)}…`;
+
         let connectTimeout;
         startVapiCall("5b54d785-e86b-420e-ace0-26092882287e", overrides, {
-          onStart: () => { clearTimeout(connectTimeout); setButtonActive(); status.innerHTML = `<strong>Connected.</strong> Speak — the agent is listening.`; listening = true; },
-          onEnd:   () => { clearTimeout(connectTimeout); setButtonIdle(); status.innerHTML = `Call ended. Tap the mic to start a new conversation.`; listening = false; agentSpeaking = false; },
+          onStart: () => {
+            clearTimeout(connectTimeout);
+            setButtonActive();
+            status.innerHTML = `<strong>Connected.</strong> Speak — the agent is listening.`;
+            listening = true;
+          },
+          onEnd: () => {
+            clearTimeout(connectTimeout);
+            setButtonIdle();
+            status.innerHTML = `Call ended. Tap the mic to start a new conversation.`;
+            listening = false; agentSpeaking = false;
+          },
           onSpeechStart: () => { agentSpeaking = true; status.innerHTML = `<strong>Agent speaking…</strong>`; },
           onSpeechEnd:   () => { agentSpeaking = false; status.innerHTML = `<strong>Listening…</strong> Go ahead and speak.`; },
-          onError: () => { clearTimeout(connectTimeout); setButtonIdle(); status.innerHTML = `Something went wrong — tap the mic to try again.`; listening = false; agentSpeaking = false; },
+          onError: (err) => {
+            clearTimeout(connectTimeout);
+            setButtonIdle();
+            console.warn("[Harkly] Vapi error:", err);
+            status.innerHTML = `Something went wrong — tap the mic to try again.`;
+            listening = false; agentSpeaking = false;
+          },
         });
-        // 25s timeout — enough for any cold WebRTC establishment; resets on error/end too
+
+        // Also register message handler separately so transcripts show in chat
+        vapi.on("message", (msg) => {
+          if (msg?.type === "transcript" && msg.transcriptType === "final") {
+            addChatMsg(msg.role === "assistant" ? "agent" : "user", msg.transcript);
+          }
+        });
+
+        // 20s timeout — enough for any cold WebRTC establishment
         connectTimeout = setTimeout(() => {
-          if (!vapiCallActive) { setButtonIdle(); status.innerHTML = `Taking longer than usual — tap again to retry.`; }
-        }, 25000);
+          if (!vapiCallActive) {
+            setButtonIdle();
+            status.innerHTML = `Taking longer than usual — tap again to retry.`;
+          }
+        }, 20000);
       })();
     });
   } else {
@@ -4752,11 +4779,23 @@ route("preview", async () => {
   }
 
   const agentSel = $("#pv2-agent-sel", page);
+  function buildMergedCfg(agentCfg) {
+    return Object.assign({}, agentCfg || {}, {
+      business_name:     _cs?.business_name     || agentCfg?.business_name     || "",
+      business_info:     _cs?.business_info     || agentCfg?.business_info     || "",
+      business_hours:    _cs?.business_hours    || agentCfg?.business_hours    || "",
+      business_services: _cs?.business_services || agentCfg?.business_services || "",
+      business_pricing:  _cs?.business_pricing  || agentCfg?.business_pricing  || "",
+      business_address:  _cs?.business_address  || agentCfg?.business_address  || "",
+      business_faq:      _cs?.business_faq      || agentCfg?.business_faq      || "",
+      calendly_url:      _cs?.calendly_url      || agentCfg?.calendly_url      || "",
+    });
+  }
+
   if (agentSel) agentSel.addEventListener("change", () => {
     const i = +agentSel.value;
     selAgent = agents[i] || null;
     updateAgentName();
-    // Update voice/lang dropdowns to match the selected agent's config
     const vi = agentVoiceIdx(selAgent);
     const li = agentLangIdx(selAgent);
     const vs = $("#pv2-voice-sel", page);
@@ -4768,7 +4807,8 @@ route("preview", async () => {
     if (pvCtrl) {
       pvCtrl.setVoice(selVoice);
       pvCtrl.setLang(selLang);
-      pvCtrl.setAgentConfig(selAgent?.config || null);
+      // Always merge canvas state so the preview reflects the latest flow-builder data
+      pvCtrl.setAgentConfig(buildMergedCfg(selAgent?.config));
     }
   });
 
@@ -4776,19 +4816,7 @@ route("preview", async () => {
   const pvCtrl = mountVoicePreview(stageEl, selLang);
   if (pvCtrl) {
     pvCtrl.setVoice(selVoice);
-    // Merge canvas business context (from flow builder) with saved agent config.
-    // Canvas state takes priority since it reflects the user's latest edits.
-    const mergedCfg = Object.assign({}, selAgent?.config || {}, {
-      business_name:     _cs?.business_name     || selAgent?.config?.business_name     || "",
-      business_info:     _cs?.business_info     || selAgent?.config?.business_info     || "",
-      business_hours:    _cs?.business_hours    || selAgent?.config?.business_hours    || "",
-      business_services: _cs?.business_services || selAgent?.config?.business_services || "",
-      business_pricing:  _cs?.business_pricing  || selAgent?.config?.business_pricing  || "",
-      business_address:  _cs?.business_address  || selAgent?.config?.business_address  || "",
-      business_faq:      _cs?.business_faq      || selAgent?.config?.business_faq      || "",
-      calendly_url:      _cs?.calendly_url      || selAgent?.config?.calendly_url      || "",
-    });
-    pvCtrl.setAgentConfig(mergedCfg);
+    pvCtrl.setAgentConfig(buildMergedCfg(selAgent?.config));
   }
 
   const voiceSel = $("#pv2-voice-sel", page);
