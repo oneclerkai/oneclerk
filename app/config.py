@@ -20,9 +20,29 @@ class Settings(BaseSettings):
 
     ENVIRONMENT: Literal["development", "staging", "production"] = "development"
     SECRET_KEY: str = "change-me"
-    FRONTEND_URL: str = "http://localhost:3000"
-    PUBLIC_BASE_URL: str = "http://localhost:5000"
-    BACKEND_URL: str = "http://localhost:5000"
+    FRONTEND_URL: str = ""
+    PUBLIC_BASE_URL: str = ""
+    BACKEND_URL: str = ""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        import os
+        replit_domain = os.environ.get("REPLIT_DEV_DOMAIN") or os.environ.get("REPLIT_DOMAINS", "").split(",")[0].strip()
+        if replit_domain:
+            base_url = f"https://{replit_domain}"
+            if not self.FRONTEND_URL:
+                object.__setattr__(self, "FRONTEND_URL", base_url)
+            if not self.PUBLIC_BASE_URL:
+                object.__setattr__(self, "PUBLIC_BASE_URL", base_url)
+            if not self.BACKEND_URL:
+                object.__setattr__(self, "BACKEND_URL", base_url)
+        else:
+            if not self.FRONTEND_URL:
+                object.__setattr__(self, "FRONTEND_URL", "http://localhost:3000")
+            if not self.PUBLIC_BASE_URL:
+                object.__setattr__(self, "PUBLIC_BASE_URL", "http://localhost:5000")
+            if not self.BACKEND_URL:
+                object.__setattr__(self, "BACKEND_URL", "http://localhost:5000")
 
     DATABASE_URL: str | None = None
     REDIS_URL: str | None = None
