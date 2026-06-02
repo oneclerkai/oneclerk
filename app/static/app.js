@@ -4644,7 +4644,7 @@ route("agentFlow", async (id) => {
 
   const INT_CARDS = [
     { type: "phone",     label: "Phone Number",     color: "#0D6EFD", brandKey: "phone",    icon: "phone"          },
-    { type: "agent",     label: "Agent (AI Brain)", color: "#8B5CF6", brandKey: null,       icon: "cpu"            },
+    { type: "agent",     label: "Agent (AI Brain)", color: "#8B5CF6", brandKey: "agent",    icon: "cpu"            },
     { type: "whatsapp",  label: "WhatsApp Notify",  color: "#25D366", brandKey: "whatsapp", icon: "message-circle" },
     { type: "gmail",     label: "Gmail Follow-up",  color: "#EA4335", brandKey: "gmail",    icon: "mail"           },
     { type: "gcal",      label: "Google Calendar",  color: "#1A73E8", brandKey: "gcal",     icon: "calendar"       },
@@ -4866,8 +4866,7 @@ route("agentFlow", async (id) => {
     const c = card.config || {};
     const ci = (ph, field, val) => `<input class="fb-ci" placeholder="${ph}" data-field="${field}" value="${escapeHtml(val || '')}" />`;
     if (card.type === "agent") return `
-      <select class="fb-ci" data-field="voice">${PREVIEW_VOICES.map(v => `<option value="${v.id}"${c.voice===v.id?" selected":""}>${v.label} — ${v.sub}</option>`).join("")}</select>
-      <textarea class="fb-ci" style="resize:vertical;min-height:40px;margin-top:5px" data-field="text" placeholder="Agent persona, tone, speciality…">${escapeHtml(c.text||'')}</textarea>`;
+      <textarea class="fb-ci" style="resize:vertical;min-height:60px" data-field="text" placeholder="Describe your agent — persona, tone, speciality…">${escapeHtml(c.text||'')}</textarea>`;
     if (card.type === "voice") return `<select class="fb-ci" data-field="voice">${PREVIEW_VOICES.map(v => `<option value="${v.id}"${c.voice===v.id?" selected":""}>${v.label} — ${v.sub}</option>`).join("")}</select>`;
     if (card.type === "language") {
       const sel = (c.language || "English (US)").split(",").map(s => s.trim()).filter(Boolean);
@@ -5622,17 +5621,17 @@ route("agentFlow", async (id) => {
 
     // ── Flow diagram data ─────────────────────────────────────────────────
     const FLOW_CONFIG = [
-      { color:"#F59E0B", icon:"🎙️", label:"Voice",    sub:"How it sounds" },
-      { color:"#10B981", icon:"🌍", label:"Language",  sub:"What it speaks" },
-      { color:"#6366F1", icon:"📄", label:"Info",      sub:"What it knows" },
-      { color:"#0D6EFD", icon:"📞", label:"Phone",     sub:"Entry point" },
+      { color:"#F59E0B", label:"Voice",    sub:"How it sounds" },
+      { color:"#10B981", label:"Language",  sub:"What it speaks" },
+      { color:"#6366F1", label:"Info",      sub:"What it knows" },
+      { color:"#0D6EFD", label:"Phone",     sub:"Entry point" },
     ];
-    const FLOW_HUB    = { color:"#8B5CF6", icon:"🤖", label:"Agent", sub:"AI brain" };
+    const FLOW_HUB    = { color:"#8B5CF6", label:"Agent", sub:"AI brain" };
     const FLOW_OUT    = [
-      { color:"#25D366", icon:"💬", label:"WhatsApp", sub:"Call summary" },
-      { color:"#EA4335", icon:"📧", label:"Gmail",    sub:"Follow-up email" },
-      { color:"#1A73E8", icon:"📅", label:"Calendar", sub:"Booking" },
-      { color:"#4A154B", icon:"🔔", label:"Slack",    sub:"Alert" },
+      { color:"#25D366", label:"WhatsApp", sub:"Call summary" },
+      { color:"#EA4335", label:"Gmail",    sub:"Follow-up email" },
+      { color:"#1A73E8", label:"Calendar", sub:"Booking" },
+      { color:"#4A154B", label:"Slack",    sub:"Alert" },
     ];
 
     function mkNode(c) {
