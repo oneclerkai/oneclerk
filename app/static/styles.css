@@ -2973,55 +2973,68 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
     6px 6px 0 0 #0f0f14,
     12px 12px 22px -6px rgba(15,15,20,0.4);
 }
-/* Base (flat) colours per card — the aurora blobs layer on top via .lp-note-paper */
-.lp-note-3d[data-i="0"] { background: #f0a8dc; transform: rotate(-2deg); }
-.lp-note-3d[data-i="1"] { background: #a4bfff; transform: rotate(1.5deg); }
-.lp-note-3d[data-i="2"] { background: #b0d4ff; transform: rotate(-1deg); }
-.lp-note-3d[data-i="3"] { background: #cdb4ff; transform: rotate(2deg); }
+/* Base colours — visible only at the very edge where no blob reaches */
+.lp-note-3d[data-i="0"] { background: #F5B0E0; transform: rotate(-2deg); }
+.lp-note-3d[data-i="1"] { background: #C4D2FF; transform: rotate(1.5deg); }
+.lp-note-3d[data-i="2"] { background: #C8DCFF; transform: rotate(-1deg); }
+.lp-note-3d[data-i="3"] { background: #D4BEFF; transform: rotate(2deg); }
 .lp-note-3d:hover[data-i="0"] { transform: rotate(-2deg) translate(-2px, -2px); }
 .lp-note-3d:hover[data-i="1"] { transform: rotate(1.5deg) translate(-2px, -2px); }
 .lp-note-3d:hover[data-i="2"] { transform: rotate(-1deg) translate(-2px, -2px); }
 .lp-note-3d:hover[data-i="3"] { transform: rotate(2deg) translate(-2px, -2px); }
 
-/* Aurora layer — extend -50px beyond card edges so gaussian blur never shows dark fringes */
+/*
+  Aurora mesh layer — the element extends 90px beyond every card edge so the
+  gaussian blur fully develops before reaching the clipping boundary. This
+  prevents the dark-fringe artefact that appears when blur hits the element edge.
+  Blob radii (250-280 px) are LARGER than the card (≈220 px wide) so they
+  overlap completely and fill every corner, matching the OpenAI mesh-gradient look.
+*/
 .lp-note-paper {
   position: absolute;
-  inset: -50px;
+  inset: -90px;
   pointer-events: none;
   z-index: 0;
 }
-/* Card 0 — vivid hot-pink + peach-orange + purple (OpenAI card 1) */
+
+/* ── Card 0 — vivid magenta-pink + warm orange  (OpenAI GPT-5.5 palette) ─── */
 .lp-note-3d[data-i="0"] .lp-note-paper {
   background:
-    radial-gradient(circle 130px at 18% 28%, #FF28BE 0%, #FF28BE 30%, transparent 70%),
-    radial-gradient(circle 110px at 88% 82%, #FF8830 0%, #FF8830 30%, transparent 70%),
-    radial-gradient(circle 100px at 72% 8%,  #C028E8 0%, #C028E8 30%, transparent 70%),
-    radial-gradient(circle  80px at 28% 88%, #FF4868 0%, #FF4868 30%, transparent 70%);
-  filter: blur(38px);
+    radial-gradient(circle 270px at 12% 90%, #F020C0 0%, #F020C0 15%, transparent 60%),
+    radial-gradient(circle 250px at 85% 55%, #FF9040 0%, #FF9040 15%, transparent 60%),
+    radial-gradient(circle 220px at 78% 8%,  #D030F0 0%, #D030F0 15%, transparent 58%),
+    radial-gradient(circle 200px at 20% 22%, #FF50D8 0%, #FF50D8 15%, transparent 58%);
+  filter: blur(56px);
 }
-/* Card 1 — periwinkle blue + warm peach (OpenAI card 2) */
+
+/* ── Card 1 — warm peach + periwinkle blue  (OpenAI GPT-5.4 palette) ───── */
 .lp-note-3d[data-i="1"] .lp-note-paper {
   background:
-    radial-gradient(circle 140px at 78% 20%, #7AA4FF 0%, #7AA4FF 30%, transparent 70%),
-    radial-gradient(circle 110px at 22% 72%, #FFA848 0%, #FFA848 30%, transparent 70%),
-    radial-gradient(circle  90px at 52% 52%, #9EC0FF 0%, #9EC0FF 30%, transparent 70%);
-  filter: blur(38px);
+    radial-gradient(circle 260px at 52% 90%, #FFB060 0%, #FFB060 15%, transparent 60%),
+    radial-gradient(circle 260px at 88% 8%,  #80A8FF 0%, #80A8FF 15%, transparent 60%),
+    radial-gradient(circle 200px at 10% 8%,  #B0BEFF 0%, #B0BEFF 15%, transparent 58%),
+    radial-gradient(circle 180px at 28% 60%, #FFCCA0 0%, #FFCCA0 12%, transparent 55%);
+  filter: blur(56px);
 }
-/* Card 2 — sky blue + soft orange glow (OpenAI card 3) */
+
+/* ── Card 2 — soft peach + sky blue  (OpenAI GPT-5.4 mini palette) ─────── */
 .lp-note-3d[data-i="2"] .lp-note-paper {
   background:
-    radial-gradient(circle 130px at 15% 70%, #62BAFF 0%, #62BAFF 30%, transparent 70%),
-    radial-gradient(circle 110px at 74% 32%, #FFB870 0%, #FFB870 30%, transparent 70%),
-    radial-gradient(circle  90px at 46% 12%, #9ACEFF 0%, #9ACEFF 30%, transparent 70%);
-  filter: blur(38px);
+    radial-gradient(circle 250px at 62% 78%, #FFC080 0%, #FFC080 15%, transparent 60%),
+    radial-gradient(circle 250px at 12% 12%, #78B8FF 0%, #78B8FF 15%, transparent 60%),
+    radial-gradient(circle 200px at 85% 8%,  #A4D0FF 0%, #A4D0FF 12%, transparent 58%),
+    radial-gradient(circle 180px at 80% 75%, #FFD8B0 0%, #FFD8B0 10%, transparent 55%);
+  filter: blur(56px);
 }
-/* Card 3 — lavender + golden amber */
+
+/* ── Card 3 — rich lavender + golden amber ───────────────────────────────── */
 .lp-note-3d[data-i="3"] .lp-note-paper {
   background:
-    radial-gradient(circle 130px at 18% 22%, #B840FF 0%, #B840FF 30%, transparent 70%),
-    radial-gradient(circle 110px at 80% 78%, #FFB038 0%, #FFB038 30%, transparent 70%),
-    radial-gradient(circle  90px at 62% 12%, #8898FF 0%, #8898FF 30%, transparent 70%);
-  filter: blur(38px);
+    radial-gradient(circle 260px at 10% 12%, #C040FF 0%, #C040FF 15%, transparent 60%),
+    radial-gradient(circle 250px at 85% 85%, #FFB838 0%, #FFB838 15%, transparent 60%),
+    radial-gradient(circle 200px at 12% 85%, #9060FF 0%, #9060FF 12%, transparent 58%),
+    radial-gradient(circle 180px at 78% 10%, #8898FF 0%, #8898FF 12%, transparent 55%);
+  filter: blur(56px);
 }
 .lp-note-tape {
   position: absolute; top: -10px; left: 50%; transform: translateX(-50%) rotate(-2deg);
