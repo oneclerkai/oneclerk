@@ -1,0 +1,70 @@
+The Master Problem-Solving Replit AI Prompt
+Copy and paste this structured prompt into your Replit AI Chat to patch the malformed payloads instantly.
+
+Plaintext
+Act as a Principal Frontend Engineer specializing in WebRTC streams and the Vapi Web SDK. Our application is currently throwing a "POST https://api.vapi.ai/call/web 400 (Bad Request)" error when initializing call sessions from the user dashboard and homepage. This malformed payload structure is breaking our WebRTC connections.
+
+Please completely refactor our frontend JavaScript integration files according to these exact production structural criteria:
+
+1. USE CORRECT CREDENTIAL KEYS CONSTANTS
+- Public Token Key: "bace6e2b-19b8-403f-84aa-7c9b8ae0dea8"
+- Homepage Default Assistant ID: "5b54d785-e86b-420e-ace0-26092882287e"
+- Dashboard Master Canvas Assistant ID: "d5f28a96-25da-4905-bac8-5dee52a15f4e"
+
+2. IMPLEMENT VALID VAPI ASSISTANT OVERRIDES DATA SCHEMA
+- When creating the 'assistantOverrides' object, ensure it precisely follows Vapi's strict technical schema documentation to avoid a 400 Bad Request. 
+- Do NOT pass top-level loose properties. Use this exact nested template structure format:
+  {
+    "transcriber": {
+      "provider": "deepgram",
+      "model": "nova-2",
+      "language": "hi" // Dynamic string mapped from UI dropdown ('en', 'hi', etc.)
+    },
+    "model": {
+      "provider": "google",
+      "model": "gemini-2.5-flash",
+      "messages": [
+        {
+          "role": "system",
+          "content": "Your dynamic prompt generated here based on the selected UI Agent Designation Type."
+        }
+      ]
+    },
+    "voice": {
+      "provider": "cartesia",
+      "voiceId": "57dcab65-68ac-45a6-8480-6c4c52ec1cd1" // Dynamic voice string ID mapped from selection
+    }
+  }
+
+3. REPAIR DASHBOARD BUILDER CANVAS-TO-PREVIEW CONNECTION (Image 2 & Image 3)
+- Ensure the "Play sample" click event dynamically interrogates the active Canvas drag-and-drop node graph.
+- Extract values directly from the DOM fields of the active '.Languages' node and the active '.Voice Type' node on the canvas layout.
+- Map the extracted human-readable text labels using an object lookup dictionary to provide clean, valid Vapi properties. Pass the final sanitized overrides payload safely inside `vapi.start("d5f28a96-25da-4905-bac8-5dee52a15f4e", assistantOverrides)`.
+
+4. INTEGRATE FAIL-SAFE LOGGING ENGINE
+- Wrap every initialization sequence in a robust try/catch layout block.
+- Log the complete, stringified JSON payload right before calling vapi.start() to let us monitor and confirm everything looks completely clean.
+
+Generate the replacement clean code wrappers for our dashboard controller components.
+Part 2: Step-by-Step Backend Configuration Guide
+🛠️ Setting Up Your Global UI Object Dictionaries
+To ensure your frontend code passes valid parameters to the Vapi SDK instead of arbitrary human strings (like "Maya — warm, mid-30s"), verify that your local script files contain these explicit mapping tables:
+
+JavaScript
+// Valid structural mapping dictionary for Vapi production configurations
+const HARKLY_VOICE_MAP = {
+    "Maya — warm, mid-30s": "244f6fbf-8afb-47e2-8958-3d1487216a90", // Example warm female model ID
+    "Maya — Warm · Mid-30s": "244f6fbf-8afb-47e2-8958-3d1487216a90",
+    "Arjun — calm, deep": "57dcab65-68ac-45a6-8480-6c4c52ec1cd1"     // Multi-lingual male model ID
+};
+
+const HARKLY_LANG_MAP = {
+    "English (US)": "en",
+    "English (us)": "en",
+    "Hindi (हिंदी)": "hi"
+};
+
+const HARKLY_PROMPT_MAP = {
+    "Dental clinic front desk": "You are an elite, professional medical receptionist handling clinic inquiries for a dental office. Be concise and book spots.",
+    "Real Estate Agent": "You are a professional real estate scheduling associate. Guide callers through booking property viewings smoothly."
+};
