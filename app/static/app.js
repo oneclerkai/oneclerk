@@ -1347,7 +1347,7 @@ function initVoiceTester(root) {
         const timeout = setTimeout(() => {
           if (!vapiCallActive) { setButtonIdle(); status.innerHTML = `Connection timed out — tap again to retry.`; }
         }, 5000);
-        vapi.on("call-start", () => clearTimeout(timeout));
+        vapi.once("call-start", () => clearTimeout(timeout));
         vapi.start("5b54d785-e86b-420e-ace0-26092882287e", overrides);
       })();
     });
