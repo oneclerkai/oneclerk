@@ -17,13 +17,23 @@ function getVapi() {
 }
 
 // ── Safe Vapi call helper ─────────────────────────────────────────────────────
-// Clears ALL existing listeners before registering fresh ones so repeated page
+// Requests mic permission FIRST (eliminates browser handshake delay), then
+// clears ALL existing listeners before registering fresh ones so repeated page
 // visits never accumulate duplicate handlers on the shared singleton.
-// Logs the full payload before every call so malformed payloads are visible
-// in the browser console immediately.
-function startVapiCall(assistantId, overrides, { onStart, onEnd, onSpeechStart, onSpeechEnd, onVolume, onError } = {}) {
+async function startVapiCall(assistantId, overrides, { onStart, onEnd, onSpeechStart, onSpeechEnd, onVolume, onError } = {}) {
   const vapi = getVapi();
   if (!vapi) return null;
+
+  // Pre-fetch mic permission instantly — this eliminates the ~1s browser prompt delay
+  try {
+    console.log("[Harkly Core] Requesting immediate browser audio access...");
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (micErr) {
+    console.error("[Harkly Vapi] Mic permission denied:", micErr.message);
+    if (onError) onError(micErr);
+    return null;
+  }
+
   try {
     try { vapi.removeAllListeners?.(); } catch (_) {}
     if (onStart)       vapi.on("call-start",  onStart);
@@ -34,7 +44,7 @@ function startVapiCall(assistantId, overrides, { onStart, onEnd, onSpeechStart, 
     if (onError)       vapi.on("error",        onError);
 
     const payload = { assistantId, assistantOverrides: overrides || {} };
-    console.log("[Harkly Vapi] Starting call — payload:", JSON.stringify(payload, null, 2));
+    console.log("[Harkly Vapi] Launching connection stream — payload:", JSON.stringify(payload, null, 2));
 
     vapi.start(assistantId, overrides || {});
   } catch (err) {
@@ -573,6 +583,7 @@ function buildVapiOverrides(voice, lang, agentType) {
     },
     voice: {
       provider: "cartesia",
+      model:    "sonic-multilingual",
       voiceId:  cartesiaId,
     },
   };
