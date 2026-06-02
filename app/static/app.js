@@ -19,33 +19,89 @@ function getVapi() {
 // ── Safe Vapi call helper ─────────────────────────────────────────────────────
 // Clears ALL existing listeners before registering fresh ones so repeated page
 // visits never accumulate duplicate handlers on the shared singleton.
+// Logs the full payload before every call so malformed payloads are visible
+// in the browser console immediately.
 function startVapiCall(assistantId, overrides, { onStart, onEnd, onSpeechStart, onSpeechEnd, onVolume, onError } = {}) {
   const vapi = getVapi();
   if (!vapi) return null;
-  try { vapi.removeAllListeners?.(); } catch (_) {}
-  if (onStart)       vapi.on("call-start",  onStart);
-  if (onEnd)         vapi.on("call-end",     onEnd);
-  if (onSpeechStart) vapi.on("speech-start", onSpeechStart);
-  if (onSpeechEnd)   vapi.on("speech-end",   onSpeechEnd);
-  if (onVolume)      vapi.on("volume-level", onVolume);
-  if (onError)       vapi.on("error",        onError);
-  vapi.start(assistantId, overrides || {});
+  try {
+    try { vapi.removeAllListeners?.(); } catch (_) {}
+    if (onStart)       vapi.on("call-start",  onStart);
+    if (onEnd)         vapi.on("call-end",     onEnd);
+    if (onSpeechStart) vapi.on("speech-start", onSpeechStart);
+    if (onSpeechEnd)   vapi.on("speech-end",   onSpeechEnd);
+    if (onVolume)      vapi.on("volume-level", onVolume);
+    if (onError)       vapi.on("error",        onError);
+
+    const payload = { assistantId, assistantOverrides: overrides || {} };
+    console.log("[Harkly Vapi] Starting call — payload:", JSON.stringify(payload, null, 2));
+
+    vapi.start(assistantId, overrides || {});
+  } catch (err) {
+    console.error("[Harkly Vapi] vapi.start() threw:", err);
+    if (onError) onError(err);
+  }
   return vapi;
 }
 function stopVapiCall() {
   try { _vapiInstance?.stop(); } catch (_) {}
 }
 
-// OpenAI TTS voice IDs — universally available on every Vapi account (no extra keys needed)
-// high-quality, multilingual (speaks whatever language the AI responds in)
-const OPENAI_VOICE_MAP = {
-  "maya":   "nova",    // warm, friendly female
-  "arjun":  "echo",    // calm, warm male
-  "sofia":  "shimmer", // bright, soft female
-  "daniel": "onyx",    // deep, professional male
-  "linh":   "shimmer", // soft, soothing female
-  "emma":   "nova",    // empathetic, warm female
-  "chris":  "fable",   // expressive, energetic male
+// ── Harkly AI Vapi production mapping dictionaries ───────────────────────────
+// Cartesia voice IDs (used as the 'voice.voiceId' in Vapi assistantOverrides)
+const HARKLY_VOICE_MAP = {
+  "maya":   "244f6fbf-8afb-47e2-8958-3d1487216a90", // warm, mid-30s female
+  "arjun":  "57dcab65-68ac-45a6-8480-6c4c52ec1cd1", // calm, deep male
+  "sofia":  "f785af04-229c-4a7c-b71b-f3194c7f08bb", // bright, friendly female
+  "daniel": "3b554273-4299-48b9-9aaf-eefd438e3941", // professional male
+  "linh":   "a0e99841-438c-4a64-b679-ae501e7d6091", // soft, soothing female
+  "emma":   "79a125e8-cd45-4c13-8a67-188112f4dd22", // empathetic female
+  "chris":  "2ee87190-8f84-4925-97da-e52547f9462c", // energetic male
+};
+
+// Deepgram transcriber language codes (BCP-47 → single/dual code for nova-2)
+const HARKLY_LANG_MAP = {
+  "English (US)":            "en",
+  "English (UK)":            "en-GB",
+  "Hindi (हिंदी)":           "hi",
+  "Spanish (Español)":       "es",
+  "French (Français)":       "fr",
+  "Mandarin (普通话)":        "zh",
+  "Portuguese (Português)":  "pt",
+  "Arabic (العربية)":        "ar",
+  "Vietnamese (Tiếng Việt)": "vi",
+  "Bengali (বাংলা)":         "bn",
+  "Russian (Русский)":       "ru",
+  "Japanese (日本語)":        "ja",
+  "Korean (한국어)":          "ko",
+  "German (Deutsch)":        "de",
+  "Italian (Italiano)":      "it",
+  "Turkish (Türkçe)":        "tr",
+  "Polish (Polski)":         "pl",
+  "Dutch (Nederlands)":      "nl",
+  "Thai (ภาษาไทย)":          "th",
+  "Swahili (Kiswahili)":     "sw",
+  "Tagalog (Filipino)":      "fil",
+  "Marathi (मराठी)":         "mr",
+  "Tamil (தமிழ்)":           "ta",
+  "Telugu (తెలుగు)":         "te",
+  "Urdu (اردو)":             "ur",
+  "Persian (فارسی)":         "fa",
+  "Malay (Bahasa Melayu)":   "ms",
+  "Ukrainian (Українська)":  "uk",
+  "Amharic (አማርኛ)":         "am",
+  "Hausa (Hausa)":           "ha",
+};
+
+// System prompt templates keyed by agent-type designation
+const HARKLY_PROMPT_MAP = {
+  "Dental clinic front desk":    "You are an elite, professional medical receptionist handling clinic inquiries for a dental office. Be concise, warm and help callers book or reschedule appointments efficiently.",
+  "Real Estate Agent":           "You are a professional real estate scheduling associate. Guide callers smoothly through booking property viewings and answering listing questions.",
+  "Hair salon receptionist":     "You are a friendly hair salon receptionist. Help callers book appointments with their preferred stylist, ask about their hair goals, and confirm timing.",
+  "Restaurant host":             "You are a warm and welcoming restaurant host. Help callers make reservations, check availability, and share tonight's specials when asked.",
+  "HVAC dispatcher":             "You are a professional HVAC service dispatcher. Determine whether the caller needs an emergency repair or routine maintenance, then schedule the right technician.",
+  "Law firm intake":             "You are a professional law firm intake specialist. Collect a brief overview of the caller's matter and route them to the appropriate attorney or schedule a consultation.",
+  "professional front desk receptionist": "You are a warm, professional front-desk receptionist. Help callers with scheduling, general enquiries, and routing to the right team member.",
 };
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -485,20 +541,41 @@ const PREVIEW_LANG_MAP = {
 };
 
 // ── Shared Vapi override builder ──────────────────────────────────────────────
-// Uses OpenAI TTS (always available, high-quality, truly multilingual).
-// For non-English languages also injects a system-prompt instruction so the
-// AI brain responds in the selected language, and sets the Deepgram transcriber
-// language so speech-to-text understands the caller.
-function buildVapiOverrides(voice, lang) {
-  const openaiVoice = OPENAI_VOICE_MAP[voice?.id] || "nova";
-  const bcp47    = PREVIEW_LANG_MAP[lang] || "en-US";
-  const langCode = bcp47 === "en-GB" ? "en-GB" : bcp47.split("-")[0];
-  const ov = { voice: { provider: "openai", voiceId: openaiVoice } };
-  if (langCode !== "en") {
-    ov.transcriber = { provider: "deepgram", language: langCode };
-    ov.model = { messages: [{ role: "system", content: `The caller prefers ${lang}. Respond entirely in ${lang}. Do not switch to English.` }] };
-  }
-  return ov;
+// Builds a fully valid Vapi assistantOverrides payload using the nested schema
+// required by the Vapi API to avoid 400 Bad Request errors.
+// - transcriber: Deepgram nova-2 with dynamic language code
+// - model:       Google Gemini 2.5 Flash with dynamic system prompt
+// - voice:       Cartesia with dynamic voiceId from HARKLY_VOICE_MAP
+function buildVapiOverrides(voice, lang, agentType) {
+  const cartesiaId = HARKLY_VOICE_MAP[voice?.id] || HARKLY_VOICE_MAP["maya"];
+  const langCode   = HARKLY_LANG_MAP[lang] || "en";
+
+  const promptTemplate = agentType && HARKLY_PROMPT_MAP[agentType]
+    ? HARKLY_PROMPT_MAP[agentType]
+    : `You are a warm, professional AI receptionist. Always respond in ${lang || "English"}. Be concise and helpful.`;
+
+  const systemPrompt = langCode !== "en" && !agentType
+    ? `${promptTemplate} The caller prefers ${lang}. Respond entirely in ${lang}. Do not switch to English.`
+    : promptTemplate;
+
+  return {
+    transcriber: {
+      provider: "deepgram",
+      model:    "nova-2",
+      language: langCode,
+    },
+    model: {
+      provider: "google",
+      model:    "gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemPrompt },
+      ],
+    },
+    voice: {
+      provider: "cartesia",
+      voiceId:  cartesiaId,
+    },
+  };
 }
 // Variant that takes a BCP-47 code directly (used by the agent setup page).
 function buildVapiOverridesFromBcp47(voice, bcp47) {
@@ -1247,16 +1324,13 @@ function initVoiceTester(root) {
         const voiceVal  = voiceSel ? voiceSel.value : "Maya — warm, mid-30s";
         const agentType = agentSel ? agentSel.value : "professional front desk receptionist";
 
-        // Map dropdown label → PREVIEW_VOICES id → OpenAI TTS voice
+        // Map dropdown label → PREVIEW_VOICES id → Cartesia voice ID via HARKLY_VOICE_MAP
         const voiceKey = voiceVal.split("—")[0].trim().toLowerCase();
         const voiceObj = PREVIEW_VOICES.find(v => v.id === voiceKey) || PREVIEW_VOICES[0];
-        // Build overrides using the shared helper (OpenAI TTS + Deepgram STT)
-        const overrides = buildVapiOverrides(voiceObj, langVal);
-        // Always inject agent-type system prompt (overrides any language-only prompt)
-        overrides.model = {
-          messages: [{ role: "system", content: `You are an AI voice receptionist for a ${agentType}. Be warm, professional and concise. Always respond in ${langVal}. Help the caller efficiently.` }],
-        };
+        // Build the fully-nested Vapi assistantOverrides payload (Cartesia + Gemini + Deepgram)
+        const overrides = buildVapiOverrides(voiceObj, langVal, agentType);
 
+        console.log("[Harkly Vapi] Homepage tester — assistantOverrides:", JSON.stringify(overrides, null, 2));
         status.innerHTML = `<strong>Connecting…</strong> Starting call in ${langVal}…`;
         // 5 s timeout guard
         const timeout = setTimeout(() => {
@@ -4139,16 +4213,16 @@ route("agentSetup", async (id) => {
         sVoice2 = PREVIEW_VOICES.find(v => v.id === b.dataset.svid) || PREVIEW_VOICES[0];
         cPitch2 = sVoice2.pitch;
       }));
-      const LANG_SIMPLE = { Hindi:"hi-IN", Spanish:"es-ES", French:"fr-FR", Mandarin:"zh-CN", Vietnamese:"vi-VN", Arabic:"ar-SA", German:"de-DE", Japanese:"ja-JP", Portuguese:"pt-PT", Korean:"ko-KR" };
-      const langCode = LANG_SIMPLE[cfg.language] || "en-US";
-      const GRTS2 = { "hi-IN":"नमस्ते, यहाँ Harkly AI है। मैं आपकी कैसे मदद कर सकता हूँ?", "es-ES":"Hola, le habla Harkly AI. ¿En qué le puedo ayudar?", "fr-FR":"Bonjour, ici Harkly AI. Comment puis-je vous aider?", "zh-CN":"您好，这里是Harkly AI。我可以如何帮助您？" };
+      // Map the agent's stored language (plain word like "Hindi") to a PREVIEW_LANGS label
+      const LANG_LABEL_MAP = { Hindi:"Hindi (हिंदी)", Spanish:"Spanish (Español)", French:"French (Français)", Mandarin:"Mandarin (普通话)", Vietnamese:"Vietnamese (Tiếng Việt)", Arabic:"Arabic (العربية)", German:"German (Deutsch)", Japanese:"Japanese (日本語)", Portuguese:"Portuguese (Português)", Korean:"Korean (한국어)" };
+      const svpLangLabel = LANG_LABEL_MAP[cfg.language] || "English (US)";
       const agentName = cfg.agent_name || "your AI receptionist";
       const bizName   = cfg.business_name || "Harkly AI";
-      const greeting  = GRTS2[langCode] || `Hi, this is ${agentName} from ${bizName}. How can I help you today?`;
       const SVP_ASSISTANT_ID = "d5f28a96-25da-4905-bac8-5dee52a15f4e";
       let svpCallActive = false;
       function svpOverrides() {
-        return buildVapiOverridesFromBcp47(sVoice2, langCode);
+        // Use the fully-nested Cartesia/Gemini/Deepgram schema
+        return buildVapiOverrides(sVoice2, svpLangLabel, cfg.agent_type || null);
       }
       svpPlay.addEventListener("click", () => {
         if (svpCallActive) { stopVapiCall(); return; }
