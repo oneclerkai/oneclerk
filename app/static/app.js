@@ -169,7 +169,7 @@ async function api(path, { method = "GET", body, auth = true } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (auth && Store.token) headers["Authorization"] = `Bearer ${Store.token}`;
   const res = await fetch(apiPath(path), { method, headers, body: body ? JSON.stringify(body) : undefined });
-  if (res.status === 401) {
+  if (res.status === 401 && auth) {
     Store.token = null;
     Store.user = null;
     if (location.hash === "#/login" || location.hash === "#/signup") {
@@ -1739,6 +1739,11 @@ function openAuthModal(initialMode = "login") {
 
     if (hasError) return;
 
+    const submitBtn = $("#m-submit", modal);
+    const origLabel = submitBtn.querySelector("span")?.textContent || "Continue";
+    submitBtn.disabled = true;
+    if (submitBtn.querySelector("span")) submitBtn.querySelector("span").textContent = "Please wait…";
+
     const body = mode === "signup"
       ? {
           name: $("#m-name", modal).value,
@@ -1775,6 +1780,8 @@ function openAuthModal(initialMode = "login") {
         err.textContent = ex.message || "Something went wrong. Please try again.";
       }
       err.classList.remove("hidden");
+      submitBtn.disabled = false;
+      if (submitBtn.querySelector("span")) submitBtn.querySelector("span").textContent = origLabel;
     }
   });
 
