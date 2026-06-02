@@ -3258,11 +3258,11 @@ const AGB_BOX_DEFS = [
 ];
 
 function agbDefaultLayout(agent) {
-  // Minimal: just the agentinfo box centered. User adds the rest with the "+" orb.
+  // Start with just the agentinfo box — user adds integrations with the "+" orb.
   return {
     boxes: [
-      { id: "ag", kind: "agentinfo", x: 360, y: 200,
-        data: { name: agent.config?.agent_name || agent.name || "Agent", role: "Voice AI Receptionist", voice: agent.voice_id || "maya", languages: ["English (US)"] } },
+      { id: "ag", kind: "agentinfo", x: 340, y: 180,
+        data: { name: agent.config?.agent_name || agent.name || "My Agent", role: agent.config?.agent_type || "Voice AI Receptionist", bizName: agent.config?.business_name || "", bizType: agent.config?.business_type || "", greeting: "", persona: "" } },
     ],
     edges: [],
   };
@@ -3361,8 +3361,7 @@ route("agents", async () => {
 
         <div class="ag-card-meta">
           ${phone ? `<div class="ag-meta-row"><i data-lucide="phone" class="icon"></i><span>${escapeHtml(phone)}</span></div>` : `<div class="ag-meta-row ag-meta-dim"><i data-lucide="phone-missed" class="icon"></i><span>No number linked</span></div>`}
-          <div class="ag-meta-row"><i data-lucide="globe" class="icon"></i><span>${escapeHtml(lang)}</span></div>
-          <div class="ag-meta-row"><i data-lucide="mic" class="icon"></i><span>${escapeHtml(voice)}</span></div>
+          ${biz ? `` : `<div class="ag-meta-row ag-meta-dim"><i data-lucide="building-2" class="icon"></i><span>Open Flow to configure</span></div>`}
         </div>
 
         <div class="ag-card-calls-bar">
@@ -3378,9 +3377,6 @@ route("agents", async () => {
         <div class="ag-card-actions">
           <button class="ag-btn ag-btn-primary" data-act="flow" data-id="${a.id}">
             <i data-lucide="git-branch" class="icon"></i>Flow builder
-          </button>
-          <button class="ag-btn ag-btn-ghost" data-act="edit" data-id="${a.id}">
-            <i data-lucide="settings-2" class="icon"></i>Settings
           </button>
           <button class="ag-btn ${a.is_active ? "ag-btn-warn" : "ag-btn-success"}" data-act="toggle" data-id="${a.id}" data-active="${a.is_active}">
             <i data-lucide="${a.is_active ? "pause" : "play"}" class="icon"></i>${a.is_active ? "Pause" : "Activate"}
@@ -3635,23 +3631,21 @@ function initBuilderCanvas(stage, layout) {
         <input class="agb-inline" data-field="template" placeholder="Call recap for {name}: {summary}" value="${escapeHtml(box.data.template || '')}"/>
         <div class="agb-cal-status ${linked ? 'is-linked' : ''}" style="margin-top:6px">${linked ? '✓ Recaps will be sent here' : 'Owner gets a recap after every call'}</div>`;
     } else if (box.kind === "agentinfo") {
-      const selLangs = Array.isArray(box.data.languages) ? box.data.languages : ["English (US)"];
+      const BIZ_TYPES = ["Hotel / Resort","Restaurant / Café","Medical Clinic","Dental Practice","Salon / Spa","Law Firm","Consultancy","Real Estate","Fitness / Gym","Retail Store","Startup / Tech","Other"];
       body = `
         <label class="agb-flabel">Agent name</label>
         <input class="agb-inline" data-field="name" placeholder="e.g. Maya" value="${escapeHtml(box.data.name || '')}"/>
-        <label class="agb-flabel" style="margin-top:6px">Role / what it does</label>
-        <input class="agb-inline" data-field="role" placeholder="e.g. Dental receptionist" value="${escapeHtml(box.data.role || '')}"/>
-        <label class="agb-flabel" style="margin-top:6px">Voice</label>
-        <select class="agb-inline" data-field="voice">
-          ${PREVIEW_VOICES.map(v =>
-            `<option value="${v.id}" ${box.data.voice === v.id ? 'selected' : ''}>${v.label} — ${v.sub}</option>`).join("")}
+        <label class="agb-flabel" style="margin-top:6px">Business name</label>
+        <input class="agb-inline" data-field="bizName" placeholder="e.g. Sunrise Dental" value="${escapeHtml(box.data.bizName || '')}"/>
+        <label class="agb-flabel" style="margin-top:6px">Business type</label>
+        <select class="agb-inline" data-field="bizType">
+          <option value="">Select type…</option>
+          ${BIZ_TYPES.map(t => `<option value="${t}" ${box.data.bizType === t ? 'selected' : ''}>${t}</option>`).join("")}
         </select>
-        <label class="agb-flabel" style="margin-top:8px">Languages spoken</label>
-        <div class="agb-lang-grid" data-box-id="${box.id}">
-          ${PREVIEW_LANGS.map(l => `
-            <button class="agb-lang-chip ${selLangs.includes(l) ? 'sel' : ''}" data-lang="${escapeHtml(l)}">${escapeHtml(l.split(" ")[0])}</button>
-          `).join("")}
-        </div>`;
+        <label class="agb-flabel" style="margin-top:6px">Greeting message</label>
+        <input class="agb-inline" data-field="greeting" placeholder="e.g. Thank you for calling Sunrise Dental!" value="${escapeHtml(box.data.greeting || '')}"/>
+        <label class="agb-flabel" style="margin-top:6px">Agent persona / tone</label>
+        <input class="agb-inline" data-field="persona" placeholder="e.g. Warm, professional, empathetic" value="${escapeHtml(box.data.persona || '')}"/>`;
     } else if (box.kind === "calendar") {
       const linked = !!(box.data.url || "").trim();
       body = `
@@ -3681,14 +3675,24 @@ function initBuilderCanvas(stage, layout) {
     } else if (box.kind === "upload") {
       const files = Array.isArray(box.data.files) ? box.data.files : [];
       body = `
-        <label class="agb-flabel">Paste text or URL</label>
-        <input class="agb-inline" data-field="url" placeholder="https://yourbiz.com/menu" value="${escapeHtml(box.data.url || '')}"/>
-        <label class="agb-flabel" style="margin-top:6px">Or type knowledge directly</label>
-        <textarea class="agb-inline agb-textarea" data-field="text" placeholder="Paste menu, FAQ, intake form text…">${escapeHtml(box.data.text || '')}</textarea>
-        <label class="agb-upload-label" style="margin-top:6px">
-          <input type="file" class="agb-upload-input" data-field="files" multiple accept=".pdf,.doc,.docx,.txt"/>
+        <label class="agb-flabel">Website URL (AI will learn from it)</label>
+        <input class="agb-inline" data-field="url" placeholder="https://yourbiz.com" value="${escapeHtml(box.data.url || '')}"/>
+        <label class="agb-flabel" style="margin-top:6px">Business hours</label>
+        <input class="agb-inline" data-field="hours" placeholder="Mon–Fri 9am–6pm, Sat 10am–4pm" value="${escapeHtml(box.data.hours || '')}"/>
+        <label class="agb-flabel" style="margin-top:6px">Services / products offered</label>
+        <input class="agb-inline" data-field="services" placeholder="e.g. Haircut, Colour, Beard Trim" value="${escapeHtml(box.data.services || '')}"/>
+        <label class="agb-flabel" style="margin-top:6px">Pricing summary</label>
+        <input class="agb-inline" data-field="pricing" placeholder="e.g. Haircut ₹300, Colour from ₹800" value="${escapeHtml(box.data.pricing || '')}"/>
+        <label class="agb-flabel" style="margin-top:6px">Address / location</label>
+        <input class="agb-inline" data-field="address" placeholder="123 Main St, City, State" value="${escapeHtml(box.data.address || '')}"/>
+        <label class="agb-flabel" style="margin-top:6px">Frequently asked questions</label>
+        <textarea class="agb-inline agb-textarea" data-field="faq" placeholder="Q: Do you take walk-ins? A: Yes until 5pm.&#10;Q: Is parking available? A: Yes, free parking behind the building.">${escapeHtml(box.data.faq || '')}</textarea>
+        <label class="agb-flabel" style="margin-top:6px">Extra knowledge (policies, notes, intake forms)</label>
+        <textarea class="agb-inline agb-textarea" data-field="text" placeholder="Paste any additional info — menus, policies, staff bios…">${escapeHtml(box.data.text || '')}</textarea>
+        <label class="agb-upload-label" style="margin-top:8px">
+          <input type="file" class="agb-upload-input" data-field="files" multiple accept=".pdf,.doc,.docx,.txt,.csv"/>
           <span class="agb-upload-ic">${brandSvg("upload")}</span>
-          <span>${files.length ? `${files.length} file(s) attached` : 'Upload PDF / DOC / TXT'}</span>
+          <span>${files.length ? `${files.length} file(s) attached` : 'Upload PDF / DOC / TXT / CSV'}</span>
         </label>`;
     }
     return `
@@ -4652,7 +4656,7 @@ route("agentFlow", async (id) => {
 
   const saved = (cfg.flow_v2 && cfg.flow_v2.cards) ? cfg.flow_v2 : { cards: [], edges: [] };
   const state = { cards: saved.cards, edges: saved.edges, dragEdgeFrom: null, mouse: { x: 0, y: 0 } };
-  const CARD_W = 236, CARD_H = 136;
+  const CARD_W = 280, CARD_H = 152;
 
   function genId() { return "c" + Math.random().toString(36).slice(2, 9); }
 
@@ -4820,18 +4824,42 @@ route("agentFlow", async (id) => {
         : `<div class="fb-pv-row fb-pv-row-dim"><span class="fb-pv-lbl">${lbl}</span><span class="fb-pv-val fb-pv-miss">not set</span></div>`;
 
     const statusCls = a.is_active ? "fb-pv-live" : "fb-pv-draft";
-    const statusLbl = a.is_active ? "🟢 Live" : "⬜ Draft";
+    const statusLbl = a.is_active ? "Live" : "Draft";
+    const acCard = state.cards.find(c => c.type === "agent");
+    const voiceForPreview = acCard?.config?.voice || vc?.config?.voice || "maya";
+    const langForPreview  = lc?.config?.language || "English (US)";
+    const bizName = ic?.config?.bizname || "";
 
     prvEl.innerHTML = `
-      <div class="fb-pv-row"><span class="fb-pv-lbl">Status</span><span class="fb-pv-val ${statusCls}">${statusLbl}</span></div>
-      <div class="fb-pv-row"><span class="fb-pv-lbl">Agent</span><span class="fb-pv-val">${escapeHtml(a.name || "—")}</span></div>
+      <div class="fb-pv-status-row">
+        <div class="fb-pv-dot ${statusCls}"></div>
+        <span class="fb-pv-status-lbl">${statusLbl}</span>
+        <span class="fb-pv-agent-name">${escapeHtml(a.name || "")}</span>
+      </div>
+      ${bizName ? `<div class="fb-pv-biz">${escapeHtml(bizName)}</div>` : ""}
       ${row("Voice",    voiceName)}
-      ${row("Language", langName)}
+      ${row("Language", langForPreview)}
       ${row("Phone",    phoneNum)}
       ${wc ? row("WhatsApp", waNum) : ""}
       ${gc ? row("Booking",  calUrl || "—") : ""}
       ${infoSnip ? `<div class="fb-pv-info">${escapeHtml(infoSnip)}</div>` : ""}
+      <button class="fb-pv-talk-btn" id="fb-pv-talk" data-voice="${escapeHtml(voiceForPreview)}" data-lang="${escapeHtml(langForPreview)}">
+        <svg viewBox="0 0 20 20" style="width:14px;height:14px;margin-right:5px"><path d="M10 12a2 2 0 0 0 2-2V5a2 2 0 0 0-4 0v5a2 2 0 0 0 2 2zm4-2a4 4 0 0 1-8 0H4a6 6 0 0 0 12 0h-2z" fill="currentColor"/></svg>
+        Talk to your agent
+      </button>
     `;
+    // Wire the "Talk to your agent" button to the existing Vapi preview system
+    prvEl.querySelector("#fb-pv-talk")?.addEventListener("click", () => {
+      localStorage.setItem("oc_last_voice", voiceForPreview);
+      localStorage.setItem("oc_last_lang",  langForPreview);
+      // Find and click the preview play button if the preview widget exists on this page
+      const playBtn = document.querySelector("#svp-btn") || document.querySelector(".fb-play");
+      if (playBtn) { playBtn.click(); return; }
+      // Otherwise start Vapi with canvas voice/language
+      if (window._vapiStart) { window._vapiStart(voiceForPreview, langForPreview); return; }
+      alert("Save & activate your agent first, then use the preview on the Setup tab to talk to it.");
+    });
+    renderIcons(prvEl);
   }
 
   function cardBodyHTML(card) {
@@ -4839,19 +4867,35 @@ route("agentFlow", async (id) => {
     const ci = (ph, field, val) => `<input class="fb-ci" placeholder="${ph}" data-field="${field}" value="${escapeHtml(val || '')}" />`;
     if (card.type === "agent") return `
       <select class="fb-ci" data-field="voice">${PREVIEW_VOICES.map(v => `<option value="${v.id}"${c.voice===v.id?" selected":""}>${v.label} — ${v.sub}</option>`).join("")}</select>
-      <select class="fb-ci" data-field="language" style="margin-top:5px">${PREVIEW_LANGS.map(l => `<option${c.language===l?" selected":""}>${l}</option>`).join("")}</select>
-      <textarea class="fb-ci" style="resize:vertical;min-height:40px;margin-top:5px" data-field="text" placeholder="Business info, FAQs, hours, services…">${escapeHtml(c.text||'')}</textarea>`;
+      <textarea class="fb-ci" style="resize:vertical;min-height:40px;margin-top:5px" data-field="text" placeholder="Agent persona, tone, speciality…">${escapeHtml(c.text||'')}</textarea>`;
     if (card.type === "voice") return `<select class="fb-ci" data-field="voice">${PREVIEW_VOICES.map(v => `<option value="${v.id}"${c.voice===v.id?" selected":""}>${v.label} — ${v.sub}</option>`).join("")}</select>`;
-    if (card.type === "language") return `<select class="fb-ci" data-field="language">${PREVIEW_LANGS.map(l => `<option${c.language===l?" selected":""}>${l}</option>`).join("")}</select>`;
+    if (card.type === "language") {
+      const sel = (c.language || "English (US)").split(",").map(s => s.trim()).filter(Boolean);
+      return `
+        <input class="fb-ci-lang-hidden" data-field="language" value="${escapeHtml(c.language||'English (US)')}" style="display:none" readonly/>
+        <div class="fb-lang-chips-grid">
+          ${PREVIEW_LANGS.map(l => {
+            const isOn = sel.includes(l);
+            return `<button type="button" class="fb-lang-chip${isOn?' sel':''}" data-lang="${escapeHtml(l)}">${escapeHtml(l.split(" ")[0])}</button>`;
+          }).join("")}
+        </div>
+        <div class="fb-lang-sel-label">Selected: <span class="fb-lang-sel-val">${sel.join(", ") || "None"}</span></div>`;
+    }
     if (card.type === "phone") return ci("Forwarding number e.g. +1 555 0100", "phone", c.phone);
     if (card.type === "whatsapp") return ci("WhatsApp number for summaries", "whatsapp", c.whatsapp);
     if (card.type === "gmail") return ci("Gmail address", "email", c.email);
     if (card.type === "gcal") return ci("Calendly or Google Calendar URL", "calendly", c.calendly);
     if (card.type === "slack") return ci("Slack webhook URL", "webhook", c.webhook);
     if (card.type === "info") return `
-      <textarea class="fb-ci" style="resize:vertical;min-height:54px" data-field="text" placeholder="Business hours, services, FAQs…">${escapeHtml(c.text||'')}</textarea>
-      ${ci("Website URL", "url", c.url)}
-      <label class="fb-file-btn"><input type="file" accept=".pdf,.txt,.docx" data-field="file" style="display:none"><span>📎 Upload file (PDF / TXT / DOCX)</span></label>`;
+      ${ci("Business name (e.g. Sunrise Dental)", "bizname", c.bizname)}
+      ${ci("Website URL (AI learns from it)", "url", c.url)}
+      ${ci("Business hours (e.g. Mon–Fri 9am–6pm)", "hours", c.hours)}
+      ${ci("Services / products offered", "services", c.services)}
+      ${ci("Pricing summary (e.g. Haircut ₹300)", "pricing", c.pricing)}
+      ${ci("Address / location", "address", c.address)}
+      <textarea class="fb-ci" style="resize:vertical;min-height:48px;margin-top:4px" data-field="faq" placeholder="Q: Do you take walk-ins? A: Yes until 5pm.">${escapeHtml(c.faq||'')}</textarea>
+      <textarea class="fb-ci" style="resize:vertical;min-height:44px;margin-top:4px" data-field="text" placeholder="Extra info — policies, staff bios, intake forms…">${escapeHtml(c.text||'')}</textarea>
+      <label class="fb-file-btn"><input type="file" accept=".pdf,.txt,.docx,.csv" data-field="file" style="display:none"><span>Upload file (PDF / TXT / DOCX)</span></label>`;
     return "";
   }
 
@@ -5020,6 +5064,23 @@ route("agentFlow", async (id) => {
         renderCanvas();
       });
 
+      // Language multi-select chip toggle
+      el.querySelectorAll(".fb-lang-chip").forEach(chip => {
+        chip.addEventListener("click", () => {
+          chip.classList.toggle("sel");
+          const hidden = el.querySelector(".fb-ci-lang-hidden[data-field='language']");
+          if (!hidden) return;
+          const selLangs = Array.from(el.querySelectorAll(".fb-lang-chip.sel")).map(c => c.dataset.lang);
+          hidden.value = selLangs.join(", ") || "English (US)";
+          hidden.removeAttribute("readonly");
+          hidden.dispatchEvent(new Event("input", { bubbles: true }));
+          hidden.setAttribute("readonly", "");
+          // Update summary label
+          const lbl = el.querySelector(".fb-lang-sel-val");
+          if (lbl) lbl.textContent = selLangs.join(", ") || "None";
+        });
+      });
+
       // Field changes → sync preview
       el.querySelectorAll("[data-field]").forEach(inp => {
         const upd = () => {
@@ -5131,8 +5192,14 @@ route("agentFlow", async (id) => {
         if (card.type === "gcal"     && c.calendly) nc.calendly_url = c.calendly;
         if (card.type === "whatsapp" && c.whatsapp) nc.owner_whatsapp = c.whatsapp;
         if (card.type === "info") {
-          if (c.text) nc.business_info = c.text;
-          if (c.url)  nc.business_url  = c.url;
+          if (c.text)     nc.business_info    = c.text;
+          if (c.url)      nc.business_url     = c.url;
+          if (c.hours)    nc.business_hours   = c.hours;
+          if (c.services) nc.business_services= c.services;
+          if (c.pricing)  nc.business_pricing = c.pricing;
+          if (c.address)  nc.business_address = c.address;
+          if (c.faq)      nc.business_faq     = c.faq;
+          if (c.bizname)  nc.business_name    = c.bizname;
         }
       });
       const fwdNum = state.cards.find(c => c.type === "phone")?.config?.phone || a.forwarding_number;
@@ -5251,58 +5318,59 @@ route("agentFlow", async (id) => {
     // Steps spotlight individual cards in the panel so users understand each one
     const STEPS = [
       {
-        icon: "🎯", title: "Welcome to the Agent Builder",
-        body: "Build your AI receptionist by dragging integration cards from the right panel onto the canvas.\nEach card is one capability your agent has — phone answering, voice character, notifications, bookings.",
-        detail: "Use ← → to navigate · Esc to close.",
+        icon: `<svg viewBox="0 0 32 32" style="width:28px;height:28px"><defs><radialGradient id="wocG" cx=".35" cy=".3" r=".9"><stop offset="0%" stop-color="#ffe39a"/><stop offset="55%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#9a3412"/></radialGradient></defs><circle cx="16" cy="16" r="14" fill="url(#wocG)"/><text x="16" y="21" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" font-family="Poppins,Arial,sans-serif">OC</text></svg>`,
+        title: "Welcome to the Agent Builder",
+        body: "Build your AI receptionist by dragging integration cards from the right panel onto the canvas. Each card adds a capability — phone answering, voice, notifications, bookings, knowledge.",
+        detail: "Use Back / Next to navigate · Esc to close.",
         target: null, arrow: null, check: null,
       },
       {
-        icon: "📞", title: "Phone — the mandatory starting point",
-        body: "Every agent starts here. Enter your business forwarding number and when a caller doesn't reach you, Harkly AI answers in under 2 seconds.",
-        detail: "Required — your agent won't activate without this card on the canvas.",
+        icon: `<svg viewBox="0 0 36 36" style="width:28px;height:28px"><path fill="#0d6efd" d="M11.4 14.5c1.4 2.7 3.6 4.9 6.3 6.3l2.1-2.1c.3-.3.7-.4 1-.2 1.2.4 2.5.6 3.8.6.6 0 1 .4 1 1V23c0 .6-.4 1-1 1C13.4 24 8 18.6 8 11.4c0-.6.4-1 1-1h2.9c.6 0 1 .4 1 1 0 1.3.2 2.6.6 3.8.1.4 0 .7-.2 1l-1.9 2.3z"/></svg>`,
+        title: "Step 1 — Connect your phone number",
+        body: "Drag the Phone card onto the canvas and enter your business forwarding number. When a caller doesn't reach you, Harkly picks up in under 2 seconds. This is how the agent gets connected and starts receiving calls.",
+        detail: "Required — your agent cannot activate without a phone number.",
         target: ".fb-gpc[data-type='phone']", arrow: "left", check: null,
       },
       {
-        icon: "🤖", title: "Agent — your AI brain",
-        body: "The Agent card IS your receptionist. It holds the voice, language, and business knowledge all in one.\nAll other cards connect to or from the Agent — it's the central hub.",
-        detail: "Tip: the recommended first connection is Phone → Agent.",
+        icon: `<svg viewBox="0 0 32 32" style="width:28px;height:28px"><defs><radialGradient id="ocG2" cx=".35" cy=".3" r=".9"><stop offset="0%" stop-color="#ffe39a"/><stop offset="55%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#9a3412"/></radialGradient></defs><circle cx="16" cy="16" r="14" fill="url(#ocG2)"/><text x="16" y="21" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" font-family="Poppins,Arial,sans-serif">OC</text></svg>`,
+        title: "Step 2 — Activate the Agent (AI core brain)",
+        body: "The Agent card is your AI receptionist. Connect Phone into it and it becomes the brain that answers calls, understands intent, books appointments, and routes follow-ups. Connect it outward to WhatsApp, Gmail, and Calendar.",
+        detail: "Recommended flow: Phone → Agent → WhatsApp / Gmail / Calendar.",
         target: ".fb-gpc[data-type='agent']", arrow: "left", check: null,
       },
       {
-        icon: "💬", title: "WhatsApp — call summaries sent to you",
-        body: "After every call, your agent sends a WhatsApp recap to your number with caller info, reason for the call, any booking made, and urgency level.",
-        detail: "Connect: Agent → WhatsApp (terminal — no connections out).",
+        icon: `<svg viewBox="0 0 32 32" style="width:28px;height:28px"><circle cx="16" cy="16" r="16" fill="#25D366"/><path fill="#fff" d="M22.7 18.5c-.3-.2-2-1-2.3-1.1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.3-.2-.3 0-.5.1-.6l.5-.6c.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5l-.7-1.7c-.2-.4-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.4-.2.3-.9.9-.9 2.2 0 1.3 1 2.6 1.1 2.7.1.2 1.9 2.9 4.6 4.1 2.7 1.1 2.7.7 3.2.7.5 0 1.6-.7 1.9-1.3.2-.6.2-1.2.2-1.3-.1-.1-.3-.2-.6-.3z"/></svg>`,
+        title: "Step 3 — Connect to apps agentically",
+        body: "The agent can connect to WhatsApp (send call summaries), Gmail (follow-up emails), and Google Calendar (book appointments live during the call). These are agentic actions — the AI performs them automatically, without you lifting a finger.",
+        detail: "Connect: Agent → WhatsApp, Agent → Gmail, Agent → Calendar.",
         target: ".fb-gpc[data-type='whatsapp']", arrow: "left", check: null,
       },
       {
-        icon: "📧", title: "Gmail — personalised follow-up emails",
-        body: "Your agent sends the caller a personalised email after the call — confirmations, quotes, intake forms, or just 'Thanks for calling'.",
-        detail: "Connect: Agent → Gmail (terminal — no connections out).",
-        target: ".fb-gpc[data-type='gmail']", arrow: "left", check: null,
+        icon: `<svg viewBox="0 0 32 32" style="width:28px;height:28px"><path fill="#4285F4" d="M5 26h4V14L3 9.5V24c0 1.1.9 2 2 2z"/><path fill="#34A853" d="M23 26h4c1.1 0 2-.9 2-2V9.5L23 14z"/><path fill="#FBBC04" d="M23 8v6l6-4.5V7c0-1.6-1.8-2.6-3.2-1.6L23 8z"/><path fill="#EA4335" d="M9 14V8l7 5 7-5v6l-7 5z"/><path fill="#C5221F" d="M3 7v2.5L9 14V8L6.2 5.4C4.8 4.4 3 5.4 3 7z"/></svg>`,
+        title: "Business Info — teach the agent everything",
+        body: "Drag the Business Info card and fill in your hours, services, pricing, location, FAQs, and upload documents. The richer this is, the more accurately your agent answers caller questions — it's the agent's entire knowledge base.",
+        detail: "Pro tip: also paste your website URL so the AI can read your site.",
+        target: ".fb-gpc[data-type='info']", arrow: "left", check: null,
       },
       {
-        icon: "📅", title: "Calendar — live appointment booking",
-        body: "Connect your Calendly link and the agent captures the caller's details, then books the appointment directly into your calendar during the live call.",
-        detail: "Connect: Agent → Calendar. Great for clinics, salons and consultancies.",
-        target: ".fb-gpc[data-type='gcal']", arrow: "left", check: null,
-      },
-      {
-        icon: "🔗", title: "Connect cards with arrows",
-        body: "Once cards are on the canvas:\n1. Hover a card to see the → handle on its right edge\n2. Drag from the handle onto another card\n3. A curved arrow shows the connection\n4. Click any arrow to remove it",
-        detail: "Recommended first flow: Phone → Agent → WhatsApp",
+        icon: `<svg viewBox="0 0 32 32" style="width:28px;height:28px"><path d="M4 16h24M16 4l12 12-12 12" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`,
+        title: "Connect cards with arrows",
+        body: "Hover any card to see the arrow handle on its right edge. Drag from that handle to another card to connect them. A curved animated line shows the live connection. The recommended starting flow is: Phone → Agent → WhatsApp.",
+        detail: "Click any arrow line to remove it.",
         target: null, arrow: null, check: null,
       },
       {
-        icon: "💾", title: "Save & activate",
-        body: "When your flow is ready, click Save & activate. Your agent goes live instantly — every caller who doesn't reach you gets answered by AI.",
+        icon: `<svg viewBox="0 0 32 32" style="width:28px;height:28px"><rect x="4" y="6" width="24" height="20" rx="3" fill="#1e293b" stroke="#6366f1" stroke-width="1.5"/><path d="M10 16l4 4 8-8" stroke="#4ade80" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`,
+        title: "Save & go live",
+        body: "When your flow is ready, click Save & activate. Your agent goes live instantly — every missed call gets answered by AI in under 2 seconds, books appointments, and sends you a WhatsApp summary.",
         detail: null,
         target: "#fb-save", arrow: "bottom",
         check: () => {
           const issues   = validateCards();
           const hasPhone = !!phoneCard();
-          if (!hasPhone) return { type: "err", msg: "⚠️ <strong>Phone card missing.</strong> Drag it from the right panel — it's the required entry point.", list: [] };
-          if (issues.length > 0) return { type: "err", msg: `⚠️ <strong>${issues.length} issue${issues.length > 1 ? "s" : ""} to fix:</strong>`, list: issues.map(iss => `${cardMeta(iss.card.type).label}: add <strong>${iss.req.label}</strong>`) };
-          return { type: "ok", msg: "✅ <strong>All set!</strong> Click Save & activate to go live right now." };
+          if (!hasPhone) return { type: "err", msg: "<strong>Phone card missing.</strong> Drag it from the right panel — it's the required entry point.", list: [] };
+          if (issues.length > 0) return { type: "err", msg: `<strong>${issues.length} issue${issues.length > 1 ? "s" : ""} to fix:</strong>`, list: issues.map(iss => `${cardMeta(iss.card.type).label}: add <strong>${iss.req.label}</strong>`) };
+          return { type: "ok", msg: "<strong>All set!</strong> Click Save & activate to go live right now." };
         },
       },
     ];
@@ -5434,7 +5502,7 @@ route("agentFlow", async (id) => {
       // Re-trigger icon animation
       const iconEl = $("#ftut2-icon", ov);
       iconEl.style.animation = "none"; void iconEl.offsetWidth; iconEl.style.animation = "";
-      iconEl.textContent = s.icon;
+      iconEl.innerHTML = s.icon;
 
       $("#ftut2-step",  ov).textContent = `Step ${i+1} of ${STEPS.length}`;
       $("#ftut2-title", ov).textContent = s.title;
@@ -5499,57 +5567,57 @@ route("agentFlow", async (id) => {
   function openDemoGuide() {
     // ── Card definitions ──────────────────────────────────────────────────
     const GUIDE_CARDS = [
-      { type: "phone",    label: "Phone Number",    color: "#0D6EFD", icon: "📞", badge: "REQUIRED",
+      { type: "phone",    label: "Phone Number",    color: "#0D6EFD", brandKey: "phone",    lucide: "phone",       badge: "REQUIRED",
         desc: "The entry point of every call flow. When a caller doesn't reach you, Harkly AI picks up in under 2 seconds.",
-        fields: ["Forwarding: +1 (555) 010-0100"],
-        why: "Required — your agent won't activate without this card." },
-      { type: "agent",    label: "Agent (AI Brain)", color: "#8B5CF6", icon: "🤖", badge: "REQUIRED",
-        desc: "The core AI receptionist. Connect Phone into it; it sends results to WhatsApp, Gmail, and Calendar.",
-        fields: ["Voice: Maya — Warm, mid-30s", "Language: English (US)", "Business info: hours, services, FAQs"],
-        why: "Central hub — all configuration and outputs flow through the Agent." },
-      { type: "whatsapp", label: "WhatsApp Notify", color: "#25D366", icon: "💬", badge: "TERMINAL",
-        desc: "Sends a WhatsApp recap to you after every call: caller, reason, booking made, urgency level.",
+        fields: ["Forwarding number: +1 (555) 010-0100"],
+        why: "Required — your agent cannot activate without this card." },
+      { type: "agent",    label: "Agent (AI Brain)", color: "#8B5CF6", brandKey: "agent",   lucide: "cpu",         badge: "REQUIRED",
+        desc: "The core AI receptionist powered by Vapi. Connect Phone into it; it handles calls and routes results to WhatsApp, Gmail, and Calendar.",
+        fields: ["Voice selector", "Agent persona / tone", "Business context"],
+        why: "Central hub — Phone flows in, WhatsApp/Gmail/Calendar flow out." },
+      { type: "info",     label: "Business Info",   color: "#6366F1", brandKey: null,       lucide: "file-text",   badge: "RECOMMENDED",
+        desc: "The agent's knowledge base. Fill hours, services, pricing, FAQs, address. Upload PDFs or paste your website URL — AI reads it all.",
+        fields: ["Business name, hours, services, pricing", "FAQs, address, policies", "Website URL + file uploads"],
+        why: "The richer this card, the more accurately your agent answers caller questions." },
+      { type: "whatsapp", label: "WhatsApp Notify", color: "#25D366", brandKey: "whatsapp", lucide: "message-circle", badge: "TERMINAL",
+        desc: "Sends you a WhatsApp recap after every call: caller name, reason, booking made, urgency level.",
         fields: ["Owner WhatsApp: +44 7700 900000"],
-        why: "Terminal — always at the end of the flow. No connections out." },
-      { type: "gmail",    label: "Gmail Follow-up", color: "#EA4335", icon: "📧", badge: "TERMINAL",
-        desc: "Sends the caller a personalised email — confirmations, quotes, intake forms, or a simple thanks.",
+        why: "Terminal — the agent sends the recap and the flow ends here." },
+      { type: "gmail",    label: "Gmail Follow-up", color: "#EA4335", brandKey: "gmail",    lucide: "mail",        badge: "TERMINAL",
+        desc: "Sends the caller a personalised follow-up email — confirmations, quotes, intake forms, or a simple thanks.",
         fields: ["From: hello@yourbusiness.com"],
-        why: "Terminal — the call ends here. Great for sending intake forms or booking confirmations." },
-      { type: "gcal",     label: "Google Calendar", color: "#1A73E8", icon: "📅", badge: "OPTIONAL",
-        desc: "Live appointment booking. Agent captures details and drops the event into your calendar.",
+        why: "Terminal — great for sending booking confirmations or intake forms automatically." },
+      { type: "gcal",     label: "Google Calendar", color: "#1A73E8", brandKey: "gcal",     lucide: "calendar",    badge: "OPTIONAL",
+        desc: "Live appointment booking. The agent captures caller details and drops the event into your calendar during the call.",
         fields: ["Calendly URL: calendly.com/your-name"],
         why: "Recommended for clinics, salons, consultancies, and hotels." },
-      { type: "voice",    label: "Voice Type",      color: "#F59E0B", icon: "🎙️", badge: "RECOMMENDED",
-        desc: "Standalone voice selector. Use this for granular control separate from the Agent card.",
-        fields: ["Voice: Maya / Arjun / Sofia / Daniel / Linh"],
-        why: "The Agent card has a built-in voice picker. Use this for advanced multi-voice setups." },
-      { type: "language", label: "Language",        color: "#10B981", icon: "🌍", badge: "RECOMMENDED",
-        desc: "Standalone language selector. 30+ languages. Use for multi-language agent setups.",
-        fields: ["Language: English (US) / Hindi / Spanish / French…"],
-        why: "For multi-language businesses — create one agent per language with this card." },
-      { type: "info",     label: "Business Info",   color: "#6366F1", icon: "📄", badge: "RECOMMENDED",
-        desc: "Paste FAQs, hours, menu, and policies. This is the AI's knowledge base for answering questions.",
-        fields: ["Hours, services, prices, policies, FAQs"],
-        why: "The richer this is, the more accurately your agent answers caller questions." },
-      { type: "slack",    label: "Slack Alert",     color: "#4A154B", icon: "🔔", badge: "OPTIONAL",
-        desc: "Instant Slack notification to your team when an urgent call comes in.",
+      { type: "voice",    label: "Voice Type",      color: "#F59E0B", brandKey: null,       lucide: "mic",         badge: "RECOMMENDED",
+        desc: "Standalone voice selector — choose from 5 Cartesia voices. Controls how your agent sounds on every call.",
+        fields: ["Maya / Arjun / Sofia / Daniel / Linh"],
+        why: "Use this for granular voice control independent of the Agent card." },
+      { type: "language", label: "Language",        color: "#10B981", brandKey: null,       lucide: "globe",       badge: "RECOMMENDED",
+        desc: "Multi-language selector — pick one or more from 30+ languages. The agent switches automatically.",
+        fields: ["English (US), Hindi, Spanish, French, Arabic, and 25 more"],
+        why: "For multilingual businesses — callers are served in their preferred language." },
+      { type: "slack",    label: "Slack Alert",     color: "#4A154B", brandKey: "slack",    lucide: "layers",      badge: "OPTIONAL",
+        desc: "Instant Slack notification to your team channel when an urgent call comes in.",
         fields: ["Webhook URL: hooks.slack.com/services/…"],
-        why: "Great for teams — everyone knows immediately when something critical happens." },
+        why: "Great for teams — everyone is notified immediately when something critical happens." },
     ];
 
     // ── Connection rules ──────────────────────────────────────────────────
     const CONN_GUIDE_RULES = [
-      { from: "📞 Phone",    to: "🤖 Agent",              ok: true,  why: "The call routes from your forwarding number directly to the AI Agent." },
-      { from: "🎙️ Voice",    to: "🤖 Agent",              ok: true,  why: "Configures how the Agent speaks — warm, professional, calm, etc." },
-      { from: "🌍 Language", to: "🤖 Agent",              ok: true,  why: "Tells the Agent which language to use for the conversation." },
-      { from: "📄 Info",     to: "🤖 Agent",              ok: true,  why: "Gives the Agent its knowledge — hours, services, FAQs, prices." },
-      { from: "🤖 Agent",    to: "💬 WhatsApp",           ok: true,  why: "After the call, Agent sends you a full recap on WhatsApp." },
-      { from: "🤖 Agent",    to: "📧 Gmail",              ok: true,  why: "Agent sends the caller a personalised follow-up email." },
-      { from: "🤖 Agent",    to: "📅 Calendar",           ok: true,  why: "Agent books the appointment directly into your calendar." },
-      { from: "🤖 Agent",    to: "🔔 Slack",              ok: true,  why: "Agent alerts your team channel when an urgent call arrives." },
-      { from: "📞 Phone",    to: "💬 WhatsApp (direct)",  ok: false, why: "Phone must route through Agent first — WhatsApp needs call context." },
-      { from: "💬 WhatsApp", to: "Anything",              ok: false, why: "Terminal card — the flow ends here. No outgoing connections allowed." },
-      { from: "📧 Gmail",    to: "Anything",              ok: false, why: "Terminal card — the flow ends here. No outgoing connections allowed." },
+      { from: "Phone",    to: "Agent",              ok: true,  why: "The call routes from your forwarding number directly to the AI Agent." },
+      { from: "Voice",    to: "Agent",              ok: true,  why: "Configures how the Agent speaks — warm, professional, calm, etc." },
+      { from: "Language", to: "Agent",              ok: true,  why: "Tells the Agent which language to use for the conversation." },
+      { from: "Business Info", to: "Agent",         ok: true,  why: "Gives the Agent its knowledge — hours, services, FAQs, prices." },
+      { from: "Agent",    to: "WhatsApp",           ok: true,  why: "After the call, Agent sends you a full recap on WhatsApp." },
+      { from: "Agent",    to: "Gmail",              ok: true,  why: "Agent sends the caller a personalised follow-up email." },
+      { from: "Agent",    to: "Calendar",           ok: true,  why: "Agent books the appointment directly into your calendar." },
+      { from: "Agent",    to: "Slack",              ok: true,  why: "Agent alerts your team channel when an urgent call arrives." },
+      { from: "Phone",    to: "WhatsApp (direct)",  ok: false, why: "Phone must route through Agent first — WhatsApp needs call context." },
+      { from: "WhatsApp", to: "Anything",           ok: false, why: "Terminal card — the flow ends here. No outgoing connections allowed." },
+      { from: "Gmail",    to: "Anything",           ok: false, why: "Terminal card — the flow ends here. No outgoing connections allowed." },
     ];
 
     // ── Flow diagram data ─────────────────────────────────────────────────
@@ -5568,8 +5636,18 @@ route("agentFlow", async (id) => {
     ];
 
     function mkNode(c) {
+      const ICON_MAP = {
+        "Voice":"mic","Language":"globe","Info":"file-text","Phone":"phone",
+        "Agent":"cpu","WhatsApp":"message-circle","Gmail":"mail",
+        "Calendar":"calendar","Slack":"layers"
+      };
+      const BRAND_MAP = { "WhatsApp":"whatsapp","Gmail":"gmail","Calendar":"gcal","Phone":"phone","Agent":"agent" };
+      const bk = BRAND_MAP[c.label];
+      const iconHtml = bk
+        ? `<div style="width:17px;height:17px">${brandSvg(bk)}</div>`
+        : `<i data-lucide="${ICON_MAP[c.label]||'cpu'}" style="width:14px;height:14px;color:${c.color}"></i>`;
       return `<div class="dg-conn-node" style="border-color:${c.color}50;background:${c.color}10">
-        <span style="font-size:15px">${c.icon}</span>
+        <div style="display:flex;align-items:center;justify-content:center;width:22px;height:22px">${iconHtml}</div>
         <div><div class="dg-conn-node-lbl">${c.label}</div><div class="dg-conn-node-sub">${c.sub}</div></div>
       </div>`;
     }
@@ -5579,24 +5657,79 @@ route("agentFlow", async (id) => {
         <div class="dg-card-item" style="--dg-c:${c.color}">
           <div class="dg-card-stripe" style="background:${c.color}"></div>
           <div class="dg-card-head">
-            <div class="dg-card-ico" style="background:${c.color}1f;border:1.5px solid ${c.color}44">
-              <span style="font-size:16px">${c.icon}</span>
+            <div class="dg-card-ico" style="background:${c.color}1f;border:1.5px solid ${c.color}44;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:9px;flex-shrink:0">
+              ${c.brandKey ? `<div style="width:22px;height:22px;display:flex;align-items:center;justify-content:center">${brandSvg(c.brandKey)}</div>` : `<i data-lucide="${c.lucide||'cpu'}" style="width:17px;height:17px;color:${c.color}"></i>`}
             </div>
             <div class="dg-card-lbl" style="flex:1;min-width:0">${c.label}</div>
             <div class="dg-card-badge dg-badge-${c.badge.split(' ')[0].toLowerCase()}">${c.badge}</div>
           </div>
           <div class="dg-card-body">
             <div class="dg-card-desc">${c.desc}</div>
-            ${c.fields.map(f => `<div class="dg-card-field">📝 ${escapeHtml(f)}</div>`).join("")}
-            <div class="dg-card-why">💡 ${c.why}</div>
+            ${c.fields.map(f => `<div class="dg-card-field">${escapeHtml(f)}</div>`).join("")}
+            <div class="dg-card-why">${c.why}</div>
           </div>
         </div>`).join("")}</div>`;
     }
 
     function buildConnect() {
+      const WORKFLOW_STEPS = [
+        {
+          num: "1",
+          color: "#0D6EFD",
+          brandKey: "phone",
+          title: "Connect your phone number",
+          desc: "Drag the Phone card onto the canvas and enter your business forwarding number. Callers who don't reach you are answered by Harkly in under 2 seconds.",
+          why: "This is how the agent gets connected and starts receiving calls — it's the gateway.",
+        },
+        {
+          num: "2",
+          color: "#F59E0B",
+          brandKey: "agent",
+          title: "Activate the Agent — the core AI brain",
+          desc: "The Agent card is your AI receptionist powered by Vapi. Connect Phone into it — it becomes the brain that understands caller intent, handles conversations, books appointments, and routes actions.",
+          why: "Vapi provides sub-500ms response times. The agent is the hub — all inputs flow in, all outputs flow out.",
+        },
+        {
+          num: "3",
+          color: "#1A73E8",
+          brandKey: "gcal",
+          title: "Connect apps — the agent acts for you",
+          desc: "Connect the Agent outward to WhatsApp (send call summaries to you), Gmail (follow-up emails to callers), and Google Calendar (book appointments live during the call). These are agentic actions — the AI modifies and writes on these platforms automatically.",
+          why: "No human needed. The agent handles the full lifecycle: answer → book → notify → follow-up.",
+        },
+        {
+          num: "4",
+          color: "#6366F1",
+          brandKey: null,
+          lucide: "file-text",
+          title: "Business Info — the AI's knowledge base",
+          desc: "The Business Info card is the most important card after the Agent. Fill it with your hours, services, pricing, FAQs, and upload your menu or policy documents. Paste your website URL and the AI reads it automatically.",
+          why: "The richer this card, the more accurately your agent answers any caller question.",
+        },
+      ];
+
       return `
-        <div class="dg-conn-diagram">
-          <div class="dg-conn-diagram-title">How cards connect — the central hub model</div>
+        <div class="dg-workflow-steps">
+          ${WORKFLOW_STEPS.map((s, idx) => `
+            <div class="dg-wf-step">
+              <div class="dg-wf-step-left">
+                <div class="dg-wf-num" style="background:${s.color}22;border:2px solid ${s.color}55;color:${s.color}">${s.num}</div>
+                ${idx < WORKFLOW_STEPS.length - 1 ? `<div class="dg-wf-line" style="background:linear-gradient(${s.color},${WORKFLOW_STEPS[idx+1].color})"></div>` : ''}
+              </div>
+              <div class="dg-wf-content">
+                <div class="dg-wf-head">
+                  <div class="dg-wf-logo" style="background:${s.color}18;border:1.5px solid ${s.color}44">
+                    ${s.brandKey ? `<div style="width:22px;height:22px">${brandSvg(s.brandKey)}</div>` : `<i data-lucide="${s.lucide||'cpu'}" style="width:17px;height:17px;color:${s.color}"></i>`}
+                  </div>
+                  <div class="dg-wf-title" style="color:${s.color}">${s.title}</div>
+                </div>
+                <div class="dg-wf-desc">${s.desc}</div>
+                <div class="dg-wf-why">${s.why}</div>
+              </div>
+            </div>`).join("")}
+        </div>
+        <div class="dg-conn-diagram" style="margin-top:22px">
+          <div class="dg-conn-diagram-title">The central hub model — Phone in, apps out</div>
           <div class="dg-conn-flow">
             <div class="dg-conn-col">
               ${FLOW_CONFIG.map(c => `${mkNode(c)}<div class="dg-conn-arr">→</div>`).join("")}
@@ -5608,13 +5741,13 @@ route("agentFlow", async (id) => {
           </div>
         </div>
         <div class="dg-conn-rules-section">
-          <div class="dg-conn-rules-title">Connection rules — what is allowed and why</div>
+          <div class="dg-conn-rules-title">Connection rules</div>
           <div class="dg-conn-rules-list">
             ${CONN_GUIDE_RULES.map(r => `
               <div class="dg-conn-rule ${r.ok ? "dg-rule-ok" : "dg-rule-no"}">
-                <span class="dg-rule-icon">${r.ok ? "✅" : "❌"}</span>
+                <div class="dg-rule-dot" style="background:${r.ok?'#4ade80':'#f87171'}"></div>
                 <div>
-                  <div class="dg-rule-from"><strong>${r.from}</strong> → ${r.to}</div>
+                  <div class="dg-rule-from"><strong>${r.from.replace(/[🎙️📞💬📧📅🌍📄🔔🤖]/g,'').trim()}</strong> → ${r.to.replace(/[🎙️📞💬📧📅🌍📄🔔🤖]/g,'').trim()}</div>
                   <div class="dg-rule-why">${r.why}</div>
                 </div>
               </div>`).join("")}
@@ -5628,14 +5761,14 @@ route("agentFlow", async (id) => {
       <div class="demo-guide-modal">
         <div class="demo-guide-header">
           <div>
-            <div class="demo-guide-htitle">📖 Builder Guide</div>
+            <div class="demo-guide-htitle">Builder Guide</div>
             <div class="demo-guide-hsub">Everything you need to build your AI receptionist</div>
           </div>
           <button class="demo-guide-close" id="dg-close" title="Close">×</button>
         </div>
         <div class="demo-guide-tabs" id="dg-tabs">
           <button class="dg-tab active" data-tab="cards">Card Types</button>
-          <button class="dg-tab" data-tab="connect">Connections</button>
+          <button class="dg-tab" data-tab="connect">How to Build</button>
         </div>
         <div class="demo-guide-body" id="dg-body"></div>
       </div>

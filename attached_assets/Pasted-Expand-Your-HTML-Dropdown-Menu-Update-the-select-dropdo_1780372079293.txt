@@ -1,0 +1,96 @@
+Expand Your HTML Dropdown Menu
+Update the <select> dropdown menu on your homepage or dashboard to include the exact languages you want to support.
+
+HTML
+<div class="form-group">
+    <label for="language-select">LANGUAGE</label>
+    <select id="language-select" class="form-control">
+        <option value="en">English (US)</option>
+        <option value="hi">Hindi (हिंदी)</option>
+        <option value="es">Spanish (Español)</option>
+        <option value="fr">French (Français)</option>
+        <option value="de">German (Deutsch)</option>
+        <option value="ja">Japanese (日本語)</option>
+    </select>
+</div>
+🧠 Step 2: Create the Mapping Dictionary in JavaScript
+Vapi needs to know two things when a language changes: what transcriber code to use to listen (Deepgram), and what language code to use to speak (Cartesia).
+
+Add this configuration dictionary to the top of your frontend JavaScript file (app.js or dashboard.js):
+
+JavaScript
+// Master language matrix configuration for Vapi
+const HARKLY_LANGUAGE_CONFIGS = {
+    "en": {
+        transcriberCode: "en",
+        voiceLanguageCode: "en"
+    },
+    "hi": {
+        transcriberCode: "hi",
+        voiceLanguageCode: "hi"
+    },
+    "es": {
+        transcriberCode: "es",
+        voiceLanguageCode: "es"
+    },
+    "fr": {
+        transcriberCode: "fr",
+        voiceLanguageCode: "fr"
+    },
+    "de": {
+        transcriberCode: "de",
+        voiceLanguageCode: "de"
+    },
+    "ja": {
+        transcriberCode: "ja",
+        voiceLanguageCode: "ja"
+    }
+};
+🚀 Step 3: Update the Button Click Handler (vapi.start)
+Now, update your "Speak to agent" or "Play sample" click event listener. Instead of passing a hardcoded configuration or an empty layout object (which causes the 400 Bad Request error we saw earlier), read the selected language dynamically:
+
+JavaScript
+const speakButton = document.querySelector('#speak-to-agent-btn'); // Use your actual button ID
+
+speakButton.addEventListener('click', async () => {
+    try {
+        // 1. Force instant microphone permission to prevent hanging/freezing
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        // 2. Grab the selected language key from the dropdown ('en', 'hi', 'es', etc.)
+        const selectedLangKey = document.querySelector('#language-select').value;
+        const langConfig = HARKLY_LANGUAGE_CONFIGS[selectedLangKey] || HARKLY_LANGUAGE_CONFIGS["en"];
+
+        // 3. Construct a strictly formatted, valid Vapi assistantOverride payload
+        const assistantOverrides = {
+            transcriber: {
+                provider: "deepgram",
+                model: "nova-2",
+                language: langConfig.transcriberCode
+            },
+            voice: {
+                provider: "cartesia",
+                // Explicitly uses the sonic-multilingual model to unlock foreign language synthesis
+                model: "sonic-multilingual", 
+                voiceId: "57dcab65-68ac-45a6-8480-6c4c52ec1cd1", // Your active Cartesia ID
+                language: langConfig.voiceLanguageCode 
+            }
+        };
+
+        console.log("[Harkly Sync] Starting call with overrides:", JSON.stringify(assistantOverrides, null, 2));
+
+        // 4. Fire up the WebRTC connection safely with your homepage or dashboard ID
+        vapi.start("5b54d785-e86b-420e-ace0-26092882287e", assistantOverrides);
+
+    } catch (error) {
+        console.error("[Harkly Tech Error] Failed to initialize live audio stream:", error.message);
+    }
+});
+💻 Paste This Request Directly Into Your Replit AI Chat
+If you want your workspace assistant to rewrite your exact files for you, copy this prompt:
+
+Plaintext
+Act as a Frontend Engineer. Please update our language dropdown HTML select element and its associated JavaScript click handler file. 
+
+1. Add options for English (en), Hindi (hi), Spanish (es), French (fr), German (de), and Japanese (ja) to our UI dropdown element.
+2. Update the vapi.start() trigger block to read this dropdown value. Map the selection to a 'transcri
