@@ -2612,6 +2612,39 @@ route("dashboard", async () => {
         if (_dpc) _dpc.syncAgent(firstActive);
       }
     }
+    // ── Usage bar (async — non-blocking) ──────────────────────────────────
+    api("/dashboard/usage").then(usage => {
+      if (!usage || usage.plan === "trial") {
+        const daysLeft = Store.user?.trial_ends_at
+          ? Math.max(0, Math.ceil((new Date(Store.user.trial_ends_at) - new Date()) / 86400000))
+          : 7;
+        const usageEl = h(`
+          <div class="dash-usage-bar card p-4 mt-4">
+            <div class="dash-usage-head">
+              <span class="dash-usage-plan">Trial</span>
+              <span class="dash-usage-days">${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining</span>
+              <button class="btn btn-primary btn-sm" onclick="location.hash='#/billing'">Upgrade →</button>
+            </div>
+            <div class="dash-usage-track"><div class="dash-usage-fill" style="width:${Math.round((1 - daysLeft/7)*100)}%"></div></div>
+            <div class="dash-usage-meta">Free trial · Upgrade to keep your agent live after trial ends</div>
+          </div>`);
+        page.appendChild(usageEl);
+        return;
+      }
+      const pct = Math.min(100, usage.pct_used || 0);
+      const fillClass = pct >= 100 ? "dash-usage-fill-red" : pct >= 80 ? "dash-usage-fill-amber" : "";
+      const usageEl = h(`
+        <div class="dash-usage-bar card p-4 mt-4">
+          <div class="dash-usage-head">
+            <span class="dash-usage-plan">${escapeHtml(usage.plan || "Pro")}</span>
+            <span class="dash-usage-mins">${usage.minutes_used ?? 0} / ${usage.total_available ?? "∞"} min used</span>
+            ${pct >= 80 ? `<button class="btn btn-primary btn-sm" onclick="location.hash='#/billing'">Upgrade →</button>` : ""}
+          </div>
+          <div class="dash-usage-track"><div class="dash-usage-fill ${fillClass}" style="width:${pct}%"></div></div>
+          <div class="dash-usage-meta">${usage.minutes_remaining ?? 0} minutes remaining · ${usage.rollover_minutes ? usage.rollover_minutes + " rollover min · " : ""}Overage at $0.10/min</div>
+        </div>`);
+      page.appendChild(usageEl);
+    }).catch(() => {});
   } catch (e) { toast(e.message, "error"); }
   return wrap;
 });
@@ -3387,6 +3420,11 @@ route("agents", async () => {
         <div class="ag-card-meta">
           ${phone ? `<div class="ag-meta-row"><i data-lucide="phone" class="icon"></i><span>${escapeHtml(phone)}</span></div>` : `<div class="ag-meta-row ag-meta-dim"><i data-lucide="phone-missed" class="icon"></i><span>No number linked</span></div>`}
           ${biz ? `` : `<div class="ag-meta-row ag-meta-dim"><i data-lucide="building-2" class="icon"></i><span>Open Flow to configure</span></div>`}
+          ${(a.config?.agent_language || a.config?.voice_name) ? `
+          <div class="ag-meta-row ag-meta-voice">
+            <i data-lucide="mic-2" class="icon"></i>
+            <span>${escapeHtml(a.config?.agent_language || "English")}${a.config?.voice_name ? " · " + escapeHtml(a.config.voice_name) : ""}</span>
+          </div>` : ""}
         </div>
 
         <div class="ag-card-calls-bar">
@@ -4373,30 +4411,140 @@ function mountTestChat(root, agentId, cfg) {
 }
 
 route("settings", async () => {
-  const wrap = shell("settings", "Settings", "Account preferences and integration keys.");
+  const wrap = shell("settings", "Settings", "Account, notifications and integration status.");
   const page = $("#page", wrap);
   const u = Store.user || {};
+  const bp = u.business_profile || {};
+
+  const TIMEZONES = [
+    "UTC","Asia/Kolkata","Asia/Dubai","Asia/Singapore","Asia/Tokyo",
+    "Asia/Shanghai","Asia/Seoul","Asia/Jakarta","Asia/Manila","Asia/Karachi",
+    "Asia/Dhaka","Asia/Colombo","Asia/Kathmandu","Africa/Lagos","Africa/Nairobi",
+    "Africa/Cairo","Europe/London","Europe/Paris","Europe/Berlin","Europe/Moscow",
+    "America/New_York","America/Chicago","America/Denver","America/Los_Angeles",
+    "America/Sao_Paulo","America/Mexico_City","Australia/Sydney","Pacific/Auckland",
+  ];
+
   page.innerHTML = `
-    <div class="card p-5 mb-4">
-      <div class="font-semibold mb-3">Account</div>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="label">Name</label><input class="field" value="${escapeHtml(u.name||'')}" disabled/></div>
-        <div><label class="label">Email</label><input class="field" value="${escapeHtml(u.email||'')}" disabled/></div>
+    <div class="settings-grid">
+
+      <!-- ── Account card ─────────────────────────────────────── -->
+      <div class="card p-5">
+        <div class="set-card-title"><i data-lucide="user" class="icon"></i>Account</div>
+        <form id="set-acct-form">
+          <div class="set-field-row">
+            <div class="set-field">
+              <label class="label">Display name</label>
+              <input class="field" id="set-name" value="${escapeHtml(u.name||'')}" placeholder="Your name"/>
+            </div>
+            <div class="set-field">
+              <label class="label">Email <span class="set-readonly-badge">read-only</span></label>
+              <input class="field" value="${escapeHtml(u.email||'')}" disabled/>
+            </div>
+          </div>
+          <div class="set-field-row">
+            <div class="set-field">
+              <label class="label">WhatsApp number <span class="set-hint">receives call summaries &amp; alerts</span></label>
+              <input class="field" id="set-wa" value="${escapeHtml(u.whatsapp_number||'')}" placeholder="+1 555 000 0000" type="tel"/>
+            </div>
+            <div class="set-field">
+              <label class="label">Timezone</label>
+              <select class="field" id="set-tz">
+                ${TIMEZONES.map(tz => `<option${tz === (bp.timezone||'Asia/Kolkata') ? ' selected' : ''}>${escapeHtml(tz)}</option>`).join("")}
+              </select>
+            </div>
+          </div>
+          <div class="set-save-row">
+            <span class="set-save-status" id="set-save-status"></span>
+            <button class="btn btn-primary" type="submit" id="set-save">Save changes</button>
+          </div>
+        </form>
       </div>
-      <div class="text-xs text-muted mt-3">Account editing is read-only in this build.</div>
-    </div>
-    <div class="card p-5">
-      <div class="font-semibold mb-3">Integration status</div>
-      <div id="health" class="grid grid-cols-2 gap-3">${skeleton(2)}</div>
+
+      <!-- ── Notifications card ────────────────────────────────── -->
+      <div class="card p-5">
+        <div class="set-card-title"><i data-lucide="bell" class="icon"></i>Notifications</div>
+        <div class="set-notif-list">
+          <div class="set-notif-row">
+            <div>
+              <div class="set-notif-label">WhatsApp call summaries</div>
+              <div class="set-notif-sub">Receive a short summary after every handled call</div>
+            </div>
+            <label class="set-toggle"><input type="checkbox" id="set-notif-wa" ${u.whatsapp_number ? "checked" : ""}/><span class="set-toggle-track"></span></label>
+          </div>
+          <div class="set-notif-row">
+            <div>
+              <div class="set-notif-label">Urgent alerts</div>
+              <div class="set-notif-sub">Instant WhatsApp ping when a caller triggers an escalation</div>
+            </div>
+            <label class="set-toggle"><input type="checkbox" id="set-notif-urgent" checked/><span class="set-toggle-track"></span></label>
+          </div>
+          <div class="set-notif-row">
+            <div>
+              <div class="set-notif-label">Booking confirmations</div>
+              <div class="set-notif-sub">Notify you when the AI books an appointment</div>
+            </div>
+            <label class="set-toggle"><input type="checkbox" id="set-notif-book" checked/><span class="set-toggle-track"></span></label>
+          </div>
+        </div>
+        <div class="text-xs text-muted mt-3">Notifications are sent to your WhatsApp number above.</div>
+      </div>
+
+      <!-- ── Integration status card ───────────────────────────── -->
+      <div class="card p-5" style="grid-column:1/-1">
+        <div class="set-card-title"><i data-lucide="plug" class="icon"></i>Integration status</div>
+        <div id="set-health" class="set-health-grid">${skeleton(2)}</div>
+      </div>
+
     </div>`;
+  renderIcons(page);
+
+  // Save handler
+  $("#set-acct-form", page).addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = $("#set-save", page);
+    const status = $("#set-save-status", page);
+    btn.disabled = true; btn.textContent = "Saving…";
+    try {
+      const res = await api("/auth/profile", {
+        method: "PUT",
+        body: {
+          name:             $("#set-name", page).value.trim(),
+          whatsapp_number:  $("#set-wa",   page).value.trim(),
+          timezone:         $("#set-tz",   page).value,
+        },
+      });
+      if (res.user) { Object.assign(Store.user, res.user); }
+      status.textContent = "Saved ✓"; status.style.color = "var(--success)";
+      setTimeout(() => { status.textContent = ""; }, 2000);
+    } catch (err) {
+      status.textContent = err.message; status.style.color = "var(--danger)";
+    }
+    btn.disabled = false; btn.textContent = "Save changes";
+  });
+
+  // Load health — response is { status, services: { database, openai, telnyx, … } }
   try {
     const h = await api("/health", { auth: false });
-    const row = (label, ok) => `<div class="flex items-center justify-between p-3" style="border:1px solid var(--border);border-radius:10px"><div class="text-sm">${label}</div><span class="badge ${ok?'badge-success':'badge-muted'}">${ok?'Connected':'Not configured'}</span></div>`;
-    $("#health", page).innerHTML = [
-      row("Database (Postgres)", h.database_configured),
-      row("OpenAI", h.openai_configured),
-      row("Twilio", h.twilio_configured),
-      row("ElevenLabs", !!h.elevenlabs_configured),
+    const svc = h.services || {};
+    const intRow = (label, ok, note="") => `
+      <div class="set-int-row">
+        <span class="set-int-dot ${ok ? 'set-int-ok' : 'set-int-off'}"></span>
+        <div class="set-int-body">
+          <div class="set-int-label">${label}</div>
+          ${note ? `<div class="set-int-note">${escapeHtml(note)}</div>` : ""}
+        </div>
+        <span class="badge ${ok ? 'badge-success' : 'badge-muted'}">${ok ? 'Connected' : 'Not set'}</span>
+      </div>`;
+    $("#set-health", page).innerHTML = [
+      intRow("PostgreSQL",         svc.database,    "Agent data, calls, users"),
+      intRow("OpenAI (AI brain)",  svc.openai,      "Conversation intelligence"),
+      intRow("Telnyx (calls)",     svc.telnyx,      "Inbound phone calls"),
+      intRow("ElevenLabs (TTS)",   svc.elevenlabs,  "High-quality voice synthesis"),
+      intRow("Twilio",             svc.twilio,      "Fallback voice & WhatsApp"),
+      intRow("Stripe (billing)",   svc.stripe,      "Subscription management"),
+      intRow("Redis (cache)",      svc.redis,       "Response caching & rate limits"),
+      intRow("Google Calendar",    svc.google_calendar, "AI booking integration"),
     ].join("");
   } catch (e) { toast(e.message, "error"); }
   return wrap;

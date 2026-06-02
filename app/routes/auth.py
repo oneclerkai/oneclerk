@@ -8,6 +8,7 @@ from jose import JWTError, jwt
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 from typing import Literal
 
 from app.config import settings
@@ -465,6 +466,33 @@ async def verify_phone_otp_route(
 @router.get("/me")
 async def me(current_user: User = Depends(get_current_user)) -> dict:
     return _user_dict(current_user)
+
+
+class UpdateProfileRequest(BaseModel):
+    name: str | None = None
+    whatsapp_number: str | None = None
+    timezone: str | None = None
+
+
+@router.put("/profile")
+async def update_profile(
+    data: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    if data.name is not None:
+        current_user.name = data.name.strip() or current_user.name
+    if data.whatsapp_number is not None:
+        current_user.whatsapp_number = data.whatsapp_number.strip() or None
+    if data.timezone is not None:
+        profile = dict(current_user.business_profile or {})
+        profile["timezone"] = data.timezone
+        current_user.business_profile = profile
+        flag_modified(current_user, "business_profile")
+    await db.commit()
+    await db.refresh(current_user)
+    # Keep Store in sync — return full user dict
+    return {"user": _user_dict(current_user)}
 
 
 class GoogleAuthRequest(BaseModel):
