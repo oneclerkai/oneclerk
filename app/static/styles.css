@@ -2973,10 +2973,38 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
     6px 6px 0 0 #0f0f14,
     12px 12px 22px -6px rgba(15,15,20,0.4);
 }
-.lp-note-3d[data-i="0"] { background: #fff5b8; transform: rotate(-2deg); }
-.lp-note-3d[data-i="1"] { background: #ffd6e3; transform: rotate(1.5deg); }
-.lp-note-3d[data-i="2"] { background: #cfe7ff; transform: rotate(-1deg); }
-.lp-note-3d[data-i="3"] { background: #d6f0c8; transform: rotate(2deg); }
+.lp-note-3d[data-i="0"] {
+  background:
+    radial-gradient(ellipse 80% 70% at 15% 28%, rgba(246,80,190,0.88) 0%, transparent 58%),
+    radial-gradient(ellipse 68% 60% at 80% 75%, rgba(255,148,68,0.82) 0%, transparent 54%),
+    radial-gradient(ellipse 58% 50% at 58% 12%, rgba(208,60,200,0.68) 0%, transparent 48%),
+    #f4aadf;
+  transform: rotate(-2deg);
+}
+.lp-note-3d[data-i="1"] {
+  background:
+    radial-gradient(ellipse 78% 65% at 72% 22%, rgba(148,182,255,0.92) 0%, transparent 56%),
+    radial-gradient(ellipse 65% 62% at 25% 72%, rgba(255,168,108,0.84) 0%, transparent 54%),
+    radial-gradient(ellipse 52% 48% at 52% 52%, rgba(190,208,255,0.72) 0%, transparent 48%),
+    #bdd2ff;
+  transform: rotate(1.5deg);
+}
+.lp-note-3d[data-i="2"] {
+  background:
+    radial-gradient(ellipse 80% 65% at 68% 32%, rgba(255,188,138,0.75) 0%, transparent 54%),
+    radial-gradient(ellipse 72% 68% at 18% 68%, rgba(158,200,255,0.90) 0%, transparent 56%),
+    radial-gradient(ellipse 54% 48% at 48% 14%, rgba(188,212,255,0.76) 0%, transparent 48%),
+    #cce0ff;
+  transform: rotate(-1deg);
+}
+.lp-note-3d[data-i="3"] {
+  background:
+    radial-gradient(ellipse 75% 65% at 22% 28%, rgba(194,128,255,0.86) 0%, transparent 56%),
+    radial-gradient(ellipse 64% 60% at 76% 72%, rgba(255,178,98,0.82) 0%, transparent 52%),
+    radial-gradient(ellipse 54% 48% at 58% 18%, rgba(168,196,255,0.74) 0%, transparent 46%),
+    #dac8ff;
+  transform: rotate(2deg);
+}
 .lp-note-3d:hover[data-i="0"] { transform: rotate(-2deg) translate(-2px, -2px); }
 .lp-note-3d:hover[data-i="1"] { transform: rotate(1.5deg) translate(-2px, -2px); }
 .lp-note-3d:hover[data-i="2"] { transform: rotate(-1deg) translate(-2px, -2px); }
