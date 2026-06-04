@@ -3559,9 +3559,6 @@ route("agents", async () => {
         </div>
 
         <div class="ag-card-actions">
-          <button class="ag-btn ag-btn-primary" data-act="flow" data-id="${a.id}">
-            <i data-lucide="git-branch" class="icon"></i>Flow builder
-          </button>
           <button class="ag-btn ${a.is_active ? "ag-btn-warn" : "ag-btn-success"}" data-act="toggle" data-id="${a.id}" data-active="${a.is_active}">
             <i data-lucide="${a.is_active ? "pause" : "play"}" class="icon"></i>${a.is_active ? "Pause" : "Activate"}
           </button>
@@ -5554,9 +5551,33 @@ route("agentFlow", async (id) => {
 
       // Field changes → sync preview
       el.querySelectorAll("[data-field]").forEach(inp => {
-        const upd = () => {
+        const upd = async () => {
           card.config = card.config || {};
           card.config[inp.dataset.field] = inp.value;
+
+          // Phone one-agent-only: warn if number already used by another agent
+          if (card.type === "phone" && inp.dataset.field === "phone" && inp.value.trim().length >= 7) {
+            try {
+              const allAgents = await api("/agents");
+              const agents = Array.isArray(allAgents) ? allAgents : (allAgents.agents || []);
+              const conflict = agents.find(ag =>
+                String(ag.id) !== String(id) &&
+                (
+                  String(ag.forwarding_number || "").trim() === inp.value.trim() ||
+                  String(ag.config?.forwarding_number || "").trim() === inp.value.trim()
+                )
+              );
+              const warn = inp.closest(".fb-card")?.querySelector(".fb-phone-warn");
+              if (warn) warn.remove();
+              if (conflict) {
+                const w = document.createElement("div");
+                w.className = "fb-phone-warn";
+                w.style.cssText = "font-size:11px;color:#b91c1c;background:#fef2f2;border:1px solid #fca5a5;border-radius:7px;padding:6px 9px;margin-top:4px;line-height:1.4";
+                w.textContent = `⚠️ Already used by "${conflict.name}". Assign to this agent to move it.`;
+                inp.after(w);
+              }
+            } catch (_) {}
+          }
           // Bridge canvas selections → dashboard preview (persisted across navigation)
           if ((card.type === "agent" || card.type === "voice")    && inp.dataset.field === "voice")    localStorage.setItem("oc_last_voice", inp.value);
           if ((card.type === "agent" || card.type === "language") && inp.dataset.field === "language") localStorage.setItem("oc_last_lang",  inp.value);
