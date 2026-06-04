@@ -641,8 +641,33 @@ function buildVapiOverrides(voice, lang, agentType, agentConfig) {
   if (ctx.business_pricing)  ctxLines.push(`Pricing: ${ctx.business_pricing}`);
   if (ctx.business_address)  ctxLines.push(`Address: ${ctx.business_address}`);
   if (ctx.business_faq)      ctxLines.push(`FAQ: ${ctx.business_faq}`);
-  if (ctx.calendly_url)      ctxLines.push(`Bookings: ${ctx.calendly_url}`);
+  if (ctx.calendly_url)      ctxLines.push(`Booking link: ${ctx.calendly_url}`);
   const ctxBlock = ctxLines.length ? `\n\nBUSINESS CONTEXT:\n${ctxLines.join('\n')}` : '';
+
+  // Agentic tools block — tells the LLM exactly what it can do and when to use each tool
+  const toolsBlock = `
+
+TOOLS YOU MUST USE PROACTIVELY:
+- book_appointment_calendar: Call this whenever a caller wants to schedule, book, or reschedule. Collect customer name, preferred date, preferred time (and email if given). Confirm details before booking.
+- check_availability: Call this FIRST when a caller asks about available slots or before confirming a time. Return the slots you receive.
+- connect_to_human: Call this if the caller explicitly asks for a human, in emergencies, or if you genuinely cannot help.
+- send_summary_whatsapp: Call this at the END of every call — include caller name, their request, booking result, and any follow-up needed.
+
+APPOINTMENT REMINDERS:
+- When you book an appointment, always tell the caller they will receive a WhatsApp or email reminder 24 hours before.
+- If a caller says they cannot make their appointment, note the cancellation clearly and use send_summary_whatsapp to notify the owner immediately.
+
+NO-SHOW / TECHNICAL ERROR HANDLING:
+- If a call drops or a technical error occurs mid-conversation, use send_summary_whatsapp to notify the owner with caller details and what was discussed.
+- If a caller confirms an appointment but does not appear (owner reports no-show), the system will auto-send a follow-up message — you can acknowledge this to the caller.
+
+CALL TRANSCRIPT:
+- After every call, a concise transcript is automatically sent to the owner via WhatsApp and email. You do not need to mention this unless asked.
+
+RESPONSE STYLE:
+- Be concise — 1–2 sentences per turn unless giving directions or reading back booking details.
+- Always confirm names, dates, and times by repeating them back before committing.
+- Use the caller's name if they gave it.`;
 
   // Language rule goes FIRST in the prompt — LLMs follow the first instruction most reliably
   const systemPrompt = [
@@ -650,6 +675,7 @@ function buildVapiOverrides(voice, lang, agentType, agentConfig) {
     ``,
     promptTemplate,
     ctxBlock,
+    toolsBlock,
   ].join("\n");
 
   return {
@@ -1183,7 +1209,8 @@ function initVoiceTester(root) {
   const chatHint = root.querySelector("#lp-try-chat-hint");
   if (!canvas || !btn) return;
 
-  const vapi = getVapi();
+  // Re-check Vapi each time — SDK may load async after page paint
+  function liveVapi() { return getVapi(); }
 
   const ctx = canvas.getContext("2d");
   function resize() {
@@ -1351,44 +1378,52 @@ function initVoiceTester(root) {
     recognition.start();
   }
 
-  if (vapi) {
-    let vapiCallActive = false;
+  // Always try Vapi (SDK loads async so `liveVapi()` may return a valid instance even
+  // if it was null when initVoiceTester() was first called).  Fall back to browser
+  // SpeechRecognition only when Vapi is genuinely unavailable.
+  let vapiCallActive = false;
 
-    function setButtonIdle() {
-      lbl.textContent = "🎙️ Speak to agent";
-      btn.classList.remove("live");
-      btn.disabled = false;
-      vapiCallActive = false;
+  function setButtonIdle() {
+    lbl.textContent = "🎙️ Speak to agent";
+    btn.classList.remove("live");
+    btn.disabled = false;
+    vapiCallActive = false;
+  }
+  function setButtonConnecting() {
+    lbl.textContent = "Connecting…";
+    btn.disabled = true;
+    btn.classList.remove("live");
+  }
+  function setButtonActive() {
+    lbl.textContent = "🛑 Stop";
+    btn.disabled = false;
+    btn.classList.add("live");
+    vapiCallActive = true;
+  }
+
+  // Pre-warm mic permission on pointerdown (~200 ms before 'click' fires)
+  btn.addEventListener("pointerdown", () => {
+    if (!_micPermitted && !vapiCallActive) {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(() => { _micPermitted = true; })
+        .catch(() => {});
+    }
+  }, { passive: true });
+
+  btn.addEventListener("click", () => {
+    const vapi = liveVapi();
+
+    // ── Stop a running Vapi call ────────────────────────────────────────────
+    if (vapiCallActive) {
+      try { vapi?.stop(); } catch (_) {}
+      setButtonIdle();
+      return;
     }
 
-    function setButtonConnecting() {
-      lbl.textContent = "Connecting…";
-      btn.disabled = true;
-      btn.classList.remove("live");
-    }
-
-    function setButtonActive() {
-      lbl.textContent = "🛑 Stop Speaking";
-      btn.disabled = false;
-      btn.classList.add("live");
-      vapiCallActive = true;
-    }
-
-    // Pre-warm mic on pointerdown (fires ~200ms before 'click' resolves).
-    // This starts the browser's permission flow instantly so vapi.start()
-    // can proceed without waiting the full round-trip when 'click' fires.
-    btn.addEventListener("pointerdown", () => {
-      if (!_micPermitted && !vapiCallActive) {
-        navigator.mediaDevices.getUserMedia({ audio: true })
-          .then(() => { _micPermitted = true; })
-          .catch(() => {});
-      }
-    }, { passive: true });
-
-    btn.addEventListener("click", () => {
-      if (vapiCallActive) { vapi.stop(); return; }
+    // ── Vapi path ───────────────────────────────────────────────────────────
+    if (vapi) {
       setButtonConnecting();
-      status.innerHTML = `<strong>Connecting…</strong> Requesting mic access…`;
+      status.innerHTML = `<strong>Connecting…</strong> Starting session…`;
 
       (async () => {
         if (!_micPermitted) {
@@ -1397,7 +1432,7 @@ function initVoiceTester(root) {
             _micPermitted = true;
           } catch (_) {
             setButtonIdle();
-            status.innerHTML = `<strong style="color:#ff5868">Mic blocked.</strong> Allow microphone access in your browser, then tap again.`;
+            status.innerHTML = `<strong style="color:#ff5868">Mic blocked.</strong> Allow microphone access in your browser settings, then tap again.`;
             return;
           }
         }
@@ -1406,9 +1441,8 @@ function initVoiceTester(root) {
         const voiceVal  = voiceSel ? voiceSel.value : "maya";
         const agentType = agentSel ? agentSel.value : "professional front desk receptionist";
 
-        // Support "Maya — warm, mid-30s" format or plain id
-        const voiceKey = voiceVal.includes("—") ? voiceVal.split("—")[0].trim().toLowerCase() : voiceVal.toLowerCase();
-        const voiceObj = PREVIEW_VOICES.find(v => v.id === voiceKey) || PREVIEW_VOICES[0];
+        const voiceKey  = voiceVal.includes("—") ? voiceVal.split("—")[0].trim().toLowerCase() : voiceVal.toLowerCase();
+        const voiceObj  = PREVIEW_VOICES.find(v => v.id === voiceKey) || PREVIEW_VOICES[0];
         const overrides = buildVapiOverrides(voiceObj, langVal, agentType);
 
         status.innerHTML = `<strong>Connecting…</strong> Starting call in ${escapeHtml(langVal)}…`;
@@ -1418,7 +1452,7 @@ function initVoiceTester(root) {
           onStart: () => {
             clearTimeout(connectTimeout);
             setButtonActive();
-            status.innerHTML = `<strong>Connected.</strong> Speak — the agent is listening.`;
+            status.innerHTML = `<strong>Connected!</strong> The agent is listening — speak now.`;
             listening = true;
           },
           onEnd: () => {
@@ -1427,36 +1461,49 @@ function initVoiceTester(root) {
             status.innerHTML = `Call ended. Tap the mic to start a new conversation.`;
             listening = false; agentSpeaking = false;
           },
-          onSpeechStart: () => { agentSpeaking = true; status.innerHTML = `<strong>Agent speaking…</strong>`; },
-          onSpeechEnd:   () => { agentSpeaking = false; status.innerHTML = `<strong>Listening…</strong> Go ahead and speak.`; },
+          onSpeechStart: () => {
+            agentSpeaking = true;
+            status.innerHTML = `<strong>Agent speaking…</strong>`;
+          },
+          onSpeechEnd: () => {
+            agentSpeaking = false;
+            status.innerHTML = `<strong>Listening…</strong> Go ahead and speak.`;
+          },
           onError: (err) => {
             clearTimeout(connectTimeout);
             setButtonIdle();
             console.warn("[Harkly] Vapi error:", err);
-            status.innerHTML = `Something went wrong — tap the mic to try again.`;
+            // Retry once on transient errors
+            const msg = (err?.message || err?.error || "").toLowerCase();
+            if (msg.includes("ice") || msg.includes("network") || msg.includes("transport")) {
+              status.innerHTML = `Connection hiccup — tap the mic again to reconnect.`;
+            } else {
+              status.innerHTML = `Something went wrong — tap the mic to try again.`;
+            }
             listening = false; agentSpeaking = false;
           },
         });
 
-        // Also register message handler separately so transcripts show in chat
+        // Register message handler for live chat transcript
         vapi.on("message", (msg) => {
           if (msg?.type === "transcript" && msg.transcriptType === "final") {
             addChatMsg(msg.role === "assistant" ? "agent" : "user", msg.transcript);
           }
         });
 
-        // 20s timeout — enough for any cold WebRTC establishment
+        // 25 s timeout — shows friendly nudge but does NOT kill the call
         connectTimeout = setTimeout(() => {
           if (!vapiCallActive) {
-            setButtonIdle();
-            status.innerHTML = `Taking longer than usual — tap again to retry.`;
+            status.innerHTML = `Still connecting… tap again if nothing happens in a few seconds.`;
           }
-        }, 20000);
+        }, 25000);
       })();
-    });
-  } else {
-    btn.addEventListener("click", startConversation);
-  }
+
+    // ── SpeechRecognition fallback (Vapi not yet loaded) ────────────────────
+    } else {
+      startConversation();
+    }
+  });
 }
 
 // --- Landing helpers ---
@@ -4716,10 +4763,14 @@ route("preview", async () => {
     ? Math.max(0, PREVIEW_LANGS.findIndex(l => l.toLowerCase().startsWith((_cs.language || "").toLowerCase().split("-")[0])))
     : agentLangIdx(firstAgent);
 
+  // Derive voice/lang display labels from agent config for the info badges
+  const _initVoiceLabel = PREVIEW_VOICES[initVoiceIdx]?.label || "Maya";
+  const _initLangLabel  = PREVIEW_LANGS[initLangIdx]  || "English (US)";
+
   page.innerHTML = `
     <div class="pv2-shell">
 
-      <!-- LEFT: Slim controls -->
+      <!-- LEFT: Agent selector only — voice & language come from agent config -->
       <div class="pv2-controls">
         <div class="pv2-ctrl-section">
           <div class="pv2-ctrl-label">Agent</div>
@@ -4728,18 +4779,13 @@ route("preview", async () => {
           </select>
         </div>
 
-        <div class="pv2-ctrl-section">
-          <div class="pv2-ctrl-label">Voice</div>
-          <select class="pv2-select" id="pv2-voice-sel">
-            ${PREVIEW_VOICES.map((v, i) => `<option value="${i}" ${i===initVoiceIdx?'selected':''}>${escapeHtml(v.label)} — ${escapeHtml(v.sub)}</option>`).join("")}
-          </select>
-        </div>
-
-        <div class="pv2-ctrl-section">
-          <div class="pv2-ctrl-label">Language <span class="pv2-lang-count">${PREVIEW_LANGS.length} available</span></div>
-          <select class="pv2-select pv2-select-lang" id="pv2-lang-sel">
-            ${PREVIEW_LANGS.map((l, i) => `<option value="${i}" ${i===initLangIdx?'selected':''}>${escapeHtml(l)}</option>`).join("")}
-          </select>
+        <div class="pv2-ctrl-section" style="margin-top:18px">
+          <div class="pv2-ctrl-label" style="margin-bottom:8px">Configured from agent setup</div>
+          <div class="pv2-cfg-badges" id="pv2-cfg-badges">
+            <span class="pv2-cfg-badge" id="pv2-badge-voice">🎙️ <span id="pv2-badge-voice-txt">${escapeHtml(_initVoiceLabel)}</span></span>
+            <span class="pv2-cfg-badge" id="pv2-badge-lang">🌐 <span id="pv2-badge-lang-txt">${escapeHtml(_initLangLabel)}</span></span>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5">Voice &amp; language are set in the agent builder (drag-and-drop setup). Change them there to update this preview.</div>
         </div>
       </div>
 
@@ -4796,22 +4842,25 @@ route("preview", async () => {
     });
   }
 
+  function updateConfigBadges() {
+    const vt = $("#pv2-badge-voice-txt", page);
+    const lt = $("#pv2-badge-lang-txt", page);
+    if (vt) vt.textContent = selVoice?.label || "Maya";
+    if (lt) lt.textContent = selLang || "English (US)";
+  }
+
   if (agentSel) agentSel.addEventListener("change", () => {
     const i = +agentSel.value;
     selAgent = agents[i] || null;
     updateAgentName();
     const vi = agentVoiceIdx(selAgent);
     const li = agentLangIdx(selAgent);
-    const vs = $("#pv2-voice-sel", page);
-    const ls = $("#pv2-lang-sel", page);
-    if (vs) vs.value = vi;
-    if (ls) ls.value = li;
     selVoice = PREVIEW_VOICES[vi];
     selLang  = PREVIEW_LANGS[li];
+    updateConfigBadges();
     if (pvCtrl) {
       pvCtrl.setVoice(selVoice);
       pvCtrl.setLang(selLang);
-      // Always merge canvas state so the preview reflects the latest flow-builder data
       pvCtrl.setAgentConfig(buildMergedCfg(selAgent?.config));
     }
   });
@@ -4822,20 +4871,6 @@ route("preview", async () => {
     pvCtrl.setVoice(selVoice);
     pvCtrl.setAgentConfig(buildMergedCfg(selAgent?.config));
   }
-
-  const voiceSel = $("#pv2-voice-sel", page);
-  if (voiceSel && pvCtrl) voiceSel.addEventListener("change", () => {
-    selVoice = PREVIEW_VOICES[+voiceSel.value] || PREVIEW_VOICES[0];
-    pvCtrl.setVoice(selVoice);
-  });
-
-  const langSel = $("#pv2-lang-sel", page);
-  if (langSel && pvCtrl) langSel.addEventListener("change", () => {
-    selLang = PREVIEW_LANGS[+langSel.value] || PREVIEW_LANGS[0];
-    pvCtrl.setLang(selLang);
-    const statusEl = $("#pv-status-txt", page);
-    if (statusEl) statusEl.textContent = `Language: ${selLang}`;
-  });
 
   return wrap;
 });

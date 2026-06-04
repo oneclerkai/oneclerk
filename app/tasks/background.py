@@ -10,8 +10,9 @@ from sqlalchemy import func, select, text
 from app.database import get_sessionmaker
 from app.models import Agent, Call, User
 from app.services.ai_brain import generate_call_summary
+from app.services.notifications import send_call_transcript_email
 from app.services.synthesis import AUDIO_DIR
-from app.services.whatsapp import send_call_summary_to_owner, send_daily_digest as send_daily_digest_message
+from app.services.whatsapp import send_call_summary_to_owner, send_call_transcript_whatsapp, send_daily_digest as send_daily_digest_message
 from app.tasks.celery_app import celery_app
 
 
@@ -52,16 +53,38 @@ def process_completed_call(self, call_id: str):
             agent.total_calls += 1
             await db.commit()
             owner_whatsapp = (agent.config or {}).get("owner_whatsapp") or user.whatsapp_number or ""
-            if owner_whatsapp:
-                await send_call_summary_to_owner(
-                    owner_whatsapp,
-                    call.caller_number or "",
-                    summary.get("summary", ""),
-                    call.duration_seconds,
-                    call.escalated,
-                    call.appointment_booked,
-                    agent.name,
+            owner_email    = user.email or ""
+            summary_text   = summary.get("summary", "")
+            appt_booked    = bool(call.appointment_booked)
+            caller_num     = call.caller_number or ""
+
+            notify_tasks = []
+            if owner_whatsapp and summary_text:
+                notify_tasks.append(
+                    send_call_transcript_whatsapp(
+                        owner_whatsapp, caller_num, agent.name,
+                        summary_text, duration_seconds=call.duration_seconds or 0,
+                        appointment_booked=appt_booked,
+                    )
                 )
+            if owner_email and summary_text:
+                notify_tasks.append(
+                    send_call_transcript_email(
+                        owner_email, agent.name, caller_num,
+                        summary_text, duration_seconds=call.duration_seconds or 0,
+                        appointment_booked=appt_booked,
+                    )
+                )
+            # Keep legacy WhatsApp-only path as well for escalated calls
+            if owner_whatsapp and call.escalated:
+                notify_tasks.append(
+                    send_call_summary_to_owner(
+                        owner_whatsapp, caller_num, summary_text,
+                        call.duration_seconds, call.escalated, appt_booked, agent.name,
+                    )
+                )
+            if notify_tasks:
+                await asyncio.gather(*notify_tasks, return_exceptions=True)
 
     asyncio.run(run())
 

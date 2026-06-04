@@ -122,6 +122,63 @@ async def send_call_summary_to_owner(
     return await _send_telnyx_message(owner_whatsapp, body)
 
 
+async def send_no_show_alert(
+    owner_whatsapp: str,
+    caller_number: str,
+    agent_name: str,
+    appointment_details: str = "",
+) -> bool:
+    """Notify owner via WhatsApp when a booked caller doesn't show up."""
+    appt = f"\nAppointment: {appointment_details}" if appointment_details else ""
+    body = (
+        f"⚠️ *No-show alert — {agent_name}*\n\n"
+        f"Caller: {caller_number}{appt}\n\n"
+        f"A follow-up message has been sent to the caller automatically.\n"
+        f"Check your dashboard for details."
+    )
+    return await _send_telnyx_message(owner_whatsapp, body)
+
+
+async def send_technical_error_alert(
+    owner_whatsapp: str,
+    caller_number: str,
+    agent_name: str,
+    error_context: str = "",
+) -> bool:
+    """Notify owner when a call ended due to a technical error."""
+    ctx = f"\nContext: {error_context}" if error_context else ""
+    body = (
+        f"⚡ *Technical error — {agent_name}*\n\n"
+        f"A call from {caller_number} may have dropped unexpectedly.{ctx}\n\n"
+        f"Please check your dashboard and follow up with the caller if needed."
+    )
+    return await _send_telnyx_message(owner_whatsapp, body)
+
+
+async def send_call_transcript_whatsapp(
+    owner_whatsapp: str,
+    caller_number: str,
+    agent_name: str,
+    summary: str,
+    duration_seconds: int = 0,
+    appointment_booked: bool = False,
+) -> bool:
+    """Send a concise post-call transcript summary to the owner via WhatsApp."""
+    duration_fmt = f"{duration_seconds // 60}m {duration_seconds % 60}s" if duration_seconds else ""
+    booked = "✅ Appointment booked" if appointment_booked else ""
+    lines = [
+        f"📞 *Call summary — {agent_name}*",
+        f"Caller: {caller_number}",
+    ]
+    if duration_fmt:
+        lines.append(f"Duration: {duration_fmt}")
+    if booked:
+        lines.append(booked)
+    lines.append("")
+    lines.append(summary[:600] if summary else "(No summary available)")
+    return await _send_telnyx_message(owner_whatsapp, "\n".join(lines))
+
+
 async def send_daily_digest(
     owner_whatsapp: str,
     business_name: str,

@@ -153,6 +153,84 @@ async def send_email_verification_link(email: str, verification_link: str) -> bo
     return await _send_via_smtp(email, subject, html)
 
 
+async def send_call_transcript_email(
+    owner_email: str,
+    agent_name: str,
+    caller_number: str,
+    summary: str,
+    duration_seconds: int = 0,
+    appointment_booked: bool = False,
+) -> bool:
+    """Send a concise call transcript summary to the agent owner after every call."""
+    duration_fmt = f"{duration_seconds // 60}m {duration_seconds % 60}s" if duration_seconds else "—"
+    booked_line = "<span style='color:#16a34a;font-weight:600'>✓ Appointment booked</span>" if appointment_booked else "No appointment"
+    html = f"""
+    <div style="font-family:Inter,Arial,sans-serif;background:#f6f7fb;padding:32px">
+      <div style="max-width:560px;margin:auto;background:#fff;border-radius:14px;padding:28px 32px;border:1px solid #e8eaf2">
+        <div style="font-size:13px;font-weight:700;color:#f59e0b;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Harkly AI — Call Summary</div>
+        <h2 style="font-size:20px;color:#111827;margin:0 0 18px">{agent_name}</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;color:#374151">
+          <tr><td style="padding:6px 0;color:#6b7280;width:38%">Caller</td><td style="padding:6px 0;font-weight:600">{caller_number}</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280">Duration</td><td style="padding:6px 0">{duration_fmt}</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280">Outcome</td><td style="padding:6px 0">{booked_line}</td></tr>
+        </table>
+        <div style="margin-top:18px;background:#f9fafb;border-radius:10px;padding:16px">
+          <div style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Summary</div>
+          <div style="font-size:14px;color:#111827;line-height:1.6;white-space:pre-wrap">{summary[:900]}</div>
+        </div>
+        <div style="margin-top:18px;text-align:center">
+          <a href="https://harkly.ai/app" style="display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:13px;font-weight:600">Open Dashboard →</a>
+        </div>
+        <p style="color:#9ca3af;font-size:12px;margin-top:20px;text-align:center">Harkly AI · Call handled automatically</p>
+      </div>
+    </div>
+    """
+    subject = f"📞 Call summary — {agent_name} ({caller_number})"
+    if settings.RESEND_API_KEY and resend is not None:
+        def _send() -> None:
+            resend.api_key = settings.RESEND_API_KEY
+            resend.Emails.send({"from": settings.RESEND_FROM_EMAIL, "to": owner_email, "subject": subject, "html": html})
+        await asyncio.to_thread(_send)
+        return True
+    return await _send_via_smtp(owner_email, subject, html)
+
+
+async def send_no_show_email(
+    owner_email: str,
+    agent_name: str,
+    caller_number: str,
+    appointment_details: str = "",
+) -> bool:
+    """Notify owner when a confirmed caller did not show up."""
+    html = f"""
+    <div style="font-family:Inter,Arial,sans-serif;background:#f6f7fb;padding:32px">
+      <div style="max-width:560px;margin:auto;background:#fff;border-radius:14px;padding:28px 32px;border:1px solid #fca5a5">
+        <div style="font-size:13px;font-weight:700;color:#dc2626;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">No-Show Alert</div>
+        <h2 style="font-size:20px;color:#111827;margin:0 0 14px">Confirmed caller did not appear</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;color:#374151">
+          <tr><td style="padding:6px 0;color:#6b7280;width:38%">Agent</td><td style="padding:6px 0;font-weight:600">{agent_name}</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280">Caller</td><td style="padding:6px 0">{caller_number}</td></tr>
+          {f'<tr><td style="padding:6px 0;color:#6b7280">Appointment</td><td style="padding:6px 0">{appointment_details}</td></tr>' if appointment_details else ""}
+        </table>
+        <div style="margin-top:16px;padding:14px;background:#fef2f2;border-radius:8px;font-size:14px;color:#991b1b">
+          A follow-up WhatsApp message has been sent to the caller automatically.
+        </div>
+        <div style="margin-top:18px;text-align:center">
+          <a href="https://harkly.ai/app" style="display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:13px;font-weight:600">View in Dashboard →</a>
+        </div>
+      </div>
+    </div>
+    """
+    subject = f"⚠️ No-show — {caller_number} ({agent_name})"
+    if settings.RESEND_API_KEY and resend is not None:
+        def _send() -> None:
+            resend.api_key = settings.RESEND_API_KEY
+            resend.Emails.send({"from": settings.RESEND_FROM_EMAIL, "to": owner_email, "subject": subject, "html": html})
+        await asyncio.to_thread(_send)
+        return True
+    return await _send_via_smtp(owner_email, subject, html)
+
+
 async def send_signup_confirmation(email: str, name: str = "") -> bool:
     """Send a welcome / account-confirmed email after successful signup.
 
