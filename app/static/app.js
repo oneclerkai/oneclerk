@@ -1087,9 +1087,9 @@ route("auth", async () => {
         </div>
 
         <div class="lp-bigword" id="lp-bigword">
-          <svg class="lp-bigword-svg" viewBox="0 0 1200 210" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-label="HARKLY AI">
-            <defs><path id="harkly-arc" d="M 30,196 Q 600,28 1170,196" fill="none"/></defs>
-            <text font-family="'Nunito', system-ui, sans-serif" font-weight="900" font-size="150" fill="#f6f6f1" letter-spacing="12" opacity="0.93">
+          <svg class="lp-bigword-svg" viewBox="0 0 1400 310" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-label="HARKLY AI">
+            <defs><path id="harkly-arc" d="M 0,288 Q 700,90 1400,288" fill="none"/></defs>
+            <text font-family="'Syne','Nunito',system-ui,sans-serif" font-weight="800" font-size="168" fill="#f6f6f1" letter-spacing="22" opacity="0.92">
               <textPath href="#harkly-arc" startOffset="50%" text-anchor="middle">HARKLY AI</textPath>
             </text>
           </svg>
