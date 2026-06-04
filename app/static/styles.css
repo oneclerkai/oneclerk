@@ -7471,3 +7471,331 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 
 /* agent card voice/language row */
 .ag-meta-voice { opacity: .75; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   HYPER-REALISTIC GLASS SYSTEM — v72
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Utility classes */
+.glass-frosted {
+  background: rgba(255,255,255,0.45) !important;
+  backdrop-filter: blur(16px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(190%) !important;
+  border: 1px solid rgba(255,255,255,0.4) !important;
+  box-shadow: 0 8px 32px 0 rgba(0,0,0,0.08), inset 0 1px 0 0 rgba(255,255,255,0.55) !important;
+}
+.glass-liquid {
+  background: linear-gradient(155deg,
+    rgba(255,255,255,0.55) 0%,
+    rgba(255,255,255,0.22) 55%,
+    rgba(220,230,255,0.14) 100%) !important;
+  backdrop-filter: blur(28px) saturate(220%) brightness(1.05) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(220%) brightness(1.05) !important;
+  border-top:    1px solid rgba(255,255,255,0.88) !important;
+  border-left:   1px solid rgba(255,255,255,0.72) !important;
+  border-right:  1px solid rgba(200,210,240,0.28) !important;
+  border-bottom: 1px solid rgba(200,210,240,0.28) !important;
+  box-shadow:
+    0 16px 48px rgba(15,15,20,0.14),
+    inset 0 1px 0 rgba(255,255,255,0.95),
+    inset 1px 0 0 rgba(255,255,255,0.65) !important;
+}
+
+/* ── Sidebar — deep frosted glass panel ───────────────────────────── */
+.sidebar {
+  background:
+    linear-gradient(175deg, rgba(255,255,255,0.72) 0%, rgba(248,248,252,0.60) 100%) !important;
+  backdrop-filter: blur(28px) saturate(210%) brightness(1.02) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(210%) brightness(1.02) !important;
+  border-right: 1px solid rgba(255,255,255,0.65) !important;
+  box-shadow:
+    inset -1px 0 0 rgba(255,255,255,0.5),
+    4px 0 28px rgba(15,15,20,0.06),
+    inset 1px 0 0 rgba(255,255,255,0.7) !important;
+}
+
+/* ── Topbar — frosted glass bar ───────────────────────────────────── */
+.topbar {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.74) 0%, rgba(250,250,248,0.62) 100%) !important;
+  backdrop-filter: blur(28px) saturate(210%) brightness(1.02) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(210%) brightness(1.02) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.68) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.90),
+    0 4px 20px rgba(15,15,20,0.05) !important;
+}
+
+/* ── Cards — glass surface ────────────────────────────────────────── */
+.card {
+  background:
+    linear-gradient(160deg, rgba(255,255,255,0.86) 0%, rgba(252,252,255,0.78) 100%) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border: 1px solid rgba(255,255,255,0.70) !important;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.95) inset,
+    0 -1px 0 rgba(200,210,240,0.12) inset,
+    0 8px 32px -10px rgba(15,15,20,0.12),
+    0 2px 6px -2px rgba(15,15,20,0.05) !important;
+}
+
+/* ── Landing nav pill — ultra glass ──────────────────────────────── */
+.lp-nav {
+  background:
+    linear-gradient(160deg, rgba(255,255,255,0.72) 0%, rgba(248,248,255,0.58) 100%) !important;
+  backdrop-filter: blur(32px) saturate(220%) brightness(1.04) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(220%) brightness(1.04) !important;
+  border: 1px solid rgba(255,255,255,0.78) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.96),
+    inset 0 -1px 0 rgba(200,210,240,0.18),
+    0 12px 40px -16px rgba(15,15,20,0.14),
+    0 1px 2px rgba(15,15,20,0.04) !important;
+}
+
+/* ── Landing integration plate ────────────────────────────────────── */
+.lp-glass-plate-inner {
+  background:
+    linear-gradient(155deg,
+      rgba(255,255,255,0.62) 0%,
+      rgba(255,255,255,0.28) 45%,
+      rgba(220,228,255,0.20) 100%) !important;
+  backdrop-filter: blur(36px) saturate(240%) brightness(1.06) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(240%) brightness(1.06) !important;
+  border: 1px solid rgba(255,255,255,0.84) !important;
+  box-shadow:
+    0 28px 64px -20px rgba(15,15,20,0.30),
+    inset 0 -8px 22px rgba(15,15,20,0.07),
+    inset 0 12px 32px rgba(255,255,255,0.92) !important;
+}
+.lp-int, .lp-int-brand {
+  background:
+    linear-gradient(155deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.72) 55%, rgba(235,240,255,0.58) 100%) !important;
+  backdrop-filter: blur(24px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
+  border-top:    1.5px solid rgba(255,255,255,0.96) !important;
+  border-left:   1.5px solid rgba(255,255,255,0.82) !important;
+  border-right:  1px solid rgba(200,215,240,0.32) !important;
+  border-bottom: 1px solid rgba(200,215,240,0.32) !important;
+  box-shadow:
+    0 12px 36px rgba(15,15,20,0.20),
+    inset 0 1px 0 rgba(255,255,255,0.98),
+    inset 1px 0 0 rgba(255,255,255,0.72) !important;
+}
+
+/* ── Landing glass icon cards — enhanced specular ─────────────────── */
+.lp-glass-icon-card {
+  background:
+    linear-gradient(155deg,
+      rgba(255,255,255,0.32) 0%,
+      rgba(255,255,255,0.12) 45%,
+      rgba(215,225,255,0.08) 100%) !important;
+  backdrop-filter: blur(44px) saturate(3.0) brightness(1.08) !important;
+  -webkit-backdrop-filter: blur(44px) saturate(3.0) brightness(1.08) !important;
+  border-top:    1.5px solid rgba(255,255,255,0.92) !important;
+  border-left:   1px solid rgba(255,255,255,0.78) !important;
+  border-right:  1px solid rgba(185,198,230,0.26) !important;
+  border-bottom: 1px solid rgba(185,198,230,0.22) !important;
+  box-shadow:
+    0 14px 48px rgba(15,15,20,0.12),
+    0 4px 12px rgba(15,15,20,0.06),
+    inset 0 1px 0 rgba(255,255,255,0.95),
+    inset 1px 0 0 rgba(255,255,255,0.60) !important;
+}
+.lp-gic-shine {
+  background: linear-gradient(140deg,
+    rgba(255,255,255,0.88) 0%,
+    rgba(255,255,255,0.38) 18%,
+    rgba(255,255,255,0.06) 42%,
+    rgba(255,255,255,0.00) 55%) !important;
+}
+
+/* ── Auth modal — true deep-frosted glass ─────────────────────────── */
+.auth-modal-backdrop-light .auth-modal {
+  background:
+    linear-gradient(155deg, rgba(255,255,255,0.78) 0%, rgba(250,252,255,0.66) 100%) !important;
+  backdrop-filter: blur(36px) saturate(210%) brightness(1.05) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(210%) brightness(1.05) !important;
+  border: 1px solid rgba(255,255,255,0.80) !important;
+  box-shadow:
+    0 48px 100px -20px rgba(15,15,20,0.20),
+    0 8px 24px -8px rgba(15,15,20,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.98),
+    inset 0 -1px 0 rgba(200,215,255,0.18) !important;
+}
+
+/* ── Onboarding brand bar ──────────────────────────────────────────── */
+.ob-brand {
+  background:
+    linear-gradient(160deg, rgba(255,255,255,0.68) 0%, rgba(248,250,255,0.55) 100%) !important;
+  backdrop-filter: blur(28px) saturate(200%) brightness(1.02) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(200%) brightness(1.02) !important;
+  border: 1px solid rgba(255,255,255,0.72) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.95),
+    0 12px 32px -12px rgba(15,15,20,0.14) !important;
+}
+
+/* ── Onboarding cards ─────────────────────────────────────────────── */
+.ob-card {
+  background:
+    linear-gradient(155deg, rgba(255,255,255,0.72) 0%, rgba(248,250,255,0.58) 100%) !important;
+  backdrop-filter: blur(32px) saturate(210%) brightness(1.03) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(210%) brightness(1.03) !important;
+  border: 1px solid rgba(255,255,255,0.75) !important;
+  box-shadow:
+    0 40px 80px -20px rgba(15,15,20,0.22),
+    inset 0 1px 0 rgba(255,255,255,0.98),
+    inset 0 -1px 0 rgba(200,215,255,0.15) !important;
+}
+
+/* ── Builder glass panel ──────────────────────────────────────────── */
+.fb-glass-panel {
+  background: linear-gradient(160deg,
+    rgba(255,255,255,0.86) 0%,
+    rgba(244,244,255,0.76) 40%,
+    rgba(234,238,255,0.70) 100%) !important;
+  backdrop-filter: blur(40px) saturate(2.1) brightness(1.06) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(2.1) brightness(1.06) !important;
+  border-left: 1px solid rgba(255,255,255,0.72) !important;
+  box-shadow:
+    inset 1px 0 0 rgba(255,255,255,0.80),
+    -10px 0 36px rgba(99,102,241,0.07) !important;
+}
+.fb-glass-panel::before {
+  background: linear-gradient(140deg, rgba(255,255,255,0.55) 0%, transparent 50%) !important;
+}
+
+/* ── Builder canvas cards — glass surface ─────────────────────────── */
+.fb-card {
+  background:
+    linear-gradient(155deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.88) 100%) !important;
+  backdrop-filter: blur(14px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+  border: 1.5px solid rgba(255,255,255,0.82) !important;
+  box-shadow:
+    0 4px 18px rgba(99,102,241,0.10),
+    0 1px 4px rgba(0,0,0,0.06),
+    inset 0 1px 0 rgba(255,255,255,0.96),
+    inset 0 -1px 0 rgba(180,190,240,0.12) !important;
+}
+.fb-card:hover {
+  border-color: rgba(99,102,241,0.50) !important;
+  box-shadow:
+    0 10px 32px rgba(99,102,241,0.16),
+    0 2px 8px rgba(0,0,0,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.98) !important;
+}
+
+/* ── Builder glass panel cards ────────────────────────────────────── */
+.fb-gpc {
+  background:
+    linear-gradient(155deg, rgba(255,255,255,0.82) 0%, rgba(248,250,255,0.68) 100%) !important;
+  border: 1px solid rgba(255,255,255,0.72) !important;
+  box-shadow:
+    0 2px 10px rgba(99,102,241,0.06),
+    inset 0 1px 0 rgba(255,255,255,0.92) !important;
+}
+.fb-gpc:hover {
+  background: rgba(255,255,255,0.96) !important;
+  box-shadow:
+    4px 4px 18px rgba(99,102,241,0.14),
+    inset 0 1px 0 rgba(255,255,255,0.98) !important;
+}
+
+/* ── Connect step cards ────────────────────────────────────────────── */
+.connect-step {
+  background:
+    linear-gradient(160deg, rgba(255,255,255,0.70) 0%, rgba(248,250,255,0.55) 100%) !important;
+  backdrop-filter: blur(14px) saturate(170%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(170%) !important;
+  border: 1px solid rgba(255,255,255,0.62) !important;
+  box-shadow:
+    0 4px 16px rgba(15,15,20,0.05),
+    inset 0 1px 0 rgba(255,255,255,0.90) !important;
+}
+.connect-step.done {
+  border-color: rgba(22,163,74,0.35) !important;
+  background:
+    linear-gradient(160deg, rgba(240,255,245,0.80) 0%, rgba(230,252,240,0.65) 100%) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LANDING MESH — full section width coverage (fade top+bottom only)
+   ═══════════════════════════════════════════════════════════════════════ */
+.lp-mesh {
+  left: 0 !important; right: 0 !important; width: 100% !important;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0,0,0,0.6) 5%,
+    rgba(0,0,0,1) 16%,
+    rgba(0,0,0,1) 84%,
+    rgba(0,0,0,0.6) 95%,
+    transparent 100%
+  ) !important;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0,0,0,0.6) 5%,
+    rgba(0,0,0,1) 16%,
+    rgba(0,0,0,1) 84%,
+    rgba(0,0,0,0.6) 95%,
+    transparent 100%
+  ) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FOOTER — SVG arc text, Nunito Black, full-width, no overflow cut
+   ═══════════════════════════════════════════════════════════════════════ */
+.lp-footer {
+  overflow: visible !important;
+  padding-bottom: 48px !important;
+}
+.lp-bigword {
+  overflow: visible !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 12px 0 20px !important;
+  padding: 0 !important;
+  width: 100% !important;
+  display: block !important;
+}
+.lp-bigword-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+  animation: harklyArcFloat 5.5s ease-in-out infinite;
+}
+@keyframes harklyArcFloat {
+  0%,100% { transform: translateY(0px);  }
+  50%     { transform: translateY(-10px); }
+}
+
+/* ── Agent incomplete preview notice ──────────────────────────────── */
+.svp-incomplete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+  padding: 24px 16px;
+  border-radius: 14px;
+  background: linear-gradient(155deg, rgba(255,205,92,0.12) 0%, rgba(255,180,60,0.06) 100%);
+  border: 1.5px dashed rgba(255,180,60,0.35);
+}
+.svp-incomplete-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: rgba(255,205,92,0.22);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+.svp-incomplete-title {
+  font-size: 13.5px; font-weight: 700; color: #92580f;
+}
+.svp-incomplete-sub {
+  font-size: 12px; color: rgba(92,58,15,0.7); line-height: 1.5; max-width: 230px;
+}

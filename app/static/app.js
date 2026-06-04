@@ -1087,7 +1087,12 @@ route("auth", async () => {
         </div>
 
         <div class="lp-bigword" id="lp-bigword">
-          ${"HARKLY AI".split("").map(c => c === " " ? `<span class="ltr ltr-space">&nbsp;</span>` : `<span class="ltr">${c}</span>`).join("")}
+          <svg class="lp-bigword-svg" viewBox="0 0 1200 210" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-label="HARKLY AI">
+            <defs><path id="harkly-arc" d="M 30,196 Q 600,28 1170,196" fill="none"/></defs>
+            <text font-family="'Nunito', system-ui, sans-serif" font-weight="900" font-size="150" fill="#f6f6f1" letter-spacing="12" opacity="0.93">
+              <textPath href="#harkly-arc" startOffset="50%" text-anchor="middle">HARKLY AI</textPath>
+            </text>
+          </svg>
         </div>
 
         <div class="lp-footer-bottom">
@@ -4275,7 +4280,6 @@ route("agentEdit", async (id) => {
     const a = (await api(`/agents/${id}`)).agent;
     if (!a) throw new Error("Agent not found");
     page.innerHTML = "";
-    page.appendChild(agentSubtabs(id, "edit"));
     const form = agentForm(a);
     page.appendChild(form);
     $("#cancel", form).addEventListener("click", () => navigate("#/agents"));
@@ -4300,7 +4304,6 @@ route("agentSetup", async (id) => {
   try {
     const a = (await api(`/agents/${id}`)).agent;
     if (!a) throw new Error("Agent not found");
-    page.appendChild(agentSubtabs(id, "connect"));
 
     const status = a.connection_status || {};
     const cfg = a.config || {};
@@ -4382,6 +4385,7 @@ route("agentSetup", async (id) => {
         </div>
         <div style="display:flex;flex-direction:column;gap:14px">
           <div class="card p-4" id="svp-card">
+            ${(cfg.agent_name && cfg.agent_name.trim() && cfg.language && cfg.language.trim() && cfg.business_name && cfg.business_name.trim()) ? `
             <div class="flex items-center justify-between mb-3">
               <div>
                 <div class="font-semibold" style="font-size:13px">Voice Preview</div>
@@ -4399,6 +4403,14 @@ route("agentSetup", async (id) => {
                   <div class="dash-prev-voice-sub" style="font-size:9.5px">${v.sub}</div>
                 </button>`).join("")}
             </div>
+            ` : `
+            <div class="font-semibold mb-2" style="font-size:13px">Voice Preview</div>
+            <div class="svp-incomplete">
+              <div class="svp-incomplete-icon">🎙️</div>
+              <div class="svp-incomplete-title">Agent not fully configured</div>
+              <div class="svp-incomplete-sub">Create and complete the agent properly with data and activate it before using the voice preview.</div>
+            </div>
+            `}
           </div>
           <div class="card p-5" style="display:flex;flex-direction:column;max-height:60vh">
             <div class="font-semibold mb-1">Try it in chat</div>
