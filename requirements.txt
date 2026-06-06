@@ -74,3 +74,4 @@ uvicorn[standard]
 websockets
 openai
 openai
+openai
