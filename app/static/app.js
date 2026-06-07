@@ -1883,7 +1883,6 @@ function openAuthModal(initialMode = "login") {
 // --- Layout shell ---
 function shell(activeKey, title, subtitle, action) {
   const items = [
-    { k: "dashboard",label: "Dashboard",icon: "layout-dashboard", hash: "#/dashboard"},
     { k: "agents",  label: "Agents",  icon: "bot",        hash: "#/agents"  },
     { k: "calls",   label: "Calls",   icon: "phone",      hash: "#/calls"   },
     { k: "preview", label: "Preview", icon: "radio",      hash: "#/preview" },
