@@ -1745,16 +1745,27 @@ function openAuthModal(initialMode = "login") {
         </div>
 
         <form id="m-form" class="grid" style="gap:14px">
+
+          <!-- Signup-only: email at top -->
+          <div id="m-signup-email-wrap" style="display:${mode==='signup'?'block':'none'}">
+            <label class="am-label">Email</label>
+            <input id="m-email-signup" type="email" class="am-field" placeholder="you@example.com" autocomplete="email"/>
+          </div>
+
+          <!-- Username (both modes) -->
           <div>
             <label class="am-label">Username</label>
             <input id="m-username" class="am-field" placeholder="e.g. janecooper" autocomplete="username" required/>
           </div>
 
-          <div id="m-signup-fields" class="${mode==='signup'?'':'hidden'}" style="display:${mode==='signup'?'contents':'none'}">
-            <div>
-              <label class="am-label">Company name</label>
-              <input id="m-company" class="am-field" placeholder="e.g. City Dental, Glow Salon" autocomplete="organization"/>
-            </div>
+          <!-- Login-only: email field -->
+          <div id="m-login-email-wrap" style="display:${mode==='login'?'block':'none'}">
+            <label class="am-label">Email</label>
+            <input id="m-email-login" type="email" class="am-field" placeholder="you@example.com" autocomplete="email"/>
+          </div>
+
+          <!-- Signup-only: dropdowns -->
+          <div id="m-signup-fields" style="display:${mode==='signup'?'contents':'none'}">
             <div class="am-row-2">
               <div>
                 <label class="am-label">Business type</label>
@@ -1777,9 +1788,10 @@ function openAuthModal(initialMode = "login") {
             </div>
           </div>
 
+          <!-- Password (both modes) -->
           <div>
-            <label class="am-label">Passcode</label>
-            <input id="m-password" type="password" class="am-field" placeholder="Choose a secure passcode" minlength="4" autocomplete="current-password" required/>
+            <label class="am-label">Password</label>
+            <input id="m-password" type="password" class="am-field" placeholder="${mode==='signup'?'Choose a secure password':'Enter your password'}" minlength="4" autocomplete="${mode==='signup'?'new-password':'current-password'}" required/>
           </div>
 
           <button class="am-submit" id="m-submit" type="submit">
@@ -1805,18 +1817,27 @@ function openAuthModal(initialMode = "login") {
     }
   });
 
-  const signupFields = $("#m-signup-fields", modal);
+  const signupFields      = $("#m-signup-fields", modal);
+  const signupEmailWrap   = $("#m-signup-email-wrap", modal);
+  const loginEmailWrap    = $("#m-login-email-wrap", modal);
+  const pwEl              = $("#m-password", modal);
+
   const setMode = (m) => {
     mode = m;
     $$("#m-tabs button", modal).forEach(b => b.classList.toggle("active", b.dataset.mode === m));
     const isSignup = m === "signup";
-    if (signupFields) {
-      signupFields.classList.toggle("hidden", !isSignup);
-      signupFields.style.display = isSignup ? "contents" : "none";
+
+    if (signupFields)    { signupFields.style.display    = isSignup ? "contents" : "none"; }
+    if (signupEmailWrap) { signupEmailWrap.style.display = isSignup ? "block" : "none"; }
+    if (loginEmailWrap)  { loginEmailWrap.style.display  = isSignup ? "none" : "block"; }
+    if (pwEl) {
+      pwEl.placeholder        = isSignup ? "Choose a secure password" : "Enter your password";
+      pwEl.autocomplete       = isSignup ? "new-password" : "current-password";
     }
+
     $("#m-submit span", modal).textContent = isSignup ? "Create account" : "Sign in";
-    $("#m-title", modal).textContent = isSignup ? "Create your account" : "Welcome back";
-    $("#m-sub", modal).textContent = isSignup
+    $("#m-title", modal).textContent       = isSignup ? "Create your account" : "Welcome back";
+    $("#m-sub", modal).textContent         = isSignup
       ? "Set up your AI receptionist in minutes."
       : "Sign in to manage your agents and calls.";
   };
@@ -1840,12 +1861,21 @@ function openAuthModal(initialMode = "login") {
       hasError = true;
     };
 
-    const userEl = $("#m-username", modal);
-    const pwEl   = $("#m-password", modal);
-    if (!userEl.value.trim()) fieldErr(userEl, "Please enter a username.");
-    else if (userEl.value.trim().length < 3) fieldErr(userEl, "Username must be at least 3 characters.");
-    if (!pwEl.value) fieldErr(pwEl, "Please enter your passcode.");
-    else if (pwEl.value.length < 4) fieldErr(pwEl, "Passcode must be at least 4 characters.");
+    const userEl       = $("#m-username", modal);
+    const emailSignup  = $("#m-email-signup", modal);
+    const emailLogin   = $("#m-email-login", modal);
+
+    if (mode === "signup") {
+      if (!userEl.value.trim()) fieldErr(userEl, "Please enter a username.");
+      else if (userEl.value.trim().length < 3) fieldErr(userEl, "Username must be at least 3 characters.");
+    } else {
+      // For login, require either username or email
+      const hasUser  = userEl.value.trim().length > 0;
+      const hasEmail = emailLogin && emailLogin.value.trim().length > 0;
+      if (!hasUser && !hasEmail) fieldErr(userEl, "Please enter your username or email.");
+    }
+    if (!pwEl.value) fieldErr(pwEl, "Please enter your password.");
+    else if (pwEl.value.length < 4) fieldErr(pwEl, "Password must be at least 4 characters.");
 
     if (hasError) return;
 
@@ -1854,33 +1884,42 @@ function openAuthModal(initialMode = "login") {
     submitBtn.disabled = true;
     if (submitBtn.querySelector("span")) submitBtn.querySelector("span").textContent = "Please wait…";
 
+    // For login, use email if provided, otherwise fall back to username
+    const loginIdentifier = (emailLogin && emailLogin.value.trim())
+      ? emailLogin.value.trim()
+      : userEl.value.trim();
+
     const body = mode === "signup"
       ? {
           username:      userEl.value.trim(),
+          email:         (emailSignup?.value.trim() || ""),
           password:      pwEl.value,
-          company_name:  ($("#m-company", modal)?.value.trim() || ""),
           business_type: ($("#m-btype", modal)?.value || ""),
           user_role:     ($("#m-role", modal)?.value || ""),
         }
-      : { username: userEl.value.trim(), password: pwEl.value };
+      : { username: loginIdentifier, password: pwEl.value };
 
     try {
-      const r = await api(`/auth/${mode}`, { method: "POST", body, auth: false });
+      const r = await api(`/auth/${mode === "signup" ? "signup" : "login"}`, { method: "POST", body, auth: false });
       Store.token = r.access_token;
-      const me = await api("/auth/me");
-      Store.user = me;
-      const displayName = me.username || me.name || "";
+      Store.user  = r.user;
+      Store._refreshed = true;
+      const displayName = r.user?.username || r.user?.name || "";
       toast(`Welcome${displayName ? ", " + displayName.split(" ")[0] : ""}!`, "success");
       close();
       navigate("#/dashboard");
     } catch (ex) {
       const msg = (ex.message || "").toLowerCase();
-      if (msg.includes("wrong") || msg.includes("invalid") || msg.includes("credentials") || msg.includes("passcode")) {
-        err.textContent = "Wrong username or passcode. Please try again.";
-      } else if (msg.includes("taken") || msg.includes("already") || msg.includes("exists")) {
-        err.innerHTML = `That username is already taken. <a href="#" id="m-switch-login" style="color:#f97316;text-decoration:underline;">Sign in instead →</a>`;
-        const sw = $("#m-switch-login", modal);
-        if (sw) sw.addEventListener("click", (ev) => { ev.preventDefault(); setMode("login"); err.classList.add("hidden"); });
+      if (msg.includes("wrong") || msg.includes("invalid") || msg.includes("credentials") || msg.includes("password")) {
+        err.textContent = "Wrong credentials. Please try again.";
+      } else if (msg.includes("taken") || msg.includes("already") || msg.includes("exists") || msg.includes("in use")) {
+        if (msg.includes("email")) {
+          err.textContent = "That email is already registered. Try signing in instead.";
+        } else {
+          err.innerHTML = `That username is already taken. <a href="#" id="m-switch-login" style="color:#f97316;text-decoration:underline;">Sign in instead →</a>`;
+          const sw = $("#m-switch-login", modal);
+          if (sw) sw.addEventListener("click", (ev) => { ev.preventDefault(); setMode("login"); err.classList.add("hidden"); });
+        }
       } else {
         err.textContent = ex.message || "Something went wrong. Please try again.";
       }
@@ -1890,7 +1929,12 @@ function openAuthModal(initialMode = "login") {
     }
   });
 
-  setTimeout(() => $("#m-username", modal).focus(), 50);
+  setTimeout(() => {
+    const firstField = mode === "signup"
+      ? $("#m-email-signup", modal)
+      : $("#m-username", modal);
+    if (firstField) firstField.focus();
+  }, 50);
 }
 
 // --- Layout shell ---

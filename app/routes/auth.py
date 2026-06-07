@@ -88,6 +88,7 @@ def _user_dict(user: User) -> dict:
 
 class SignupRequest(BaseModel):
     username: str
+    email: str | None = None
     password: str
     company_name: str = ""
     business_type: str = ""
@@ -118,6 +119,7 @@ class SignupRequest(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+    email: str | None = None
 
 
 class TokenResponse(BaseModel):
@@ -144,10 +146,15 @@ async def signup(data: SignupRequest, db: AsyncSession = Depends(get_db)) -> Tok
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Username already taken")
 
-    synth_email = _synthetic_email(username_clean)
-    email_taken = await db.execute(select(User).where(User.email == synth_email))
+    real_email = data.email.strip().lower() if data.email and data.email.strip() else None
+    final_email = real_email if real_email else _synthetic_email(username_clean)
+
+    email_taken = await db.execute(select(User).where(User.email == final_email))
     if email_taken.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Username already taken")
+        raise HTTPException(
+            status_code=400,
+            detail="Email already in use" if real_email else "Username already taken",
+        )
 
     profile: dict = {}
     if data.company_name:
@@ -159,10 +166,10 @@ async def signup(data: SignupRequest, db: AsyncSession = Depends(get_db)) -> Tok
 
     user = User(
         username=username_clean,
-        email=synth_email,
+        email=final_email,
         hashed_password=_hash_password(data.password),
         name=username_clean,
-        email_verified=True,
+        email_verified=bool(real_email),
         onboarding_completed=bool(profile),
         business_profile=profile if profile else None,
     )
