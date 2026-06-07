@@ -1,17 +1,25 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy your repository folders into the container
-COPY . .
+# System deps: ffmpeg for pydub audio conversion, libpq for psycopg2
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    libpq-dev \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies from the root requirements file
+# Copy and install Python dependencies first (layer caching)
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy application code
+COPY . .
+
+# Railway injects $PORT at runtime; default to 8080 for local docker run
+ENV PORT=8080
 EXPOSE 8080
 
-# Explicitly set the python environment path to find your code modules
-ENV PYTHONPATH=/app/app:/app
+ENV PYTHONPATH=/app
 
-# Run uvicorn referencing the exact path to main
-CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT}

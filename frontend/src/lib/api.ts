@@ -1,8 +1,9 @@
 ﻿import axios from 'axios';
 
-// 1. Get the Backend URL from your environment variables
-// It defaults to localhost if the variable isn't found
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// 1. Get the Backend URL from your environment variables.
+// Empty string = relative URLs, so Next.js rewrites proxy /api/* to the backend.
+// Set NEXT_PUBLIC_API_URL only when the frontend and backend are on different domains.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

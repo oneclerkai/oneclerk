@@ -117,9 +117,9 @@ class SignupRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    username: str | None = None
     email: str | None = None
+    password: str
 
 
 class TokenResponse(BaseModel):
@@ -182,13 +182,16 @@ async def signup(data: SignupRequest, db: AsyncSession = Depends(get_db)) -> Tok
 
 @router.post("/login", response_model=TokenResponse)
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
-    username = data.username.strip()
+    # Accept email OR username as the identifier — whichever the client sends
+    identifier = (data.email or data.username or "").strip()
+    if not identifier:
+        raise HTTPException(status_code=422, detail="Provide email or username")
     result = await db.execute(
-        select(User).where(or_(User.username == username, User.email == username))
+        select(User).where(or_(User.username == identifier, User.email == identifier))
     )
     user = result.scalar_one_or_none()
     if not user or not _verify_password(data.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Wrong username or passcode")
+        raise HTTPException(status_code=401, detail="Wrong credentials")
     return TokenResponse(access_token=_create_access_token(user.id), user=_user_dict(user))
 
 
