@@ -1087,14 +1087,6 @@ route("auth", async () => {
       <footer class="lp-footer">
         <div class="lp-footer-light"></div>
 
-        <div class="lp-footer-brand-row">
-          <div class="lp-footer-brand-mark">H</div>
-          <div>
-            <div class="lp-footer-brand-name">Harkly AI</div>
-            <div class="lp-footer-brand-sub">The autonomous voice receptionist that picks up so you never miss the call that matters.</div>
-          </div>
-        </div>
-
         <div class="lp-bigword-wrap">
           <div class="lp-bigword" id="lp-bigword" aria-label="HARKLY AI">
             ${"HARKLY AI".split("").map(c => c === " " ? `<span class="ltr ltr-space" aria-hidden="true">&nbsp;</span>` : `<span class="ltr" aria-hidden="true">${c}</span>`).join("")}
@@ -1666,9 +1658,9 @@ function initParabolaWord(root) {
     // Symmetric inverted-U parabola — amplitude capped so letters
     // stay inside the wrapper (no overflow clipping needed)
     const wrapH  = target.getBoundingClientRect().height;
-    const maxAmp = Math.min(wrapH * 0.55, 200);  // at most 55% of wrapper height
+    const maxAmp = Math.min(wrapH * 1.4, 520);  // tall arch — reaches top of footer
     const curve  = flat * maxAmp;
-    const maxRot = flat * 9;   // gentle tilt at edges
+    const maxRot = flat * 14;   // stronger tilt at edges for a dramatic arch
     allSpans.forEach((el, i) => {
       const x    = positions[i];
       // Inverted U: center lifts up, edges stay at baseline
