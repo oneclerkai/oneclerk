@@ -63,6 +63,13 @@ async function startVapiCall(assistantId, overrides, { onStart, onEnd, onSpeechS
 function stopVapiCall() {
   try { _vapiInstance?.stop(); } catch (_) {}
 }
+// Hot-swap: stops the running call and immediately starts a fresh one.
+// The 120 ms gap lets the SDK cleanly close the peer connection before re-dialling.
+async function restartVapiCall(assistantId, overrides, callbacks) {
+  try { _vapiInstance?.stop(); } catch (_) {}
+  await new Promise(r => setTimeout(r, 120));
+  return startVapiCall(assistantId, overrides, callbacks);
+}
 
 // ── Harkly AI Vapi production mapping dictionaries ───────────────────────────
 // Cartesia voice IDs (used as the 'voice.voiceId' in Vapi assistantOverrides)
@@ -2639,76 +2646,108 @@ route("dashboard", async () => {
     page.querySelectorAll(".dash-prev-voice").forEach(b => b.classList.toggle("active", b.dataset.vid === selectedVoice.id));
     page.querySelectorAll(".dash-prev-lang").forEach(b => b.classList.toggle("active", b.dataset.lang === selectedLang));
 
-    page.querySelectorAll(".dash-prev-voice").forEach(b => b.addEventListener("click", () => {
-      page.querySelectorAll(".dash-prev-voice").forEach(x => x.classList.remove("active"));
-      b.classList.add("active");
-      selectedVoice = PREVIEW_VOICES.find(v => v.id === b.dataset.vid) || PREVIEW_VOICES[0];
-      currentPitch = selectedVoice.pitch;
-      localStorage.setItem("oc_last_voice", selectedVoice.id);
-    }));
-    page.querySelectorAll(".dash-prev-lang").forEach(b => b.addEventListener("click", () => {
-      page.querySelectorAll(".dash-prev-lang").forEach(x => x.classList.remove("active"));
-      b.classList.add("active");
-      selectedLang = b.dataset.lang;
-      localStorage.setItem("oc_last_lang", selectedLang);
-    }));
-
     // ── Vapi-powered dashboard preview ──────────────────────────────────────
     const DASH_ASSISTANT_ID = "d5f28a96-25da-4905-bac8-5dee52a15f4e";
     let dashCallActive = false;
 
-    function dashOverrides() {
-      return buildVapiOverrides(selectedVoice, selectedLang);
+    function dashOverrides() { return buildVapiOverrides(selectedVoice, selectedLang); }
+
+    // Shared callbacks — extracted so hot-swap restarts can reuse them
+    const dashCbs = {
+      onStart: () => {
+        dashCallActive = true; speaking = true;
+        lbl.textContent = "🛑 Stop";
+        playBtn.classList.add("playing"); playBtn.disabled = false;
+      },
+      onEnd: () => {
+        dashCallActive = false; speaking = false;
+        lbl.textContent = "Play sample";
+        playBtn.classList.remove("playing"); playBtn.disabled = false;
+      },
+      onSpeechStart: () => { speaking = true;  level = 0.85; },
+      onSpeechEnd:   () => { speaking = false; level = 0.12; },
+      onVolume: (vol) => { level = 0.12 + vol * 0.80; },
+      onError: () => {
+        dashCallActive = false; speaking = false;
+        lbl.textContent = "Play sample";
+        playBtn.classList.remove("playing"); playBtn.disabled = false;
+        toast("Could not start preview — allow microphone access and retry", "error");
+      },
+    };
+
+    // Hot-swap: instantly switch voice/lang mid-call
+    async function dashHotSwap() {
+      if (!dashCallActive) return;
+      lbl.textContent = "Switching…";
+      playBtn.disabled = true;
+      speaking = false; level = 0.12;
+      await restartVapiCall(DASH_ASSISTANT_ID, dashOverrides(), dashCbs);
     }
+
+    // Pre-warm mic permission on first hover so the click → connect gap is minimal
+    playBtn.addEventListener("pointerenter", () => {
+      if (!_micPermitted) {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then(() => { _micPermitted = true; }).catch(() => {});
+      }
+    }, { passive: true, once: true });
 
     playBtn.addEventListener("click", () => {
       if (dashCallActive) { stopVapiCall(); return; }
       if (!getVapi()) { toast("Vapi unavailable — check your internet connection", "error"); return; }
       lbl.textContent = "Connecting…";
       playBtn.disabled = true;
-      startVapiCall(DASH_ASSISTANT_ID, dashOverrides(), {
-        onStart: () => {
-          dashCallActive = true; speaking = true;
-          lbl.textContent = "🛑 Stop call";
-          playBtn.classList.add("playing"); playBtn.disabled = false;
-        },
-        onEnd: () => {
-          dashCallActive = false; speaking = false;
-          lbl.textContent = "Play sample";
-          playBtn.classList.remove("playing"); playBtn.disabled = false;
-        },
-        onSpeechStart: () => { speaking = true;  level = 0.85; },
-        onSpeechEnd:   () => { speaking = false; level = 0.12; },
-        onVolume: (vol) => { level = 0.12 + vol * 0.80; },
-        onError: () => {
-          dashCallActive = false; speaking = false;
-          lbl.textContent = "Play sample";
-          playBtn.classList.remove("playing"); playBtn.disabled = false;
-          toast("Could not start preview — allow microphone access and retry", "error");
-        },
-      });
+      startVapiCall(DASH_ASSISTANT_ID, dashOverrides(), dashCbs);
     });
 
-    // Expose controller so the agents panel can sync voice/lang/name
+    // Voice buttons — update selection and instantly hot-swap if call is live
+    page.querySelectorAll(".dash-prev-voice").forEach(b => b.addEventListener("click", () => {
+      page.querySelectorAll(".dash-prev-voice").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      selectedVoice = PREVIEW_VOICES.find(v => v.id === b.dataset.vid) || PREVIEW_VOICES[0];
+      currentPitch = selectedVoice.pitch;
+      localStorage.setItem("oc_last_voice", selectedVoice.id);
+      dashHotSwap();
+    }));
+
+    // Language buttons — update selection, auto-scroll into view, and hot-swap
+    page.querySelectorAll(".dash-prev-lang").forEach(b => b.addEventListener("click", () => {
+      page.querySelectorAll(".dash-prev-lang").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      selectedLang = b.dataset.lang;
+      localStorage.setItem("oc_last_lang", selectedLang);
+      b.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      dashHotSwap();
+    }));
+
+    // Expose controller so the agents mini-panel can sync voice/lang/name and hot-swap
     return {
       syncAgent(agent) {
         if (!agent) return;
         const vid = agent.config?.voice_id || agent.config?.voice || agent.voice_id;
-        const v = vid ? (PREVIEW_VOICES.find(x => x.id === vid || x.label.toLowerCase() === String(vid).toLowerCase()) || selectedVoice) : selectedVoice;
+        const v = vid
+          ? (PREVIEW_VOICES.find(x => x.id === vid || x.label.toLowerCase() === String(vid).toLowerCase()) || selectedVoice)
+          : selectedVoice;
         selectedVoice = v; currentPitch = v.pitch;
         page.querySelectorAll(".dash-prev-voice").forEach(b => b.classList.toggle("active", b.dataset.vid === v.id));
 
         const rawLang = agent.config?.language || agent.language || "";
         const l = rawLang
-          ? (PREVIEW_LANGS.find(x => x.toLowerCase().includes(rawLang.toLowerCase().split("(")[0].trim().toLowerCase())) || selectedLang)
+          ? (PREVIEW_LANGS.find(x => x.toLowerCase().includes(rawLang.toLowerCase().split("(")[0].trim())) || selectedLang)
           : selectedLang;
         selectedLang = l;
-        page.querySelectorAll(".dash-prev-lang").forEach(b => b.classList.toggle("active", b.dataset.lang === l));
+        page.querySelectorAll(".dash-prev-lang").forEach(b => {
+          b.classList.toggle("active", b.dataset.lang === l);
+          if (b.dataset.lang === l) b.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+        });
 
         const nameEl = page.querySelector("#dash-prev-agent-name");
         const metaEl = page.querySelector("#dash-prev-agent-meta");
         if (nameEl) nameEl.textContent = agent.name;
         if (metaEl) metaEl.textContent = `${v.label} · ${l} · ${agent.is_active ? "🟢 Live" : "⏸ Paused"}`;
+
+        // If preview is playing, hot-swap immediately to the new agent's voice + lang
+        dashHotSwap();
       }
     };
   })();
@@ -4500,42 +4539,61 @@ route("agentSetup", async (id) => {
         raf2 = requestAnimationFrame(dw2);
       }
       requestAnimationFrame(() => { sz2(); dw2(); });
+      // Map the agent's stored language (plain word like "Hindi") to a PREVIEW_LANGS label
+      const LANG_LABEL_MAP = { Hindi:"Hindi (हिंदी)", Spanish:"Spanish (Español)", French:"French (Français)", Mandarin:"Mandarin (普通话)", Vietnamese:"Vietnamese (Tiếng Việt)", Arabic:"Arabic (العربية)", German:"German (Deutsch)", Japanese:"Japanese (日本語)", Portuguese:"Portuguese (Português)", Korean:"Korean (한국어)" };
+      let svpLangLabel = LANG_LABEL_MAP[cfg.language] || "English (US)";
+      const agentName = cfg.agent_name || "your AI receptionist";
+      const bizName   = cfg.business_name || "Harkly AI";
+      const SVP_ASSISTANT_ID = "d5f28a96-25da-4905-bac8-5dee52a15f4e";
+      let svpCallActive = false;
+      function svpOverrides() { return buildVapiOverrides(sVoice2, svpLangLabel, cfg.agent_type || null); }
+
+      let svpTimeout;
+      const svpReset = () => {
+        clearTimeout(svpTimeout);
+        svpCallActive = false; spk2 = false;
+        svpLbl.textContent = "Play"; svpPlay.classList.remove("playing"); svpPlay.disabled = false;
+      };
+      const svpCbs = {
+        onStart: () => { clearTimeout(svpTimeout); svpCallActive = true; spk2 = true; svpLbl.textContent = "🛑 Stop"; svpPlay.classList.add("playing"); svpPlay.disabled = false; },
+        onEnd:         () => { svpReset(); },
+        onSpeechStart: () => { spk2 = true;  lv2 = 0.88; },
+        onSpeechEnd:   () => { spk2 = false; lv2 = 0.12; },
+        onVolume: (vol) => { lv2 = 0.12 + vol * 0.80; },
+        onError: () => { svpReset(); toast("Could not start preview — allow microphone access and retry", "error"); },
+      };
+
+      // Hot-swap when voice changed while call is active
+      async function svpHotSwap() {
+        if (!svpCallActive) return;
+        svpLbl.textContent = "Switching…"; svpPlay.disabled = true;
+        spk2 = false; lv2 = 0.12;
+        await restartVapiCall(SVP_ASSISTANT_ID, svpOverrides(), svpCbs);
+      }
+
+      // Voice buttons — update + hot-swap if live
       page.querySelectorAll("[data-svid]").forEach(b => b.addEventListener("click", () => {
         page.querySelectorAll("[data-svid]").forEach(x => x.classList.remove("active"));
         b.classList.add("active");
         sVoice2 = PREVIEW_VOICES.find(v => v.id === b.dataset.svid) || PREVIEW_VOICES[0];
         cPitch2 = sVoice2.pitch;
+        svpHotSwap();
       }));
-      // Map the agent's stored language (plain word like "Hindi") to a PREVIEW_LANGS label
-      const LANG_LABEL_MAP = { Hindi:"Hindi (हिंदी)", Spanish:"Spanish (Español)", French:"French (Français)", Mandarin:"Mandarin (普通话)", Vietnamese:"Vietnamese (Tiếng Việt)", Arabic:"Arabic (العربية)", German:"German (Deutsch)", Japanese:"Japanese (日本語)", Portuguese:"Portuguese (Português)", Korean:"Korean (한국어)" };
-      const svpLangLabel = LANG_LABEL_MAP[cfg.language] || "English (US)";
-      const agentName = cfg.agent_name || "your AI receptionist";
-      const bizName   = cfg.business_name || "Harkly AI";
-      const SVP_ASSISTANT_ID = "d5f28a96-25da-4905-bac8-5dee52a15f4e";
-      let svpCallActive = false;
-      function svpOverrides() {
-        // Use the fully-nested Cartesia/Gemini/Deepgram schema
-        return buildVapiOverrides(sVoice2, svpLangLabel, cfg.agent_type || null);
-      }
+
+      // Pre-warm mic on first hover
+      svpPlay.addEventListener("pointerenter", () => {
+        if (!_micPermitted) {
+          navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(() => { _micPermitted = true; }).catch(() => {});
+        }
+      }, { passive: true, once: true });
+
       svpPlay.addEventListener("click", () => {
         if (svpCallActive) { stopVapiCall(); return; }
         if (!getVapi()) { toast("Vapi unavailable — check your connection", "error"); return; }
         svpLbl.textContent = "Connecting…"; svpPlay.disabled = true;
-        let svpTimeout;
-        const svpReset = () => { clearTimeout(svpTimeout); svpCallActive = false; spk2 = false; svpLbl.textContent = "Play"; svpPlay.classList.remove("playing"); svpPlay.disabled = false; };
-        startVapiCall(SVP_ASSISTANT_ID, svpOverrides(), {
-          onStart: () => {
-            clearTimeout(svpTimeout);
-            svpCallActive = true; spk2 = true;
-            svpLbl.textContent = "🛑 Stop"; svpPlay.classList.add("playing"); svpPlay.disabled = false;
-          },
-          onEnd:         () => { svpReset(); },
-          onSpeechStart: () => { spk2 = true;  lv2 = 0.88; },
-          onSpeechEnd:   () => { spk2 = false; lv2 = 0.12; },
-          onVolume: (vol) => { lv2 = 0.12 + vol * 0.80; },
-          onError: () => { svpReset(); toast("Could not start preview — allow microphone access and retry", "error"); },
-        });
-        svpTimeout = setTimeout(() => { if (!svpCallActive) svpReset(); }, 25000);
+        startVapiCall(SVP_ASSISTANT_ID, svpOverrides(), svpCbs);
+        svpTimeout = setTimeout(() => { if (!svpCallActive) svpReset(); }, 8000);
       });
     })();
 
