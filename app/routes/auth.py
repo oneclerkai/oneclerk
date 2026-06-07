@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import secrets
+import logging
 
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -16,6 +17,8 @@ from app.database import get_db
 from app.models import User
 from app.services.notifications import send_email_otp, send_email_verification_link, send_sms_otp
 from app.services.redis_client import get_redis, safe_delete, safe_get, safe_setex
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer(auto_error=False)
@@ -501,39 +504,89 @@ class GoogleAuthRequest(BaseModel):
 
 @router.post("/google", response_model=TokenResponse)
 async def google_auth(data: GoogleAuthRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
+    """Google OAuth2 sign-in endpoint.
+    
+    Validates the Google ID token and either logs in an existing user
+    or creates a new one if they don't exist yet.
+    """
     import httpx
+    
+    logger.info("Google auth request received")
+    
+    # Validate required environment variables
+    if not settings.GOOGLE_CLIENT_ID:
+        logger.error("GOOGLE_CLIENT_ID is not configured")
+        raise HTTPException(
+            status_code=500,
+            detail="Server misconfiguration: GOOGLE_CLIENT_ID not set. Please contact support."
+        )
+    
     try:
-        async with httpx.AsyncClient() as client:
+        if not data.credential or not data.credential.strip():
+            logger.warning("Google auth request with empty credential")
+            raise HTTPException(status_code=400, detail="Invalid or missing Google credential")
+        
+        logger.debug("Validating Google ID token with Google API")
+        async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(
                 "https://oauth2.googleapis.com/tokeninfo",
                 params={"id_token": data.credential},
-                timeout=10.0,
             )
+        
         if resp.status_code != 200:
+            logger.warning(f"Google token validation failed with status {resp.status_code}: {resp.text}")
             raise HTTPException(status_code=401, detail="Invalid Google token")
+        
         info = resp.json()
         if "error" in info:
-            raise HTTPException(status_code=401, detail=f"Google token error: {info.get('error_description', info['error'])}")
+            error_msg = info.get('error_description', info['error'])
+            logger.warning(f"Google token validation returned error: {error_msg}")
+            raise HTTPException(
+                status_code=401,
+                detail=f"Google token error: {error_msg}"
+            )
 
         email = (info.get("email") or "").lower().strip()
         if not email:
+            logger.warning("Google account has no email in token")
             raise HTTPException(status_code=400, detail="Google account has no email address")
 
+        logger.info(f"Google token validated for email: {email}")
+
+        # Check if user exists
         existing = await db.execute(select(User).where(User.email == email))
         user = existing.scalar_one_or_none()
 
         if user is None:
+            logger.info(f"No existing user found for Google email {email}. User must sign up first.")
             raise HTTPException(
                 status_code=404,
                 detail="No account found for this Google email. Please create an account first.",
             )
 
+        logger.info(f"User {email} logged in via Google")
         return TokenResponse(access_token=_create_access_token(user.id), user=_user_dict(user))
 
     except HTTPException:
         raise
+    except httpx.TimeoutException as exc:
+        logger.error(f"Google token validation timeout: {exc}")
+        raise HTTPException(
+            status_code=504,
+            detail="Google authentication service timed out. Please try again."
+        ) from exc
+    except httpx.RequestError as exc:
+        logger.error(f"Google token validation request failed: {exc}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not reach Google authentication service: {exc}"
+        ) from exc
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Google sign-in failed: {exc}") from exc
+        logger.exception(f"Unexpected error during Google sign-in: {exc}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Google sign-in failed: {str(exc)}"
+        ) from exc
 
 
 @router.post("/onboarding")
