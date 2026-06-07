@@ -103,6 +103,8 @@ async def safe_db_operation():
 
 
 _LIGHTWEIGHT_MIGRATIONS: tuple[str, ...] = (
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR",
+    "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_username ON users (username) WHERE username IS NOT NULL",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS name VARCHAR",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR DEFAULT 'trial'",

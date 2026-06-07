@@ -1713,9 +1713,21 @@ const BUSINESS_TYPES = [
 ];
 
 function openAuthModal(initialMode = "login") {
-  // remove any existing modal
   document.querySelectorAll(".auth-modal-backdrop").forEach(n => n.remove());
   let mode = initialMode === "signup" ? "signup" : "login";
+
+  const BUSINESS_TYPES = [
+    "Dental clinic","Hair salon / spa","Restaurant / café","Medical clinic",
+    "HVAC / home services","Law firm","Real estate","Retail store",
+    "Education / tutoring","Other",
+  ];
+  const USER_ROLES = [
+    "Owner / Founder","Manager","Receptionist","Front desk staff","Admin","Other",
+  ];
+  const dropOpts = (opts, placeholder) =>
+    `<option value="" disabled selected>${placeholder}</option>` +
+    opts.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join("");
+
   const modal = h(`
     <div class="auth-modal-backdrop auth-modal-backdrop-light">
       <div class="auth-mesh" aria-hidden="true"></div>
@@ -1724,43 +1736,46 @@ function openAuthModal(initialMode = "login") {
       <div class="auth-bg-blob auth-bg-blob-c" aria-hidden="true"></div>
       <div class="auth-modal auth-modal-pop" role="dialog" aria-modal="true">
         <button class="x-close" aria-label="Close">×</button>
-        <h2 id="m-title">Welcome back</h2>
-        <div class="modal-sub" id="m-sub">Sign in to manage your agents and calls.</div>
+        <h2 id="m-title">${mode === "signup" ? "Create your account" : "Welcome back"}</h2>
+        <div class="modal-sub" id="m-sub">${mode === "signup" ? "Set up your AI receptionist in minutes." : "Sign in to manage your agents and calls."}</div>
 
         <div class="auth-tabs" id="m-tabs">
           <button class="${mode==='login'?'active':''}" data-mode="login">Sign in</button>
           <button class="${mode==='signup'?'active':''}" data-mode="signup">Create account</button>
         </div>
+
         <form id="m-form" class="grid" style="gap:12px">
-          <div id="m-name-row" class="${mode==='signup'?'':'hidden'}">
-            <label class="label">Your name</label>
-            <input id="m-name" class="field" placeholder="Jane Cooper" autocomplete="name"/>
-          </div>
           <div>
-            <label class="label">Email address</label>
-            <input id="m-email" type="email" class="field" placeholder="you@example.com" autocomplete="email" required/>
+            <label class="label">Username</label>
+            <input id="m-username" class="field" placeholder="e.g. janecooper" autocomplete="username" required/>
           </div>
-          <div>
-            <label class="label">Password</label>
-            <input id="m-password" type="password" class="field" placeholder="At least 8 characters" minlength="6" autocomplete="current-password" required/>
-            <div id="m-pw-meter" class="${mode==='signup'?'':'hidden'}" style="margin-top:6px">
-              <div class="pw-meter-bars">
-                <div class="pw-bar" id="pw-b0"></div>
-                <div class="pw-bar" id="pw-b1"></div>
-                <div class="pw-bar" id="pw-b2"></div>
-                <div class="pw-bar" id="pw-b3"></div>
-              </div>
-              <div class="pw-meter-label" id="pw-label">Enter a password</div>
+
+          <div id="m-signup-fields" class="${mode==='signup'?'':'hidden'}" style="display:${mode==='signup'?'contents':'none'}">
+            <div>
+              <label class="label">What does your business do?</label>
+              <select id="m-btype" class="field" style="appearance:auto">
+                ${dropOpts(BUSINESS_TYPES, "Select business type")}
+              </select>
+            </div>
+            <div>
+              <label class="label">What is your role?</label>
+              <select id="m-role" class="field" style="appearance:auto">
+                ${dropOpts(USER_ROLES, "Select your role")}
+              </select>
             </div>
           </div>
+
+          <div>
+            <label class="label">Passcode</label>
+            <input id="m-password" type="password" class="field" placeholder="Choose a passcode" minlength="4" autocomplete="current-password" required/>
+          </div>
+
           <button class="btn btn-primary btn-lg mt-2" id="m-submit" type="submit">
-            <i data-lucide="arrow-right" class="icon"></i><span>${mode==='signup'?'Create account':'Continue'}</span>
+            <i data-lucide="arrow-right" class="icon"></i>
+            <span>${mode==='signup'?'Create account':'Sign in'}</span>
           </button>
           <div id="m-err" class="text-xs text-danger hidden"></div>
         </form>
-        <p class="text-xs text-muted mt-6 text-center" style="color:rgba(231,234,243,0.45)">
-          By continuing you agree to Harkly AI's terms of service.
-        </p>
       </div>
     </div>`);
   document.body.appendChild(modal);
@@ -1778,29 +1793,27 @@ function openAuthModal(initialMode = "login") {
     }
   });
 
+  const signupFields = $("#m-signup-fields", modal);
   const setMode = (m) => {
     mode = m;
     $$("#m-tabs button", modal).forEach(b => b.classList.toggle("active", b.dataset.mode === m));
     const isSignup = m === "signup";
-    const nameRow = $("#m-name-row", modal);
-    if (nameRow) nameRow.classList.toggle("hidden", !isSignup);
-    $("#m-name", modal).required = isSignup;
-    $("#m-submit span", modal).textContent = isSignup ? "Create account" : "Continue";
+    if (signupFields) {
+      signupFields.classList.toggle("hidden", !isSignup);
+      signupFields.style.display = isSignup ? "contents" : "none";
+    }
+    $("#m-submit span", modal).textContent = isSignup ? "Create account" : "Sign in";
     $("#m-title", modal).textContent = isSignup ? "Create your account" : "Welcome back";
     $("#m-sub", modal).textContent = isSignup
-      ? "Set up your AI receptionist in under twelve minutes."
+      ? "Set up your AI receptionist in minutes."
       : "Sign in to manage your agents and calls.";
-    // Toggle password strength meter visibility
-    const pwMeter = $("#m-pw-meter", modal);
-    if (pwMeter) pwMeter.classList.toggle("hidden", !isSignup);
   };
   $$("#m-tabs button", modal).forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
 
   $("#m-form", modal).addEventListener("submit", async (e) => {
     e.preventDefault();
-    const err = $("#m-err", modal); err.classList.add("hidden");
-
-    // Clear previous inline errors
+    const err = $("#m-err", modal);
+    err.classList.add("hidden");
     modal.querySelectorAll(".field-error").forEach(el => el.remove());
     modal.querySelectorAll(".field-invalid").forEach(el => el.classList.remove("field-invalid"));
 
@@ -1815,56 +1828,44 @@ function openAuthModal(initialMode = "login") {
       hasError = true;
     };
 
-    if (mode === "signup") {
-      const nameEl  = $("#m-name", modal);
-      const emailEl = $("#m-email", modal);
-      const pwEl    = $("#m-password", modal);
-      if (!nameEl.value.trim())                                   fieldErr(nameEl,  "Please enter your name.");
-      if (!emailEl.value.trim())                                  fieldErr(emailEl, "Please enter your email address.");
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailEl.value.trim())) fieldErr(emailEl, "Please enter a valid email address.");
-      if (!pwEl.value)                                            fieldErr(pwEl,    "Please enter a password.");
-      else if (pwEl.value.length < 6)                            fieldErr(pwEl,    "Password must be at least 6 characters.");
-    } else {
-      const emailEl = $("#m-email", modal);
-      const pwEl    = $("#m-password", modal);
-      if (!emailEl.value.trim()) fieldErr(emailEl, "Please enter your email address.");
-      if (!pwEl.value)           fieldErr(pwEl,    "Please enter your password.");
-    }
+    const userEl = $("#m-username", modal);
+    const pwEl   = $("#m-password", modal);
+    if (!userEl.value.trim()) fieldErr(userEl, "Please enter a username.");
+    else if (userEl.value.trim().length < 3) fieldErr(userEl, "Username must be at least 3 characters.");
+    if (!pwEl.value) fieldErr(pwEl, "Please enter your passcode.");
+    else if (pwEl.value.length < 4) fieldErr(pwEl, "Passcode must be at least 4 characters.");
 
     if (hasError) return;
 
     const submitBtn = $("#m-submit", modal);
-    const origLabel = submitBtn.querySelector("span")?.textContent || "Continue";
+    const origLabel = submitBtn.querySelector("span")?.textContent || "Sign in";
     submitBtn.disabled = true;
     if (submitBtn.querySelector("span")) submitBtn.querySelector("span").textContent = "Please wait…";
 
     const body = mode === "signup"
       ? {
-          name: $("#m-name", modal).value.trim(),
-          email: $("#m-email", modal).value.trim(),
-          password: $("#m-password", modal).value,
+          username: userEl.value.trim(),
+          password: pwEl.value,
+          business_type: ($("#m-btype", modal)?.value || ""),
+          user_role:     ($("#m-role", modal)?.value || ""),
         }
-      : { email: $("#m-email", modal).value.trim(), password: $("#m-password", modal).value };
+      : { username: userEl.value.trim(), password: pwEl.value };
+
     try {
       const r = await api(`/auth/${mode}`, { method: "POST", body, auth: false });
       Store.token = r.access_token;
       const me = await api("/auth/me");
       Store.user = me;
-      toast(`Welcome${me.name ? ", " + me.name.split(" ")[0] : ""}!`, "success");
+      const displayName = me.username || me.name || "";
+      toast(`Welcome${displayName ? ", " + displayName.split(" ")[0] : ""}!`, "success");
       close();
       navigate("#/agents");
     } catch (ex) {
       const msg = (ex.message || "").toLowerCase();
-      if (msg.includes("invalid") || msg.includes("credentials") || msg.includes("password") || msg.includes("incorrect")) {
-        err.textContent = mode === "login"
-          ? "Wrong email or password. Please try again."
-          : ex.message;
-      } else if (msg.includes("not found") || msg.includes("no account") || msg.includes("does not exist")) {
-        err.innerHTML = `No account found with this email. <a href="#" id="m-switch-signup" style="color:#f97316;text-decoration:underline;">Create your account now →</a>`;
-        const sw = $("#m-switch-signup", modal);
-        if (sw) sw.addEventListener("click", (ev) => { ev.preventDefault(); setMode("signup"); err.classList.add("hidden"); });
-      } else if (msg.includes("already") || msg.includes("exists") || msg.includes("duplicate")) {
-        err.innerHTML = `An account with this email already exists. <a href="#" id="m-switch-login" style="color:#f97316;text-decoration:underline;">Sign in instead →</a>`;
+      if (msg.includes("wrong") || msg.includes("invalid") || msg.includes("credentials") || msg.includes("passcode")) {
+        err.textContent = "Wrong username or passcode. Please try again.";
+      } else if (msg.includes("taken") || msg.includes("already") || msg.includes("exists")) {
+        err.innerHTML = `That username is already taken. <a href="#" id="m-switch-login" style="color:#f97316;text-decoration:underline;">Sign in instead →</a>`;
         const sw = $("#m-switch-login", modal);
         if (sw) sw.addEventListener("click", (ev) => { ev.preventDefault(); setMode("login"); err.classList.add("hidden"); });
       } else {
@@ -1876,43 +1877,7 @@ function openAuthModal(initialMode = "login") {
     }
   });
 
-  // Password strength meter
-  (function initPwMeter() {
-    const pwInput  = $("#m-password", modal);
-    const meterWrap = $("#m-pw-meter", modal);
-    if (!pwInput || !meterWrap) return;
-    const bars  = [0,1,2,3].map(i => $(`#pw-b${i}`, modal));
-    const label = $("#pw-label", modal);
-    const WEAK_COLORS   = ["#ef4444","#ef4444","#d1d5db","#d1d5db"];
-    const MED_COLORS    = ["#f97316","#f97316","#f97316","#d1d5db"];
-    const STRONG_COLORS = ["#22c55e","#22c55e","#22c55e","#22c55e"];
-    function score(v) {
-      let s = 0;
-      if (v.length >= 8)              s++;
-      if (/[A-Z]/.test(v))            s++;
-      if (/[0-9]/.test(v))            s++;
-      if (/[^A-Za-z0-9]/.test(v))    s++;
-      return s;
-    }
-    function updateMeter(v) {
-      if (!v) { bars.forEach(b => b.style.background="#d1d5db"); label.textContent="Enter a password"; label.style.color=""; return; }
-      const s = score(v);
-      let colors, text, color;
-      if (s <= 1)      { colors=WEAK_COLORS;   text="Weak — add uppercase, numbers & symbols"; color="#ef4444"; }
-      else if (s === 2){ colors=MED_COLORS;    text="Fair — getting better!"; color="#f97316"; }
-      else if (s === 3){ colors=STRONG_COLORS; text="Good password"; color="#22c55e"; }
-      else             { colors=STRONG_COLORS; text="Strong password ✓"; color="#22c55e"; }
-      bars.forEach((b,i) => b.style.background = colors[i]);
-      label.textContent = text; label.style.color = color;
-    }
-    pwInput.addEventListener("input", () => {
-      if (mode === "signup") updateMeter(pwInput.value);
-    });
-    // Store score check for submit
-    modal._pwScore = () => (mode === "signup" ? score(pwInput.value) : 99);
-  })();
-
-  setTimeout(() => $("#m-email", modal).focus(), 50);
+  setTimeout(() => $("#m-username", modal).focus(), 50);
 }
 
 // --- Layout shell ---
@@ -1924,8 +1889,8 @@ function shell(activeKey, title, subtitle, action) {
     { k: "settings",label: "Settings",icon: "settings",   hash: "#/settings"},
     { k: "billing", label: "Billing", icon: "credit-card",hash: "#/billing" },
   ];
-  const u = Store.user || { name: "—", email: "" };
-  const initials = (u.name || u.email || "?").split(/\s+/).map(s => s[0]).slice(0, 2).join("").toUpperCase();
+  const u = Store.user || { name: "—", username: "", email: "" };
+  const initials = (u.username || u.name || "?").split(/\s+/).map(s => s[0]).slice(0, 2).join("").toUpperCase();
   const wrap = h(`
     <div class="app-shell">
       <aside class="sidebar">
@@ -1941,7 +1906,7 @@ function shell(activeKey, title, subtitle, action) {
             <div class="avatar">${escapeHtml(initials)}</div>
             <div style="min-width:0;flex:1">
               <div class="text-sm font-medium truncate">${escapeHtml(u.name || "—")}</div>
-              <div class="text-xs text-muted truncate">${escapeHtml(u.email)}</div>
+              <div class="text-xs text-muted truncate">${escapeHtml(u.business_type || u.user_role || "")}</div>
             </div>
           </div>
           <button class="nav-item" id="logout"><i data-lucide="log-out" class="icon"></i>Log out</button>

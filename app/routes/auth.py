@@ -1,27 +1,46 @@
 from datetime import datetime, timedelta
-import secrets
 import logging
+import re
 
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from pydantic import BaseModel, EmailStr
-from sqlalchemy import select
+from pydantic import BaseModel, field_validator
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
-from typing import Literal
 
 from app.config import settings
 from app.database import get_db
 from app.models import User
-from app.services.notifications import send_email_otp, send_email_verification_link, send_sms_otp
-from app.services.redis_client import get_redis, safe_delete, safe_get, safe_setex
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer(auto_error=False)
+
+BUSINESS_TYPES = [
+    "Dental clinic",
+    "Hair salon / spa",
+    "Restaurant / café",
+    "Medical clinic",
+    "HVAC / home services",
+    "Law firm",
+    "Real estate",
+    "Retail store",
+    "Education / tutoring",
+    "Other",
+]
+
+USER_ROLES = [
+    "Owner / Founder",
+    "Manager",
+    "Receptionist",
+    "Front desk staff",
+    "Admin",
+    "Other",
+]
 
 
 def _hash_password(password: str) -> str:
@@ -37,45 +56,66 @@ def _verify_password(password: str, hashed: str) -> bool:
         return False
 
 
+def _create_access_token(subject: str) -> str:
+    expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    payload = {"sub": subject, "exp": expire}
+    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
+def _synthetic_email(username: str) -> str:
+    return f"{username.lower()}@harkly.local"
+
+
+def _user_dict(user: User) -> dict:
+    profile = user.business_profile or {}
+    return {
+        "id": user.id,
+        "username": user.username or user.name or "",
+        "email": user.email,
+        "name": user.name or user.username or "",
+        "whatsapp_number": user.whatsapp_number,
+        "plan": user.plan,
+        "trial_ends_at": user.trial_ends_at.isoformat() if user.trial_ends_at else None,
+        "onboarding_completed": bool(user.onboarding_completed),
+        "email_verified": bool(user.email_verified),
+        "phone_verified": bool(user.phone_verified),
+        "business_profile": profile,
+        "business_type": profile.get("business_type", ""),
+        "user_role": profile.get("user_role", ""),
+    }
+
+
 class SignupRequest(BaseModel):
-    email: EmailStr
+    username: str
     password: str
-    name: str | None = None
-    whatsapp_number: str | None = None
+    business_type: str = ""
+    user_role: str = ""
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Username is required")
+        if len(v) < 3:
+            raise ValueError("Username must be at least 3 characters")
+        if len(v) > 40:
+            raise ValueError("Username must be 40 characters or less")
+        if not re.match(r"^[A-Za-z0-9_.\- ]+$", v):
+            raise ValueError("Username can only contain letters, numbers, spaces, _, . and -")
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if len(v) < 4:
+            raise ValueError("Passcode must be at least 4 characters")
+        return v
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    username: str
     password: str
-
-
-class SendEmailOtpRequest(BaseModel):
-    email: EmailStr
-
-
-class VerifyEmailOtpSignupRequest(SignupRequest):
-    otp: str
-
-
-class VerifyEmailLinkRequest(BaseModel):
-    token: str
-    email: EmailStr
-    password: str
-    name: str | None = None
-    whatsapp_number: str | None = None
-
-
-class SendPhoneOtpRequest(BaseModel):
-    phone_number: str
-
-
-class VerifyPhoneOtpRequest(BaseModel):
-    phone_number: str
-    otp: str
-
-
-class SendEmailVerificationLinkRequest(BaseModel):
-    email: EmailStr
 
 
 class TokenResponse(BaseModel):
@@ -84,268 +124,60 @@ class TokenResponse(BaseModel):
     user: dict
 
 
-class VerifyTokenRequest(BaseModel):
-    """Request model for token verification endpoint."""
-    token: str
-    email: EmailStr
-
-
-class VerifyTokenResponse(BaseModel):
-    """Response model for successful token verification."""
-    success: bool
-    message: str
-    user: dict | None = None
-
-
-def _create_access_token(subject: str) -> str:
-    expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": subject, "exp": expire}
-    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
-
-
-def _otp() -> str:
-    return f"{secrets.randbelow(1_000_000):06d}"
-
-
-def _decode_redis(value: bytes | str | None) -> str | None:
-    if value is None:
-        return None
-    if isinstance(value, bytes):
-        return value.decode("utf-8")
-    return value
-
-
-def _email_key(email: str) -> str:
-    return f"email_otp:{email.strip().lower()}"
-
-
-def _phone_key(phone_number: str) -> str:
-    return f"phone_otp:{phone_number.strip()}"
-
-
-def _email_verification_link_key(email: str) -> str:
-    return f"email_verification_link:{email.strip().lower()}"
-
-
-def _ensure_redis() -> None:
-    if get_redis() is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Redis is not configured. Set REDIS_URL to use OTP verification.",
-        )
-
-
-def _user_dict(user: User) -> dict:
-    return {
-        "id": user.id,
-        "email": user.email,
-        "name": user.name,
-        "whatsapp_number": user.whatsapp_number,
-        "plan": user.plan,
-        "trial_ends_at": user.trial_ends_at.isoformat() if user.trial_ends_at else None,
-        "onboarding_completed": bool(user.onboarding_completed),
-        "email_verified": bool(user.email_verified),
-        "phone_verified": bool(user.phone_verified),
-        "business_profile": user.business_profile or None,
-    }
-
-
-class VerifyAuthTokenRequest(BaseModel):
-    token: str
-    token_type: Literal["email", "phone"]
-
-
 class OnboardingRequest(BaseModel):
     profile: dict
     completed: bool = True
 
 
-@router.post("/verify", status_code=status.HTTP_200_OK)
-async def verify_token(
-    data: VerifyAuthTokenRequest,
-    db: AsyncSession = Depends(get_db),
-) -> dict:
-    try:
-        payload = jwt.decode(data.token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired verification token")
-
-    token_type = payload.get("type")
-    if data.token_type == "email" and token_type != "email_verification":
-        raise HTTPException(status_code=400, detail="Invalid token purpose")
-    if data.token_type == "phone" and token_type != "phone_verification":
-        raise HTTPException(status_code=400, detail="Invalid token purpose")
-
-    if data.token_type == "email":
-        email = payload.get("sub")
-        if not email:
-            raise HTTPException(status_code=400, detail="Token missing email subject")
-        result = await db.execute(select(User).where(User.email == email))
-        user = result.scalar_one_or_none()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        user.email_verified = True
-        await db.commit()
-        await safe_delete(_email_key(email))
-        return {"verified": True, "email": email}
-
-    phone_number = payload.get("phone_number")
-    if not phone_number:
-        raise HTTPException(status_code=400, detail="Token missing phone number")
-    result = await db.execute(select(User).where(User.whatsapp_number == phone_number))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    user.phone_verified = True
-    await db.commit()
-    await safe_delete(_phone_key(phone_number))
-    return {"verified": True, "phone_number": phone_number}
+@router.get("/options")
+async def get_options() -> dict:
+    return {"business_types": BUSINESS_TYPES, "user_roles": USER_ROLES}
 
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def signup(data: SignupRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
-    existing = await db.execute(select(User).where(User.email == data.email))
+    username_clean = data.username.strip()
+
+    existing = await db.execute(select(User).where(User.username == username_clean))
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="Username already taken")
+
+    synth_email = _synthetic_email(username_clean)
+    email_taken = await db.execute(select(User).where(User.email == synth_email))
+    if email_taken.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Username already taken")
+
+    profile: dict = {}
+    if data.business_type:
+        profile["business_type"] = data.business_type
+    if data.user_role:
+        profile["user_role"] = data.user_role
 
     user = User(
-        email=data.email,
+        username=username_clean,
+        email=synth_email,
         hashed_password=_hash_password(data.password),
-        name=data.name,
-        whatsapp_number=data.whatsapp_number,
-        email_verified=False,
-    )
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-
-    return TokenResponse(access_token=_create_access_token(user.id), user=_user_dict(user))
-
-
-@router.post("/send-email-otp")
-async def send_email_otp_route(
-    data: SendEmailOtpRequest,
-    db: AsyncSession = Depends(get_db),
-) -> dict:
-    email = data.email.lower()
-    existing = await db.execute(select(User).where(User.email == email))
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    _ensure_redis()
-    otp = _otp()
-    await safe_setex(_email_key(email), 600, otp)
-    try:
-        sent = await send_email_otp(email, otp)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Could not send email OTP: {exc}") from exc
-
-    response = {"sent": sent, "expires_in_seconds": 600}
-    if not settings.RESEND_API_KEY:
-        response["dev_otp"] = otp
-    return response
-
-
-@router.post("/send-email-verification-link")
-async def send_email_verification_link_route(
-    data: SendEmailVerificationLinkRequest,
-    db: AsyncSession = Depends(get_db),
-) -> dict:
-    """Send a verification link instead of OTP for email verification."""
-    email = data.email.lower()
-    existing = await db.execute(select(User).where(User.email == email))
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    _ensure_redis()
-    verification_token = secrets.token_urlsafe(32)
-    await safe_setex(_email_verification_link_key(email), 86400, verification_token)
-
-    frontend_url = settings.FRONTEND_URL or "http://localhost:3000"
-    verification_link = f"{frontend_url}/verify-email?token={verification_token}&email={email}"
-
-    try:
-        sent = await send_email_verification_link(email, verification_link)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Could not send email verification link: {exc}") from exc
-
-    response = {"sent": sent, "expires_in_seconds": 86400}
-    if not settings.RESEND_API_KEY:
-        response["dev_link"] = verification_link
-    return response
-
-
-@router.post("/verify-email-link", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def verify_email_link_and_signup(
-    data: VerifyEmailLinkRequest,
-    db: AsyncSession = Depends(get_db),
-) -> TokenResponse:
-    """Verify email via link and create account."""
-    email = data.email.lower()
-    stored = _decode_redis(await safe_get(_email_verification_link_key(email)))
-    if not stored or stored != data.token.strip():
-        raise HTTPException(status_code=400, detail="Invalid or expired verification link")
-
-    existing = await db.execute(select(User).where(User.email == email))
-    if existing.scalar_one_or_none():
-        await safe_delete(_email_verification_link_key(email))
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    user = User(
-        email=email,
-        hashed_password=_hash_password(data.password),
-        name=data.name,
-        whatsapp_number=data.whatsapp_number,
+        name=username_clean,
         email_verified=True,
+        onboarding_completed=bool(profile),
+        business_profile=profile if profile else None,
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    await safe_delete(_email_verification_link_key(email))
-
-    return TokenResponse(access_token=_create_access_token(user.id), user=_user_dict(user))
-
-
-@router.post(
-    "/verify-email-otp-and-signup",
-    response_model=TokenResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-async def verify_email_otp_and_signup(
-    data: VerifyEmailOtpSignupRequest,
-    db: AsyncSession = Depends(get_db),
-) -> TokenResponse:
-    email = data.email.lower()
-    stored = _decode_redis(await safe_get(_email_key(email)))
-    if not stored or stored != data.otp.strip():
-        raise HTTPException(status_code=400, detail="Invalid or expired email verification code")
-
-    existing = await db.execute(select(User).where(User.email == email))
-    if existing.scalar_one_or_none():
-        await safe_delete(_email_key(email))
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    user = User(
-        email=email,
-        hashed_password=_hash_password(data.password),
-        name=data.name,
-        whatsapp_number=data.whatsapp_number,
-        email_verified=True,
-    )
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-    await safe_delete(_email_key(email))
 
     return TokenResponse(access_token=_create_access_token(user.id), user=_user_dict(user))
 
 
 @router.post("/login", response_model=TokenResponse)
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
-    result = await db.execute(select(User).where(User.email == data.email))
+    username = data.username.strip()
+    result = await db.execute(
+        select(User).where(or_(User.username == username, User.email == username))
+    )
     user = result.scalar_one_or_none()
     if not user or not _verify_password(data.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail="Wrong username or passcode")
     return TokenResponse(access_token=_create_access_token(user.id), user=_user_dict(user))
 
 
@@ -373,97 +205,6 @@ async def get_current_user(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     return user
-
-
-@router.post("/verify-email-token", response_model=VerifyTokenResponse)
-async def verify_email_token(
-    data: VerifyTokenRequest,
-    db: AsyncSession = Depends(get_db),
-) -> VerifyTokenResponse:
-    """Secure email verification token endpoint.
-
-    Accepts a verification token and email, validates the stored link token,
-    marks the user's email as verified, and returns structured JSON.
-    """
-    email = data.email.lower().strip()
-    token = data.token.strip()
-
-    if not email or not token:
-        raise HTTPException(status_code=400, detail="Email and token are required")
-
-    _ensure_redis()
-
-    stored_token = _decode_redis(await safe_get(_email_verification_link_key(email)))
-    if not stored_token:
-        raise HTTPException(status_code=400, detail="Verification token expired or not found")
-    if stored_token != token:
-        raise HTTPException(status_code=401, detail="Invalid verification token")
-
-    result = await db.execute(select(User).where(User.email == email))
-    user = result.scalar_one_or_none()
-    if user is None:
-        await safe_delete(_email_verification_link_key(email))
-        raise HTTPException(status_code=404, detail="User not found. Please complete signup first.")
-
-    try:
-        user.email_verified = True
-        await db.commit()
-        await db.refresh(user)
-        await safe_delete(_email_verification_link_key(email))
-        return VerifyTokenResponse(
-            success=True,
-            message="Email verified successfully",
-            user=_user_dict(user),
-        )
-    except Exception as exc:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Verification failed: {str(exc)}") from exc
-
-
-@router.post("/send-phone-otp")
-async def send_phone_otp_route(
-    data: SendPhoneOtpRequest,
-    current_user: User = Depends(get_current_user),
-) -> dict:
-    _ensure_redis()
-    phone_number = data.phone_number.strip()
-    if not phone_number:
-        raise HTTPException(status_code=400, detail="Phone number is required")
-
-    otp = _otp()
-    await safe_setex(_phone_key(phone_number), 300, otp)
-    try:
-        sent = await send_sms_otp(phone_number, otp)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Could not send phone OTP: {exc}") from exc
-
-    response = {"sent": sent, "expires_in_seconds": 300}
-    if not (
-        settings.TWILIO_ACCOUNT_SID
-        and settings.TWILIO_AUTH_TOKEN
-        and settings.TWILIO_PHONE_NUMBER
-    ):
-        response["dev_otp"] = otp
-    return response
-
-
-@router.post("/verify-phone-otp")
-async def verify_phone_otp_route(
-    data: VerifyPhoneOtpRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> dict:
-    phone_number = data.phone_number.strip()
-    stored = _decode_redis(await safe_get(_phone_key(phone_number)))
-    if not stored or stored != data.otp.strip():
-        raise HTTPException(status_code=400, detail="Invalid or expired phone verification code")
-
-    current_user.whatsapp_number = phone_number
-    current_user.phone_verified = True
-    await db.commit()
-    await db.refresh(current_user)
-    await safe_delete(_phone_key(phone_number))
-    return {"verified": True, "user": _user_dict(current_user)}
 
 
 @router.get("/me")
@@ -494,99 +235,7 @@ async def update_profile(
         flag_modified(current_user, "business_profile")
     await db.commit()
     await db.refresh(current_user)
-    # Keep Store in sync — return full user dict
     return {"user": _user_dict(current_user)}
-
-
-class GoogleAuthRequest(BaseModel):
-    credential: str
-
-
-@router.post("/google", response_model=TokenResponse)
-async def google_auth(data: GoogleAuthRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
-    """Google OAuth2 sign-in endpoint.
-    
-    Validates the Google ID token and either logs in an existing user
-    or creates a new one if they don't exist yet.
-    """
-    import httpx
-    
-    logger.info("Google auth request received")
-    
-    # Validate required environment variables
-    if not settings.GOOGLE_CLIENT_ID:
-        logger.error("GOOGLE_CLIENT_ID is not configured")
-        raise HTTPException(
-            status_code=500,
-            detail="Server misconfiguration: GOOGLE_CLIENT_ID not set. Please contact support."
-        )
-    
-    try:
-        if not data.credential or not data.credential.strip():
-            logger.warning("Google auth request with empty credential")
-            raise HTTPException(status_code=400, detail="Invalid or missing Google credential")
-        
-        logger.debug("Validating Google ID token with Google API")
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                "https://oauth2.googleapis.com/tokeninfo",
-                params={"id_token": data.credential},
-            )
-        
-        if resp.status_code != 200:
-            logger.warning(f"Google token validation failed with status {resp.status_code}: {resp.text}")
-            raise HTTPException(status_code=401, detail="Invalid Google token")
-        
-        info = resp.json()
-        if "error" in info:
-            error_msg = info.get('error_description', info['error'])
-            logger.warning(f"Google token validation returned error: {error_msg}")
-            raise HTTPException(
-                status_code=401,
-                detail=f"Google token error: {error_msg}"
-            )
-
-        email = (info.get("email") or "").lower().strip()
-        if not email:
-            logger.warning("Google account has no email in token")
-            raise HTTPException(status_code=400, detail="Google account has no email address")
-
-        logger.info(f"Google token validated for email: {email}")
-
-        # Check if user exists
-        existing = await db.execute(select(User).where(User.email == email))
-        user = existing.scalar_one_or_none()
-
-        if user is None:
-            logger.info(f"No existing user found for Google email {email}. User must sign up first.")
-            raise HTTPException(
-                status_code=404,
-                detail="No account found for this Google email. Please create an account first.",
-            )
-
-        logger.info(f"User {email} logged in via Google")
-        return TokenResponse(access_token=_create_access_token(user.id), user=_user_dict(user))
-
-    except HTTPException:
-        raise
-    except httpx.TimeoutException as exc:
-        logger.error(f"Google token validation timeout: {exc}")
-        raise HTTPException(
-            status_code=504,
-            detail="Google authentication service timed out. Please try again."
-        ) from exc
-    except httpx.RequestError as exc:
-        logger.error(f"Google token validation request failed: {exc}")
-        raise HTTPException(
-            status_code=502,
-            detail=f"Could not reach Google authentication service: {exc}"
-        ) from exc
-    except Exception as exc:
-        logger.exception(f"Unexpected error during Google sign-in: {exc}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Google sign-in failed: {str(exc)}"
-        ) from exc
 
 
 @router.post("/onboarding")
