@@ -108,7 +108,7 @@ _NO_CACHE_HEADERS = {
 _NO_CACHE_STATIC = {"app.js", "styles.css"}
 
 
-@app.get("/static/{filename:path}", include_in_schema=False)
+@app.api_route("/static/{filename:path}", methods=["GET", "HEAD"], include_in_schema=False)
 async def static_files(filename: str):
     if not _HAS_STATIC:
         raise HTTPException(404)

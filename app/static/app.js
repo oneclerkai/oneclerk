@@ -1859,7 +1859,7 @@ function openAuthModal(initialMode = "login") {
       const displayName = me.username || me.name || "";
       toast(`Welcome${displayName ? ", " + displayName.split(" ")[0] : ""}!`, "success");
       close();
-      navigate("#/agents");
+      navigate("#/dashboard");
     } catch (ex) {
       const msg = (ex.message || "").toLowerCase();
       if (msg.includes("wrong") || msg.includes("invalid") || msg.includes("credentials") || msg.includes("passcode")) {
@@ -1883,6 +1883,7 @@ function openAuthModal(initialMode = "login") {
 // --- Layout shell ---
 function shell(activeKey, title, subtitle, action) {
   const items = [
+    { k: "dashboard",label: "Dashboard",icon: "layout-dashboard", hash: "#/dashboard"},
     { k: "agents",  label: "Agents",  icon: "bot",        hash: "#/agents"  },
     { k: "calls",   label: "Calls",   icon: "phone",      hash: "#/calls"   },
     { k: "preview", label: "Preview", icon: "radio",      hash: "#/preview" },
@@ -6882,7 +6883,7 @@ async function render() {
   let view;
   if (r.path === "/login" || r.path === "/signup") { view = await routes.auth(); }
   else if (r.path === "/onboarding") { view = await routes.onboarding(); }
-  else if (r.path === "/" || r.path === "") { view = await routes.agents(); }
+  else if (r.path === "/" || r.path === "" || r.path === "/dashboard") { view = await routes.dashboard(); }
   else if (r.path === "/calls") { view = await routes.calls(); }
   else if (r.path === "/agents") { view = await routes.agents(); }
   else if (r.path === "/agents/new") { view = await routes.agentNew(); }
@@ -6893,7 +6894,7 @@ async function render() {
   else if (r.path === "/settings") { view = await routes.settings(); }
   else if (r.path === "/billing") { view = await routes.billing(); }
   else if (r.path === "/billing-success") { view = await routes.billingSuccess(); }
-  else { view = await routes.agents(); }
+  else { view = await routes.dashboard(); }
 
   root.appendChild(view);
   renderIcons();
