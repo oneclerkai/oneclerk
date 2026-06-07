@@ -129,6 +129,16 @@ async def favicon():
     return Response(status_code=204)
 
 
+@app.get("/login", include_in_schema=False)
+@app.get("/signup", include_in_schema=False)
+@app.get("/dashboard", include_in_schema=False)
+@app.get("/verify-email", include_in_schema=False)
+async def spa_fallback():
+    if _HAS_STATIC:
+        return FileResponse(_STATIC_DIR / "index.html", headers=_NO_CACHE_HEADERS)
+    return {"detail": "frontend not bundled"}
+
+
 @app.get("/api", include_in_schema=False)
 async def api_info() -> dict:
     return {
