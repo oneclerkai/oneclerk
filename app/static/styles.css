@@ -4073,9 +4073,9 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 }
 .agb-upload-ic svg { width: 26px; height: 26px; }
 
-/* Updated pricing: trial subline */
-.lp-billing-head p { font-size: 14px; }
-.lp-billing-head p strong { color: #0f0f14; }
+/* Updated pricing: trial subline — dark-bg variant */
+.lp-billing-head p { font-size: 14px; color: rgba(246,246,241,0.6) !important; }
+.lp-billing-head p strong { color: rgba(255,205,92,0.9) !important; }
 
 /* ============================================================ */
 /* v16 — first-time builder tutorial                            */
@@ -7868,31 +7868,40 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   FOOTER — SVG arc text, Nunito Black, full-width, no overflow cut
+   FOOTER — individual letter spans, parabola scroll animation
    ═══════════════════════════════════════════════════════════════════════ */
 .lp-footer {
-  overflow: visible !important;
+  overflow: hidden !important;
   padding-bottom: 48px !important;
 }
 .lp-bigword {
   overflow: visible !important;
-  height: auto !important;
-  min-height: 0 !important;
-  margin: 12px 0 20px !important;
+  height: clamp(100px, 20vw, 300px) !important;
+  min-height: unset !important;
+  margin: 0 0 36px !important;
   padding: 0 !important;
   width: 100% !important;
-  display: block !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: flex-end !important;
+  pointer-events: none !important;
+  user-select: none !important;
 }
-.lp-bigword-svg {
-  width: 100%;
-  height: auto;
-  display: block;
-  overflow: visible;
-  animation: harklyArcFloat 5.5s ease-in-out infinite;
+.lp-bigword .ltr {
+  display: inline-block !important;
+  font-family: 'Poppins', system-ui, sans-serif !important;
+  font-weight: 900 !important;
+  font-size: clamp(64px, 17.5vw, 340px) !important;
+  line-height: 1 !important;
+  letter-spacing: -0.02em !important;
+  color: #f6f6f1 !important;
+  transform-origin: center bottom !important;
+  will-change: transform !important;
+  opacity: 0.92 !important;
 }
-@keyframes harklyArcFloat {
-  0%,100% { transform: translateY(0px);  }
-  50%     { transform: translateY(-10px); }
+.lp-bigword .ltr-space {
+  display: inline-block !important;
+  width: 0.2em !important;
 }
 
 /* ── Agent incomplete preview notice ──────────────────────────────── */
@@ -8181,41 +8190,113 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   FOOTER — SVG arc text, Syne/Nunito, full-width, no clip
+   FOOTER — parabola span letters (final override, no SVG)
    ═══════════════════════════════════════════════════════════════════════ */
 
-/* Override the Poppins-all rule for the SVG text */
-.lp-bigword-svg text {
-  font-family: 'Syne', 'Nunito', system-ui, sans-serif !important;
+/* Billing section — dark gradient, not cream */
+.lp-billing {
+  background: linear-gradient(170deg, #0a0a12 0%, #0d0820 45%, #0f0a1a 100%) !important;
+}
+.lp-billing-head h2 { color: #f6f6f1 !important; }
+.lp-billing-head .eb { color: rgba(255,205,92,0.7) !important; }
+
+/* Glass plan cards */
+.lp-plan {
+  background: rgba(255,255,255,0.055) !important;
+  backdrop-filter: blur(20px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  color: #f0f0ec !important;
+}
+.lp-plan-name { color: #f6f6f1 !important; }
+.lp-plan-sub { color: rgba(246,246,241,0.48) !important; }
+.lp-plan-price .amt { color: #f6f6f1 !important; }
+.lp-plan-price .per { color: rgba(246,246,241,0.4) !important; }
+.lp-plan-feats li { color: rgba(246,246,241,0.75) !important; }
+.lp-plan-feats .tick { color: #6ee7b7 !important; }
+.lp-plan-cta {
+  border: 1px solid rgba(255,255,255,0.14) !important;
+  background: rgba(255,255,255,0.08) !important;
+  color: #f6f6f1 !important;
 }
 
+/* Featured (Growth) card — rainbow animated border */
+.lp-plan.featured {
+  background: rgba(99,102,241,0.12) !important;
+  border: 1.5px solid transparent !important;
+  transform: translateY(-18px) !important;
+  z-index: 2 !important;
+}
+.lp-plan.featured::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: -1.5px !important;
+  border-radius: 21px !important;
+  background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899, #f97316, #eab308, #22c55e, #3b82f6, #6366f1) !important;
+  background-size: 300% 300% !important;
+  animation: featuredBorderSpin 4s linear infinite !important;
+  z-index: -1 !important;
+}
+.lp-plan.featured::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: 1px !important;
+  border-radius: 19px !important;
+  background: linear-gradient(170deg, rgba(99,102,241,0.18) 0%, rgba(10,8,20,0.92) 100%) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  z-index: -1 !important;
+}
+.lp-plan.featured .lp-plan-price .amt {
+  background: linear-gradient(90deg, #a5b4fc, #e879f9) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+.lp-plan.featured .lp-plan-cta {
+  background: linear-gradient(135deg, #6366f1, #a855f7) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+}
+@media (max-width: 1080px) {
+  .lp-plan.featured { transform: none !important; }
+  .lp-plan.featured:hover { transform: translateY(-6px) !important; }
+}
+
+/* Footer letter spans */
 .lp-footer {
-  overflow: visible !important;
+  overflow: hidden !important;
   padding-bottom: 52px !important;
 }
-
 .lp-bigword {
   overflow: visible !important;
-  height: auto !important;
-  min-height: 0 !important;
-  margin: 8px 0 24px !important;
+  height: clamp(100px, 20vw, 300px) !important;
+  min-height: unset !important;
+  margin: 0 0 36px !important;
   padding: 0 !important;
   width: 100% !important;
-  display: block !important;
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: center !important;
+  align-items: flex-end !important;
+  pointer-events: none !important;
+  user-select: none !important;
   position: relative !important;
   z-index: 2 !important;
 }
-
-.lp-bigword-svg {
-  width: 100% !important;
-  height: auto !important;
-  display: block !important;
-  overflow: visible !important;
-  animation: harklyArcPulse 6s ease-in-out infinite !important;
-  filter: drop-shadow(0 0 32px rgba(246,246,241,0.06));
+.lp-bigword .ltr {
+  display: inline-block !important;
+  font-family: 'Poppins', system-ui, sans-serif !important;
+  font-weight: 900 !important;
+  font-size: clamp(64px, 17.5vw, 340px) !important;
+  line-height: 1 !important;
+  letter-spacing: -0.02em !important;
+  color: #f6f6f1 !important;
+  transform-origin: center bottom !important;
+  will-change: transform !important;
+  opacity: 0.92 !important;
 }
-
-@keyframes harklyArcPulse {
-  0%,100% { transform: translateY(0px);   opacity: 0.92; }
-  50%     { transform: translateY(-12px); opacity: 1.00; }
+.lp-bigword .ltr-space {
+  display: inline-block !important;
+  width: 0.2em !important;
+  font-size: clamp(64px, 17.5vw, 340px) !important;
 }
