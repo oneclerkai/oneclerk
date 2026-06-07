@@ -4,9 +4,9 @@ import asyncio
 import logging
 import os
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
@@ -81,6 +81,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "An unexpected error occurred. Please try again."})
+
 app.include_router(webhooks.router)
 app.include_router(auth.router, prefix="/api")
 app.include_router(agents.router, prefix="/api")
@@ -92,15 +97,40 @@ app.include_router(vapi_webhooks.router)
 
 _STATIC_DIR = Path(__file__).parent / "static"
 _HAS_STATIC = _STATIC_DIR.exists()
-if _HAS_STATIC:
-    app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
-
 
 _NO_CACHE_HEADERS = {
     "Cache-Control": "no-cache, no-store, must-revalidate",
     "Pragma": "no-cache",
     "Expires": "0",
 }
+
+# Serve critical JS/CSS files with no-cache so the browser always gets the latest version
+_NO_CACHE_STATIC = {"app.js", "styles.css"}
+
+
+@app.get("/static/{filename:path}", include_in_schema=False)
+async def static_files(filename: str):
+    if not _HAS_STATIC:
+        raise HTTPException(404)
+    path = _STATIC_DIR / filename
+    if not path.exists() or not path.is_file():
+        raise HTTPException(404)
+    # Strip query params from filename (e.g. app.js?v=106 → app.js)
+    base = filename.split("?")[0].rsplit("/", 1)[-1]
+    headers = _NO_CACHE_HEADERS if base in _NO_CACHE_STATIC else {}
+    media_types = {
+        ".js": "application/javascript",
+        ".css": "text/css",
+        ".html": "text/html",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".svg": "image/svg+xml",
+        ".ico": "image/x-icon",
+        ".woff2": "font/woff2",
+        ".woff": "font/woff",
+    }
+    suffix = path.suffix.lower()
+    return FileResponse(path, headers=headers, media_type=media_types.get(suffix))
 
 
 @app.get("/", include_in_schema=False)
