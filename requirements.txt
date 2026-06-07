@@ -74,3 +74,4 @@ telnyx
 uvicorn[standard]
 websockets
 openai
+openai
