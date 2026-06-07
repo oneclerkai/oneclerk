@@ -1083,35 +1083,29 @@ route("auth", async () => {
       <!-- GRADIENT TRANSITION: cream → black footer -->
       <div class="lp-grad-tofoot" aria-hidden="true"></div>
 
-      <!-- FOOTER (parabola → fully horizontal, with triangular light glow toward name) -->
+      <!-- FOOTER -->
       <footer class="lp-footer">
         <div class="lp-footer-light"></div>
-        <div class="lp-footer-links">
-          <div class="lp-footer-col">
-            <h4>Harkly AI</h4>
-            <p>The autonomous voice receptionist that picks up so you never miss the call that matters.</p>
-          </div>
-          <div class="lp-footer-col">
-            <h4>Product</h4>
-            <a data-scroll="lp-cases">Features</a><a data-scroll="lp-billing">Pricing</a><a data-scroll="lp-try">Try it live</a>
-          </div>
-          <div class="lp-footer-col">
-            <h4>Company</h4>
-            <a>About</a><a>Customers</a><a>Careers</a><a>Contact</a>
-          </div>
-          <div class="lp-footer-col">
-            <h4>Legal</h4>
-            <a>Privacy</a><a>Terms</a><a>Security</a><a>DPA</a>
+
+        <div class="lp-footer-brand-row">
+          <div class="lp-footer-brand-mark">H</div>
+          <div>
+            <div class="lp-footer-brand-name">Harkly AI</div>
+            <div class="lp-footer-brand-sub">The autonomous voice receptionist that picks up so you never miss the call that matters.</div>
           </div>
         </div>
 
-        <div class="lp-bigword" id="lp-bigword" aria-label="HARKLY AI">
-          ${"HARKLY AI".split("").map(c => c === " " ? `<span class="ltr ltr-space" aria-hidden="true">&nbsp;</span>` : `<span class="ltr" aria-hidden="true">${c}</span>`).join("")}
+        <div class="lp-bigword-wrap">
+          <div class="lp-bigword" id="lp-bigword" aria-label="HARKLY AI">
+            ${"HARKLY AI".split("").map(c => c === " " ? `<span class="ltr ltr-space" aria-hidden="true">&nbsp;</span>` : `<span class="ltr" aria-hidden="true">${c}</span>`).join("")}
+          </div>
         </div>
+
+        <div class="lp-footer-tagline">Calls that matter.</div>
 
         <div class="lp-footer-bottom">
           <span>© 2026 Harkly AI, Inc.</span>
-          <span>Made for the calls that matter.</span>
+          <span>Made with ♥ for every missed call that wasn't.</span>
         </div>
       </footer>
     </div>`);
@@ -1657,24 +1651,30 @@ function initParabolaWord(root) {
 
   function update() {
     if (!positions) measurePositions();
-    const rect = wrap.getBoundingClientRect();
+    // Use the wrapper (parent of lp-bigword) for scroll progress
+    const target = wrap.parentElement || wrap;
+    const rect = target.getBoundingClientRect();
     const vh   = window.innerHeight;
-    // progress: 0 when element bottom just enters viewport, 1 when centred
+    // progress: 0 = not yet in view, 1 = fully centred in viewport
     const raw  = 1 - (rect.top + rect.height * 0.5) / vh;
-    const t    = Math.max(0, Math.min(1, raw * 1.5));
-    // Ease-out⁶ — snaps clean to flat at the end
-    const ease = 1 - Math.pow(1 - t, 6);
+    const t    = Math.max(0, Math.min(1, raw * 1.6));
+    // Ease-out⁵ — settles flat smoothly
+    const ease = 1 - Math.pow(1 - t, 5);
     const remaining = 1 - ease;
-    const flat = remaining < 0.08 ? 0 : remaining;
+    const flat = remaining < 0.05 ? 0 : remaining;
 
-    // Upside-down U parabola: peak at centre (x=0), zero at edges (x=±1)
-    const curve  = flat * 520;   // px at peak
-    const maxRot = flat * 14;    // deg tilt at edges
+    // Symmetric inverted-U parabola — amplitude capped so letters
+    // stay inside the wrapper (no overflow clipping needed)
+    const wrapH  = target.getBoundingClientRect().height;
+    const maxAmp = Math.min(wrapH * 0.55, 200);  // at most 55% of wrapper height
+    const curve  = flat * maxAmp;
+    const maxRot = flat * 9;   // gentle tilt at edges
     allSpans.forEach((el, i) => {
       const x    = positions[i];
-      const lift = -curve * (1 - x * x); // arch formula
+      // Inverted U: center lifts up, edges stay at baseline
+      const lift = -curve * (1 - x * x);
       const rot  = maxRot * x;
-      el.style.transform = `translateY(${lift.toFixed(1)}px) rotate(${rot.toFixed(2)}deg) scaleY(1.28)`;
+      el.style.transform = `translateY(${lift.toFixed(1)}px) rotate(${rot.toFixed(2)}deg)`;
     });
   }
 
