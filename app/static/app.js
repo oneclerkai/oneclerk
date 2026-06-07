@@ -2641,8 +2641,13 @@ route("dashboard", async () => {
     // ── Vapi-powered dashboard preview ──────────────────────────────────────
     const DASH_ASSISTANT_ID = "d5f28a96-25da-4905-bac8-5dee52a15f4e";
     let dashCallActive = false;
+    // Agent business context — populated by syncAgent() when user clicks an agent
+    let _dashAgentCfg  = {};
+    let _dashAgentType = null;
 
-    function dashOverrides() { return buildVapiOverrides(selectedVoice, selectedLang); }
+    function dashOverrides() {
+      return buildVapiOverrides(selectedVoice, selectedLang, _dashAgentType, _dashAgentCfg);
+    }
 
     // Shared callbacks — extracted so hot-swap restarts can reuse them
     const dashCbs = {
@@ -2732,6 +2737,10 @@ route("dashboard", async () => {
           b.classList.toggle("active", b.dataset.lang === l);
           if (b.dataset.lang === l) b.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
         });
+
+        // Store business context so dashOverrides() passes it to buildVapiOverrides
+        _dashAgentCfg  = agent.config || {};
+        _dashAgentType = agent.config?.agent_type || null;
 
         const nameEl = page.querySelector("#dash-prev-agent-name");
         const metaEl = page.querySelector("#dash-prev-agent-meta");
@@ -4538,7 +4547,7 @@ route("agentSetup", async (id) => {
       const bizName   = cfg.business_name || "Harkly AI";
       const SVP_ASSISTANT_ID = "d5f28a96-25da-4905-bac8-5dee52a15f4e";
       let svpCallActive = false;
-      function svpOverrides() { return buildVapiOverrides(sVoice2, svpLangLabel, cfg.agent_type || null); }
+      function svpOverrides() { return buildVapiOverrides(sVoice2, svpLangLabel, cfg.agent_type || null, cfg); }
 
       let svpTimeout;
       const svpReset = () => {

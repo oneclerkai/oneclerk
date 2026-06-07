@@ -254,12 +254,24 @@ async def _dispatch_tool(tool_call: dict) -> dict:
 async def _handle_call_end(message: dict) -> None:
     """Fire-and-forget post-call processing — WhatsApp + email transcript to owner."""
     try:
-        summary       = message.get("summary") or message.get("transcript") or ""
         call          = message.get("call") or {}
         caller        = (call.get("customer") or {}).get("number", "Unknown")
-        ended_reason  = call.get("endedReason", "")
+        ended_reason  = call.get("endedReason", "") or message.get("endedReason", "")
         duration_secs = int(call.get("duration", 0) or 0)
-        agent_name    = call.get("assistantName") or "Harkly AI"
+        agent_name    = call.get("assistantName") or message.get("assistantName") or "Harkly AI"
+        recording_url = call.get("recordingUrl") or message.get("recordingUrl") or ""
+
+        # Vapi can send transcript as a string summary or as an array of turn objects
+        raw_summary    = message.get("summary") or call.get("summary") or ""
+        raw_transcript = message.get("transcript") or call.get("transcript") or ""
+        if isinstance(raw_transcript, list):
+            # Convert [{role, message},...] into readable text
+            lines = [
+                f"{t.get('role','?').title()}: {t.get('message','').strip()}"
+                for t in raw_transcript if t.get("message")
+            ]
+            raw_transcript = "\n".join(lines)
+        summary = raw_summary or raw_transcript
 
         # Detect technical errors (not normal user hang-ups)
         error_reasons = {"pipeline-error", "transport-error", "server-error", "error"}
@@ -270,18 +282,23 @@ async def _handle_call_end(message: dict) -> None:
 
         tasks = []
 
-        if summary and owner_number:
+        # Append recording URL to summary so it appears in notifications
+        summary_with_rec = summary
+        if recording_url:
+            summary_with_rec = f"{summary}\n\n🎙️ Recording: {recording_url}" if summary else f"🎙️ Recording: {recording_url}"
+
+        if (summary_with_rec or recording_url) and owner_number:
             tasks.append(
                 whatsapp.send_call_transcript_whatsapp(
-                    owner_number, caller, agent_name, summary,
+                    owner_number, caller, agent_name, summary_with_rec or "(No summary — see recording link)",
                     duration_seconds=duration_secs,
                 )
             )
 
-        if summary and owner_email:
+        if (summary_with_rec or recording_url) and owner_email:
             tasks.append(
                 notifications.send_call_transcript_email(
-                    owner_email, agent_name, caller, summary,
+                    owner_email, agent_name, caller, summary_with_rec or "(No summary — see recording link)",
                     duration_seconds=duration_secs,
                 )
             )

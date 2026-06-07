@@ -1,0 +1,57 @@
+Here is the ultimate, all-in-one master prompt to give to your **Replit AI Agent**. This prompt combines everything we have diagnosed—pre-flight microphone acceleration, strict Vapi JSON schemas, Cartesia multilingual configuration mapping, dynamic canvas scraping, and rapid backend webhook routing—into a single execution plan.
+
+Copy and paste the entire block below into your **Replit AI Chat** to optimize your entire application stack simultaneously.
+
+---
+
+### 💻 The Master Replit AI Overhaul Prompt
+
+```text
+Act as a Principal Full-Stack Engineer and WebRTC Streaming Specialist. We are doing a complete production-grade overhaul of our AI Receptionist platform ("Harkly AI"). Currently, our voice bots suffer from slow connection times, fail to switch languages or voices, and the drag-and-drop canvas does not pass data to the preview player correctly. 
+
+Please systematically rewrite and refactor our frontend JavaScript files (landing page and dashboard controllers) and our backend Node.js Express server to implement a rapid, synchronized architecture using these exact production credentials:
+- Vapi Public Key: "bace6e2b-19b8-403f-84aa-7c9b8ae0dea8"
+- Homepage Assistant ID: "5b54d785-e86b-420e-ace0-26092882287e"
+- Dashboard Master Canvas ID: "d5f28a96-25da-4905-bac8-5dee52a15f4e"
+
+Here is the exact technical architecture you must implement across our files:
+
+1. ELIMINATE CONNECTION LAG & FORCE PRE-FLIGHT MIC APPROVAL (Frontend)
+- In BOTH the homepage script and the dashboard preview script, ensure that the very first action inside the call button click handler is an explicit browser media request: 'await navigator.mediaDevices.getUserMedia({ audio: true });'.
+- Do NOT invoke 'vapi.start()' until this microphone permission promise is fully resolved. This completely prevents the WebRTC stream from hanging on "Connecting...".
+
+2. REPAIR DROPDOWN LANGUAGE & VOICE SWITCHING WITH THE CORRECT SCHEMA (Frontend)
+- Implement static lookup dictionaries to cleanly map human UI choices to valid Vapi parameters:
+  * Languages: "en" -> { transcriber: "en", voiceLang: "en" }, "hi" -> { transcriber: "hi", voiceLang: "hi" }, "es" -> { transcriber: "es", voiceLang: "es" }, "fr" -> { transcriber: "fr", voiceLang: "fr" }
+  * Voices: "Maya" -> "244f6fbf-8afb-47e2-8958-3d1487216a90", "Arjun" -> "57dcab65-68ac-45a6-8480-6c4c52ec1cd1"
+- When building the 'assistantOverrides' payload, you MUST explicitly force the voice model to "sonic-multilingual" for the Cartesia provider. If this is missing, Vapi ignores language modifications or introduces massive latency.
+- Construct the final configuration using this exact nested JSON schema layout to prevent 400 Bad Requests:
+  {
+    transcriber: { provider: "deepgram", model: "nova-2", language: langConfig.transcriber },
+    voice: { provider: "cartesia", model: "sonic-multilingual", voiceId: targetVoiceId, language: langConfig.voiceLang }
+  }
+
+3. LINK DRAG-AND-DROP CANVAS TO PREVIEW PLAYGROUND (Dashboard Frontend)
+- When the dashboard "Play Sample" button is clicked, write a dynamic DOM scraper script that inspects the active canvas drop area.
+- Extract values directly from the input/select selectors inside the active Language Node, Voice Node, and Designation Node cards on the screen.
+- If a Designation Node has text (e.g., "Dental Clinic Front Desk"), dynamically wrap it into a valid model override block:
+  model: { provider: "google", model: "gemini-2.5-flash", messages: [{ role: "system", content: "You are a professional voice receptionist working as: [SCRAPED_DESIGNATION_TEXT]..." }] }
+- Pass this entire integrated package safely into 'vapi.start("d5f28a96-25da-4905-bac8-5dee52a15f4e", assistantOverrides)'.
+
+4. OPTIMIZE BACKEND WEBHOOK & CALENDAR TOOL ROUTING (Backend Server)
+- In our Express server webhook endpoint ('/api/vapi-webhook'), ensure the engine parses Vapi's 'tool-calls' immediately.
+- For 'book_appointment_calendar', safely grab the incoming arguments, connect via the googleapis package using our refresh tokens, and return the exact required confirmation JSON layout structure to Vapi within a tight 3-second window:
+  res.status(200).json({ results: [{ toolCallId: incomingId, result: "Successfully scheduled appointment text..." }] });
+- Ensure the server cleanly handles 'end-of-call-report' messages to trigger post-call text summaries via our WhatsApp/Twilio sandbox channel configurations without blocking the main event loops.
+
+Provide the completed, modular, and optimized file scripts for our workspace seamlessly.
+
+```
+
+---
+
+### 🚀 What this fixes instantly:
+
+1. **Sub-500ms Connections:** By forcing the microphone permission handshake *before* dialing Vapi's network servers, the audio pathways are instantly ready, eliminating the frustrating 10-second "Connecting..." delay.
+2. **True Multilingual Switching:** Explicitly naming the `sonic-multilingual` voice engine allows the AI to pivot effortlessly between English, Hindi, Spanish, and French using the same voice profiles without lagging out.
+3. **Smart Dashboard Previewing:** The preview player button will dynamically "read" the settings from your drag-and-drop nodes in real time before starting the call, ensuring that whatever you build on the canvas matches what you hear in your headphones.
