@@ -1736,31 +1736,6 @@ function openAuthModal(initialMode = "login") {
             <label class="label">Your name</label>
             <input id="m-name" class="field" placeholder="Jane Cooper" autocomplete="name"/>
           </div>
-          <div id="m-company-row" class="${mode==='signup'?'':'hidden'}">
-            <label class="label">Company name</label>
-            <input id="m-company" class="field" placeholder="City Dental" autocomplete="organization"/>
-          </div>
-          <div id="m-biztype-row" class="${mode==='signup'?'':'hidden'}">
-            <label class="label">What type of business?</label>
-            <select id="m-biztype" class="field">
-              <option value="">Select your industry…</option>
-              ${BUSINESS_TYPES.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join("")}
-            </select>
-          </div>
-          <div id="m-role-row" class="${mode==='signup'?'':'hidden'}">
-            <label class="label">Your role</label>
-            <select id="m-role" class="field">
-              <option value="">Select your role…</option>
-              <option value="Founder">Founder</option>
-              <option value="Owner">Owner</option>
-              <option value="CEO">CEO / MD</option>
-              <option value="Manager">Manager</option>
-              <option value="Sales">Sales</option>
-              <option value="Marketing">Marketing</option>
-              <option value="Operations">Operations</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
           <div>
             <label class="label">Email address</label>
             <input id="m-email" type="email" class="field" placeholder="you@example.com" autocomplete="email" required/>
@@ -1807,9 +1782,8 @@ function openAuthModal(initialMode = "login") {
     mode = m;
     $$("#m-tabs button", modal).forEach(b => b.classList.toggle("active", b.dataset.mode === m));
     const isSignup = m === "signup";
-    ["#m-name-row","#m-company-row","#m-biztype-row","#m-role-row"].forEach(sel => {
-      $(sel, modal).classList.toggle("hidden", !isSignup);
-    });
+    const nameRow = $("#m-name-row", modal);
+    if (nameRow) nameRow.classList.toggle("hidden", !isSignup);
     $("#m-name", modal).required = isSignup;
     $("#m-submit span", modal).textContent = isSignup ? "Create account" : "Continue";
     $("#m-title", modal).textContent = isSignup ? "Create your account" : "Welcome back";
@@ -1866,14 +1840,11 @@ function openAuthModal(initialMode = "login") {
 
     const body = mode === "signup"
       ? {
-          name: $("#m-name", modal).value,
-          company_name: $("#m-company", modal).value,
-          business_type: $("#m-biztype", modal).value,
-          role: $("#m-role", modal).value,
-          email: $("#m-email", modal).value,
+          name: $("#m-name", modal).value.trim(),
+          email: $("#m-email", modal).value.trim(),
           password: $("#m-password", modal).value,
         }
-      : { email: $("#m-email", modal).value, password: $("#m-password", modal).value };
+      : { email: $("#m-email", modal).value.trim(), password: $("#m-password", modal).value };
     try {
       const r = await api(`/auth/${mode}`, { method: "POST", body, auth: false });
       Store.token = r.access_token;
@@ -1940,43 +1911,6 @@ function openAuthModal(initialMode = "login") {
     // Store score check for submit
     modal._pwScore = () => (mode === "signup" ? score(pwInput.value) : 99);
   })();
-
-  // Validate all visible fields before submit — show red border on empty ones
-  $("#m-form", modal).addEventListener("submit", (e) => {
-    e.preventDefault();
-    let blocked = false;
-    const fields = modal.querySelectorAll(".field");
-    fields.forEach(f => {
-      const row = f.closest('[id$="-row"]');
-      const isHidden = row && row.classList.contains("hidden");
-      if (!isHidden && f.offsetParent !== null && !f.value.trim()) {
-        f.classList.add("field-error");
-        blocked = true;
-      } else {
-        f.classList.remove("field-error");
-      }
-      f.addEventListener("input", () => f.classList.remove("field-error"), { once: true });
-    });
-    // Block weak passwords on signup
-    if (mode === "signup" && modal._pwScore && modal._pwScore() <= 1) {
-      const pwField = $("#m-password", modal);
-      if (pwField) pwField.classList.add("field-error");
-      const label = $("#pw-label", modal);
-      if (label) { label.textContent = "Password is too weak — please strengthen it"; label.style.color = "#ef4444"; }
-      blocked = true;
-    }
-    if (blocked) e.stopImmediatePropagation();
-  }, true);
-
-  // Also toggle meter visibility when switching modes
-  const _origSetMode = window.__authSetMode;
-  const meterEl = $("#m-pw-meter", modal);
-  if (meterEl) {
-    const origSetMode = typeof setMode === "function" ? setMode : null;
-    modal._toggleMeter = (m) => {
-      if (meterEl) meterEl.classList.toggle("hidden", m !== "signup");
-    };
-  }
 
   setTimeout(() => $("#m-email", modal).focus(), 50);
 }
