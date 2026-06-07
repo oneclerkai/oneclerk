@@ -80,6 +80,7 @@ def _user_dict(user: User) -> dict:
         "email_verified": bool(user.email_verified),
         "phone_verified": bool(user.phone_verified),
         "business_profile": profile,
+        "company_name": profile.get("company_name", ""),
         "business_type": profile.get("business_type", ""),
         "user_role": profile.get("user_role", ""),
     }
@@ -88,6 +89,7 @@ def _user_dict(user: User) -> dict:
 class SignupRequest(BaseModel):
     username: str
     password: str
+    company_name: str = ""
     business_type: str = ""
     user_role: str = ""
 
@@ -148,6 +150,8 @@ async def signup(data: SignupRequest, db: AsyncSession = Depends(get_db)) -> Tok
         raise HTTPException(status_code=400, detail="Username already taken")
 
     profile: dict = {}
+    if data.company_name:
+        profile["company_name"] = data.company_name
     if data.business_type:
         profile["business_type"] = data.business_type
     if data.user_role:

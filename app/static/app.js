@@ -1744,37 +1744,49 @@ function openAuthModal(initialMode = "login") {
           <button class="${mode==='signup'?'active':''}" data-mode="signup">Create account</button>
         </div>
 
-        <form id="m-form" class="grid" style="gap:12px">
+        <form id="m-form" class="grid" style="gap:14px">
           <div>
-            <label class="label">Username</label>
-            <input id="m-username" class="field" placeholder="e.g. janecooper" autocomplete="username" required/>
+            <label class="am-label">Username</label>
+            <input id="m-username" class="am-field" placeholder="e.g. janecooper" autocomplete="username" required/>
           </div>
 
           <div id="m-signup-fields" class="${mode==='signup'?'':'hidden'}" style="display:${mode==='signup'?'contents':'none'}">
             <div>
-              <label class="label">What does your business do?</label>
-              <select id="m-btype" class="field" style="appearance:auto">
-                ${dropOpts(BUSINESS_TYPES, "Select business type")}
-              </select>
+              <label class="am-label">Company name</label>
+              <input id="m-company" class="am-field" placeholder="e.g. City Dental, Glow Salon" autocomplete="organization"/>
             </div>
-            <div>
-              <label class="label">What is your role?</label>
-              <select id="m-role" class="field" style="appearance:auto">
-                ${dropOpts(USER_ROLES, "Select your role")}
-              </select>
+            <div class="am-row-2">
+              <div>
+                <label class="am-label">Business type</label>
+                <div class="am-select-wrap">
+                  <select id="m-btype" class="am-select">
+                    ${dropOpts(BUSINESS_TYPES, "Select type…")}
+                  </select>
+                  <span class="am-chevron">▾</span>
+                </div>
+              </div>
+              <div>
+                <label class="am-label">Your role</label>
+                <div class="am-select-wrap">
+                  <select id="m-role" class="am-select">
+                    ${dropOpts(USER_ROLES, "Select role…")}
+                  </select>
+                  <span class="am-chevron">▾</span>
+                </div>
+              </div>
             </div>
           </div>
 
           <div>
-            <label class="label">Passcode</label>
-            <input id="m-password" type="password" class="field" placeholder="Choose a passcode" minlength="4" autocomplete="current-password" required/>
+            <label class="am-label">Passcode</label>
+            <input id="m-password" type="password" class="am-field" placeholder="Choose a secure passcode" minlength="4" autocomplete="current-password" required/>
           </div>
 
-          <button class="btn btn-primary btn-lg mt-2" id="m-submit" type="submit">
-            <i data-lucide="arrow-right" class="icon"></i>
+          <button class="am-submit" id="m-submit" type="submit">
             <span>${mode==='signup'?'Create account':'Sign in'}</span>
+            <i data-lucide="arrow-right" class="icon"></i>
           </button>
-          <div id="m-err" class="text-xs text-danger hidden"></div>
+          <div id="m-err" class="am-err hidden"></div>
         </form>
       </div>
     </div>`);
@@ -1844,8 +1856,9 @@ function openAuthModal(initialMode = "login") {
 
     const body = mode === "signup"
       ? {
-          username: userEl.value.trim(),
-          password: pwEl.value,
+          username:      userEl.value.trim(),
+          password:      pwEl.value,
+          company_name:  ($("#m-company", modal)?.value.trim() || ""),
           business_type: ($("#m-btype", modal)?.value || ""),
           user_role:     ($("#m-role", modal)?.value || ""),
         }
