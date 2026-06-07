@@ -678,12 +678,15 @@ RESPONSE STYLE:
     toolsBlock,
   ].join("\n");
 
-  // Cartesia custom voice IDs (from HARKLY_VOICE_MAP) are English-only clones.
-  // For non-English, omit voiceId so Cartesia selects the best multilingual voice.
+  // Cartesia custom voice IDs are English-only clones — using them for non-English
+  // causes Vapi to reject with "voiceId must be a string / invalid for X language".
+  // For non-English we switch to OpenAI TTS which renders any language naturally
+  // without needing a language-specific voiceId whitelist.
   const isEnglish = langCode === "en" || langCode === "en-GB";
+  const isMaleVoice = ["arjun", "daniel", "chris"].includes(voice?.id);
   const voiceBlock = isEnglish
     ? { provider: "cartesia", model: "sonic-multilingual", voiceId: cartesiaId, language: langCode }
-    : { provider: "cartesia", model: "sonic-multilingual", language: langCode };
+    : { provider: "openai", voiceId: isMaleVoice ? "onyx" : "nova" };
 
   return {
     backgroundDenoisingEnabled: false,        // Krisp init adds ~2s lag — keep disabled
@@ -1229,6 +1232,45 @@ function initVoiceTester(root) {
   }
   resize();
   window.addEventListener("resize", resize);
+
+  // Live preview when user changes language or voice dropdown
+  if (langSel) langSel.addEventListener("change", () => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      const langDef  = TRY_LANG_MAP[langSel.value]  || TRY_LANG_MAP["English (US)"];
+      const voiceKey = voiceSel ? voiceSel.value : "Maya — warm, mid-30s";
+      const voiceDef = TRY_VOICE_MAP[voiceKey] || TRY_VOICE_MAP["Maya — warm, mid-30s"];
+      const agentName = voiceKey.split("—")[0].trim();
+      const preview   = `${langDef.greet} ${agentName}.`;
+      const u = new SpeechSynthesisUtterance(preview);
+      const v = pickBestVoice(langDef.code, voiceDef.gender);
+      if (v) u.voice = v;
+      u.lang  = (v && v.lang) || langDef.code;
+      u.rate  = voiceDef.rate;
+      u.pitch = voiceDef.pitch;
+      window.speechSynthesis.speak(u);
+    }
+    if (status) status.innerHTML = `Language set to <strong>${escapeHtml(langSel.value)}</strong> — tap the mic to start a live conversation.`;
+  });
+
+  if (voiceSel) voiceSel.addEventListener("change", () => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      const langKey  = langSel ? langSel.value : "English (US)";
+      const langDef  = TRY_LANG_MAP[langKey]   || TRY_LANG_MAP["English (US)"];
+      const voiceDef = TRY_VOICE_MAP[voiceSel.value] || TRY_VOICE_MAP["Maya — warm, mid-30s"];
+      const agentName = voiceSel.value.split("—")[0].trim();
+      const preview   = `${langDef.greet} ${agentName}.`;
+      const u = new SpeechSynthesisUtterance(preview);
+      const v = pickBestVoice(langDef.code, voiceDef.gender);
+      if (v) u.voice = v;
+      u.lang  = (v && v.lang) || langDef.code;
+      u.rate  = voiceDef.rate;
+      u.pitch = voiceDef.pitch;
+      window.speechSynthesis.speak(u);
+    }
+    if (status) status.innerHTML = `Voice set to <strong>${escapeHtml(voiceSel.value.split("—")[0].trim())}</strong> — tap the mic to start a live conversation.`;
+  });
 
   let agentSpeaking = false, listening = false, t = 0, level = 0.1, currentPitch = 1;
   (function frame() {

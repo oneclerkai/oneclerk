@@ -4073,9 +4073,9 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 }
 .agb-upload-ic svg { width: 26px; height: 26px; }
 
-/* Updated pricing: trial subline — dark-bg variant */
-.lp-billing-head p { font-size: 14px; color: rgba(246,246,241,0.6) !important; }
-.lp-billing-head p strong { color: rgba(255,205,92,0.9) !important; }
+/* Updated pricing: trial subline */
+.lp-billing-head p { font-size: 14px; color: rgba(26,24,37,0.60) !important; }
+.lp-billing-head p strong { color: #9a6100 !important; }
 
 /* ============================================================ */
 /* v16 — first-time builder tutorial                            */
@@ -8049,20 +8049,18 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
     inset 1px 0 0 rgba(255,255,255,0.72) !important;
 }
 
-/* ── AUTH MODAL on light backdrop ─────────────────────────────────────── */
+/* ── AUTH MODAL — pure transparent glass ─────────────────────────────── */
 .auth-modal-backdrop-light .auth-modal {
-  background: rgba(255,255,255,0.50) !important;
-  backdrop-filter: blur(40px) saturate(210%) brightness(1.05) !important;
-  -webkit-backdrop-filter: blur(40px) saturate(210%) brightness(1.05) !important;
-  border-top:    1px solid rgba(255,255,255,0.95) !important;
-  border-left:   1px solid rgba(255,255,255,0.80) !important;
-  border-right:  1px solid rgba(200,215,235,0.35) !important;
-  border-bottom: 1px solid rgba(200,215,235,0.35) !important;
+  background: rgba(255,255,255,0.16) !important;
+  backdrop-filter: blur(52px) saturate(200%) brightness(1.06) !important;
+  -webkit-backdrop-filter: blur(52px) saturate(200%) brightness(1.06) !important;
+  border-top:    1px solid rgba(255,255,255,0.72) !important;
+  border-left:   1px solid rgba(255,255,255,0.56) !important;
+  border-right:  1px solid rgba(255,255,255,0.22) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.22) !important;
   box-shadow:
-    0 48px 100px -20px rgba(15,15,20,0.18),
-    0 8px 24px -8px rgba(15,15,20,0.08),
-    inset 0 1px 0 rgba(255,255,255,0.99),
-    inset 0 -1px 0 rgba(200,215,255,0.15) !important;
+    0 40px 80px -16px rgba(15,15,20,0.24),
+    inset 0 1px 0 rgba(255,255,255,0.88) !important;
 }
 
 /* ── ONBOARDING brand bar + cards ─────────────────────────────────────── */
@@ -8193,39 +8191,64 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
    FOOTER — parabola span letters (final override, no SVG)
    ═══════════════════════════════════════════════════════════════════════ */
 
-/* Billing section — dark gradient, not cream */
+/* Billing section — warm cream background with pure glass cards */
 .lp-billing {
-  background: linear-gradient(170deg, #0a0a12 0%, #0d0820 45%, #0f0a1a 100%) !important;
+  background: linear-gradient(160deg, #fffcf0 0%, #fef7de 50%, #fff9f0 100%) !important;
 }
-.lp-billing-head h2 { color: #f6f6f1 !important; }
-.lp-billing-head .eb { color: rgba(255,205,92,0.7) !important; }
+.lp-billing::before {
+  background:
+    radial-gradient(ellipse 50% 55% at 18% 45%, rgba(99,102,241,0.06) 0%, transparent 65%),
+    radial-gradient(ellipse 45% 50% at 82% 55%, rgba(168,85,247,0.05) 0%, transparent 65%) !important;
+}
+.lp-billing-head h2 { color: #1a1825 !important; }
+.lp-billing-head h2 em { color: rgba(26,24,37,0.40) !important; }
+.lp-billing-head .eb { color: rgba(120,80,0,0.80) !important; }
+.lp-billing-head p { color: rgba(26,24,37,0.60) !important; }
+.lp-billing-head p strong { color: #9a6100 !important; }
 
-/* Glass plan cards */
+/* Pure transparent glass plan cards */
 .lp-plan {
-  background: rgba(255,255,255,0.055) !important;
-  backdrop-filter: blur(20px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
-  border: 1px solid rgba(255,255,255,0.12) !important;
-  color: #f0f0ec !important;
+  background: rgba(255,255,255,0.40) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  border: 1px solid rgba(255,255,255,0.78) !important;
+  color: #1a1825 !important;
+  box-shadow:
+    0 8px 32px -8px rgba(26,24,37,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.92),
+    inset 0 -1px 0 rgba(200,200,220,0.12) !important;
 }
-.lp-plan-name { color: #f6f6f1 !important; }
-.lp-plan-sub { color: rgba(246,246,241,0.48) !important; }
-.lp-plan-price .amt { color: #f6f6f1 !important; }
-.lp-plan-price .per { color: rgba(246,246,241,0.4) !important; }
-.lp-plan-feats li { color: rgba(246,246,241,0.75) !important; }
-.lp-plan-feats .tick { color: #6ee7b7 !important; }
+.lp-plan:hover {
+  background: rgba(255,255,255,0.62) !important;
+  border-color: rgba(255,255,255,0.90) !important;
+  box-shadow:
+    0 16px 48px -12px rgba(26,24,37,0.12),
+    inset 0 1px 0 rgba(255,255,255,0.96) !important;
+}
+.lp-plan-name { color: #1a1825 !important; }
+.lp-plan-sub { color: rgba(26,24,37,0.52) !important; }
+.lp-plan-price .amt { color: #1a1825 !important; }
+.lp-plan-price .per { color: rgba(26,24,37,0.42) !important; }
+.lp-plan-feats li { color: rgba(26,24,37,0.70) !important; }
+.lp-plan-feats .tick { color: #059669 !important; }
 .lp-plan-cta {
-  border: 1px solid rgba(255,255,255,0.14) !important;
-  background: rgba(255,255,255,0.08) !important;
-  color: #f6f6f1 !important;
+  border: 1px solid rgba(26,24,37,0.13) !important;
+  background: rgba(255,255,255,0.52) !important;
+  color: #1a1825 !important;
+}
+.lp-plan-cta:hover {
+  background: rgba(255,255,255,0.82) !important;
 }
 
-/* Featured (Growth) card — rainbow animated border */
+/* Featured (Growth) card — elevated glass with rainbow animated border */
 .lp-plan.featured {
-  background: rgba(99,102,241,0.12) !important;
+  background: rgba(255,255,255,0.40) !important;
   border: 1.5px solid transparent !important;
   transform: translateY(-18px) !important;
   z-index: 2 !important;
+  box-shadow:
+    0 24px 64px -16px rgba(99,102,241,0.22),
+    inset 0 1px 0 rgba(255,255,255,0.94) !important;
 }
 .lp-plan.featured::before {
   content: "" !important;
@@ -8242,13 +8265,17 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   position: absolute !important;
   inset: 1px !important;
   border-radius: 19px !important;
-  background: linear-gradient(170deg, rgba(99,102,241,0.18) 0%, rgba(10,8,20,0.92) 100%) !important;
-  backdrop-filter: blur(24px) !important;
-  -webkit-backdrop-filter: blur(24px) !important;
+  background: rgba(255,255,255,0.44) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
   z-index: -1 !important;
 }
+.lp-plan.featured .lp-plan-name { color: #1a1825 !important; }
+.lp-plan.featured .lp-plan-sub { color: rgba(26,24,37,0.52) !important; }
+.lp-plan.featured .lp-plan-feats li { color: rgba(26,24,37,0.72) !important; }
+.lp-plan.featured .lp-plan-feats .tick { color: #6366f1 !important; }
 .lp-plan.featured .lp-plan-price .amt {
-  background: linear-gradient(90deg, #a5b4fc, #e879f9) !important;
+  background: linear-gradient(90deg, #6366f1, #a855f7) !important;
   -webkit-background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
 }
