@@ -1905,7 +1905,7 @@ function shell(activeKey, title, subtitle, action) {
           <div class="user-chip">
             <div class="avatar">${escapeHtml(initials)}</div>
             <div style="min-width:0;flex:1">
-              <div class="text-sm font-medium truncate">${escapeHtml(u.name || "—")}</div>
+              <div class="text-sm font-medium truncate">${escapeHtml(u.username || u.name || "—")}</div>
               <div class="text-xs text-muted truncate">${escapeHtml(u.business_type || u.user_role || "")}</div>
             </div>
           </div>
@@ -4645,8 +4645,8 @@ route("settings", async () => {
               <input class="field" id="set-name" value="${escapeHtml(u.name||'')}" placeholder="Your name"/>
             </div>
             <div class="set-field">
-              <label class="label">Email <span class="set-readonly-badge">read-only</span></label>
-              <input class="field" value="${escapeHtml(u.email||'')}" disabled/>
+              <label class="label">Username <span class="set-readonly-badge">read-only</span></label>
+              <input class="field" value="${escapeHtml(u.username||u.name||'')}" disabled/>
             </div>
           </div>
           <div class="set-field-row">
@@ -6864,7 +6864,6 @@ async function render() {
     return;
   }
 
-  // Force onboarding for users who signed up but never finished it.
   // Always re-fetch /auth/me on a fresh page load so we have authoritative state.
   if (!Store._refreshed) {
     try {
@@ -6879,8 +6878,6 @@ async function render() {
     renderIcons();
     return;
   }
-
-  // Onboarding removed — new users go directly to dashboard
 
   let view;
   if (r.path === "/login" || r.path === "/signup") { view = await routes.auth(); }
