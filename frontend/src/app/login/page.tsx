@@ -1,102 +1,64 @@
 /**
- * Login page — email + password, with a link to the OTP signup flow.
+ * Login page — email + password signin
  */
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { auth, setToken } from '../../lib/api'
 
-// Declare global window.google type
-declare global {
-  interface Window {
-    google: any;
-  }
-}
-
 export default function LoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [googleLoading, setGoogleLoading] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
 
-  // Initialize Google Sign-In
+  // Load saved email on mount
   useEffect(() => {
-    const initGoogleSignIn = async () => {
-      // Load Google SDK
-      const script = document.createElement('script')
-      script.src = 'https://accounts.google.com/gsi/client'
-      script.async = true
-      script.defer = true
-      document.body.appendChild(script)
-
-      script.onload = () => {
-        if (window.google && window.google.accounts) {
-          window.google.accounts.id.initialize({
-            client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
-            callback: handleGoogleSignIn,
-          })
-          
-          // Render the Google Sign-In button
-          const buttonContainer = document.getElementById('google-signin-button')
-          if (buttonContainer) {
-            window.google.accounts.id.renderButton(buttonContainer, {
-              type: 'standard',
-              theme: 'outline',
-              size: 'large',
-              width: '100%',
-              text: 'signin',
-            })
-          }
-        }
-      }
-    }
-
-    initGoogleSignIn()
-  }, [])
-
-  const handleGoogleSignIn = async (response: any) => {
-    setGoogleLoading(true)
-    setError('')
+    const savedEmail = localStorage.getItem('saved_email')
+    const rememberMeFlag = localStorage.getItem('remember_me')
     
-    try {
-      console.log('Google sign-in response received')
-      
-      if (!response.credential) {
-        throw new Error('No credential received from Google')
-      }
-
-      console.log('Sending credential to backend...')
-      
-      // Send credential to backend
-      const result = await auth.google(response.credential)
-      
-      console.log('Backend response:', result)
-      
-      if (result.access_token) {
-        setToken(result.access_token)
-        window.location.href = '/dashboard'
-      } else {
-        throw new Error('No access token in response')
-      }
-    } catch (err: any) {
-      console.error('Google sign-in error:', err)
-      setError(err.message || 'Google sign-in failed. Please try again.')
-    } finally {
-      setGoogleLoading(false)
+    if (savedEmail && rememberMeFlag === 'true') {
+      setEmail(savedEmail)
+      setRememberMe(true)
     }
-  }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
+    
     try {
+      if (!email || !password) {
+        setError('Please enter both email and password')
+        setLoading(false)
+        return
+      }
+
       const result = await auth.login({ email, password })
-      setToken(result.access_token)
-      window.location.href = '/dashboard'
+      
+      if (result.access_token) {
+        setToken(result.access_token)
+        
+        // Save email if remember me is checked
+        if (rememberMe) {
+          localStorage.setItem('saved_email', email)
+          localStorage.setItem('remember_me', 'true')
+        } else {
+          localStorage.removeItem('saved_email')
+          localStorage.removeItem('remember_me')
+        }
+        
+        router.push('/dashboard')
+      } else {
+        setError('Login failed. Please try again.')
+      }
     } catch (err: any) {
-      setError(err.message || 'Login failed')
+      console.error('Login error:', err)
+      setError(err.message || 'Invalid email or password')
     } finally {
       setLoading(false)
     }
@@ -120,24 +82,6 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h1>
           <p className="text-sm text-gray-500 mb-6">Sign in to manage your AI receptionist.</p>
 
-          {/* Google Sign-In Button */}
-          <div className="mb-6">
-            <div id="google-signin-button" className="flex justify-center" />
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 mt-4">
-                {error}
-              </div>
-            )}
-          </div>
-
-          {/* Divider */}
-          <div className="flex items-center gap-4 my-6">
-            <div className="flex-1 h-px bg-gray-200" />
-            <span className="text-xs text-gray-500">OR</span>
-            <div className="flex-1 h-px bg-gray-200" />
-          </div>
-
-          {/* Email/Password Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
@@ -170,7 +114,21 @@ export default function LoginPage() {
               />
             </div>
 
-            {error && !error.includes('Google') && (
+            {/* Remember Me Checkbox */}
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="remember_me"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 cursor-pointer"
+              />
+              <label htmlFor="remember_me" className="ml-2 text-sm text-gray-600 cursor-pointer">
+                Remember me
+              </label>
+            </div>
+
+            {error && (
               <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
                 {error}
               </div>
@@ -181,7 +139,7 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
             >
-              {loading ? 'Signing in…' : 'Continue →'}
+              {loading ? 'Signing in…' : 'Sign In →'}
             </button>
           </form>
 
