@@ -721,6 +721,26 @@ function buildVapiOverridesFromBcp47(voice, bcp47) {
   return buildVapiOverrides(voice, label);
 }
 
+// Pre-warm WebRTC — fires silently after mic permission is confirmed.
+// Establishes ICE/STUN paths so the next vapi.start() connects in <500 ms
+// instead of the 5–10 s it takes when the browser negotiates cold.
+async function preWarmWebRTC() {
+  try {
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+      ],
+    });
+    pc.createDataChannel("harkly-prewarm");
+    const offer = await pc.createOffer({ offerToReceiveAudio: true });
+    await pc.setLocalDescription(offer);
+    // Keep the peer connection alive for 6 s so ICE gathering completes,
+    // then close it — the gathered candidates are cached by the OS.
+    setTimeout(() => { try { pc.close(); } catch (_) {} }, 6000);
+  } catch (_) {} // silently ignore — pre-warm is best-effort
+}
+
 // Mount a self-contained voice preview into any container element.
 // container must have children with data-preview-canvas, data-preview-play, data-preview-lbl,
 // data-preview-voice, data-preview-lang attributes.
@@ -2681,11 +2701,14 @@ route("dashboard", async () => {
       await restartVapiCall(DASH_ASSISTANT_ID, dashOverrides(), dashCbs);
     }
 
-    // Pre-warm mic permission on first hover so the click → connect gap is minimal
+    // Pre-warm mic + WebRTC ICE paths on first hover so click → connect is instant
     playBtn.addEventListener("pointerenter", () => {
       if (!_micPermitted) {
         navigator.mediaDevices.getUserMedia({ audio: true })
-          .then(() => { _micPermitted = true; }).catch(() => {});
+          .then(s => { s.getTracks().forEach(t => t.stop()); _micPermitted = true; preWarmWebRTC(); })
+          .catch(() => {});
+      } else {
+        preWarmWebRTC();
       }
     }, { passive: true, once: true });
 
@@ -4585,7 +4608,10 @@ route("agentSetup", async (id) => {
       svpPlay.addEventListener("pointerenter", () => {
         if (!_micPermitted) {
           navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(() => { _micPermitted = true; }).catch(() => {});
+            .then(s => { s.getTracks().forEach(t => t.stop()); _micPermitted = true; preWarmWebRTC(); })
+            .catch(() => {});
+        } else {
+          preWarmWebRTC(); // already have permission — just warm the ICE paths
         }
       }, { passive: true, once: true });
 
@@ -5126,11 +5152,37 @@ route("agentFlow", async (id) => {
     { type: "slack",     label: "Slack Alerts",     color: "#4A154B", brandKey: "slack",    icon: "layers"         },
   ];
 
-  const saved = (cfg.flow_v2 && cfg.flow_v2.cards) ? cfg.flow_v2 : { cards: [], edges: [] };
+  function genId() { return "c" + Math.random().toString(36).slice(2, 9); }
+
+  // Auto-populate starter layout from existing agent config when no flow_v2 saved yet.
+  // This means a brand-new agent lands on a canvas that already reflects its profile
+  // (name, language, phone, business info) rather than a blank slate.
+  function makeStarterLayout() {
+    const pId = genId(), vId = genId(), lId = genId();
+    const aId = genId(), iId = genId();
+    const waId = cfg.owner_whatsapp ? genId() : null;
+    const gcId = cfg.calendly_url   ? genId() : null;
+    const cards = [
+      { id: pId, type: "phone",    x: 30,  y: 50,  config: { phone: a.forwarding_number || "" } },
+      { id: vId, type: "voice",    x: 370, y: 50,  config: { voice: cfg.voice_id || "maya" } },
+      { id: lId, type: "language", x: 370, y: 250, config: { language: cfg.language || "English (US)" } },
+      { id: aId, type: "agent",    x: 710, y: 50,  config: { name: cfg.agent_name || "", greeting: cfg.greeting_message || "How can I help you today?", biz_type: cfg.agent_type || "", text: "" } },
+      { id: iId, type: "info",     x: 30,  y: 250, config: { bizname: cfg.business_name || "", hours: cfg.operating_hours || "", services: cfg.services || "", pricing: cfg.pricing || "", address: cfg.location || "", faq: cfg.faqs || "" } },
+      ...(waId ? [{ id: waId, type: "whatsapp", x: 1050, y: 50,  config: { whatsapp: cfg.owner_whatsapp } }] : []),
+      ...(gcId ? [{ id: gcId, type: "gcal",     x: 1050, y: 250, config: { calendly: cfg.calendly_url  } }] : []),
+    ];
+    const edges = [
+      { from: pId, to: aId }, { from: vId, to: aId },
+      { from: lId, to: aId }, { from: iId, to: aId },
+      ...(waId ? [{ from: aId, to: waId }] : []),
+      ...(gcId ? [{ from: aId, to: gcId }] : []),
+    ];
+    return { cards, edges };
+  }
+
+  const saved = (cfg.flow_v2?.cards?.length) ? cfg.flow_v2 : makeStarterLayout();
   const state = { cards: saved.cards, edges: saved.edges, dragEdgeFrom: null, mouse: { x: 0, y: 0 } };
   const CARD_W = 280, CARD_H = 152;
-
-  function genId() { return "c" + Math.random().toString(36).slice(2, 9); }
 
   // Start with an empty canvas — the tutorial guides first-time users through the panel
 
@@ -5413,6 +5465,7 @@ route("agentFlow", async (id) => {
           .then(stream => {
             stream.getTracks().forEach(t => t.stop()); // immediately release
             setMicState("ok", "Microphone ready — connecting…");
+            preWarmWebRTC(); // heat ICE/STUN paths NOW so vapi.start() is fast
             talkBtn.disabled = false;
             talkBtn.click(); // re-fire after permission granted
           })
@@ -5474,8 +5527,19 @@ route("agentFlow", async (id) => {
   function cardBodyHTML(card) {
     const c = card.config || {};
     const ci = (ph, field, val) => `<input class="fb-ci" placeholder="${ph}" data-field="${field}" value="${escapeHtml(val || '')}" />`;
-    if (card.type === "agent") return `
-      <textarea class="fb-ci" style="resize:vertical;min-height:60px" data-field="text" placeholder="Describe your agent — persona, tone, speciality…">${escapeHtml(c.text||'')}</textarea>`;
+    if (card.type === "agent") {
+      const AGENT_TYPES = [
+        "","Dental clinic front desk","Real Estate Agent","Hair salon receptionist",
+        "Restaurant host","HVAC dispatcher","Law firm intake","professional front desk receptionist",
+      ];
+      return `
+        ${ci("Agent name (e.g. Maya or Aria)", "name", c.name)}
+        ${ci("Opening greeting", "greeting", c.greeting)}
+        <select class="fb-ci" data-field="biz_type" style="margin-top:4px">
+          ${AGENT_TYPES.map(t => `<option value="${escapeHtml(t)}"${c.biz_type===t?" selected":""}>${escapeHtml(t)||"Agent type / designation (optional)"}</option>`).join("")}
+        </select>
+        <textarea class="fb-ci" style="resize:vertical;min-height:46px;margin-top:4px" data-field="text" placeholder="Persona / tone — e.g. Warm, professional, concise">${escapeHtml(c.text||'')}</textarea>`;
+    }
     if (card.type === "voice") return `<select class="fb-ci" data-field="voice">${PREVIEW_VOICES.map(v => `<option value="${v.id}"${c.voice===v.id?" selected":""}>${v.label} — ${v.sub}</option>`).join("")}</select>`;
     if (card.type === "language") {
       const parts = (c.language || "English (US)").split(",").map(s => s.trim()).filter(Boolean);
@@ -5737,31 +5801,7 @@ route("agentFlow", async (id) => {
           if ((card.type === "agent" || card.type === "voice")    && inp.dataset.field === "voice")    localStorage.setItem("oc_last_voice", inp.value);
           if ((card.type === "agent" || card.type === "language") && inp.dataset.field === "language") localStorage.setItem("oc_last_lang",  inp.value);
           // Sync canvas state to global preview state (agent card takes priority over standalone cards)
-          (function syncCanvasState() {
-            const ac = state.cards.find(c => c.type === "agent");
-            const vc = state.cards.find(c => c.type === "voice");
-            const lc = state.cards.find(c => c.type === "language");
-            const ic = state.cards.find(c => c.type === "info");
-            const gc = state.cards.find(c => c.type === "gcal");
-            const LANG_MAP = PREVIEW_LANG_MAP;
-            const voiceId  = ac?.config?.voice    || vc?.config?.voice    || "maya";
-            const langKey  = ac?.config?.language || lc?.config?.language || "English (US)";
-            // Include full business context so the preview agent "knows" the business
-            const ic_cfg   = ic?.config || {};
-            window.harklyCanvasState = {
-              voiceId,
-              language: LANG_MAP[langKey] || "en-US",
-              // business data — maps directly to buildVapiOverrides agentConfig fields
-              business_name:     ic_cfg.bizname   || ac?.config?.business_name || "",
-              business_info:     ic_cfg.text      || "",
-              business_hours:    ic_cfg.hours     || "",
-              business_services: ic_cfg.services  || "",
-              business_pricing:  ic_cfg.pricing   || "",
-              business_address:  ic_cfg.address   || "",
-              business_faq:      ic_cfg.faq       || "",
-              calendly_url:      gc?.config?.calendly || "",
-            };
-          })();
+          syncCanvasState();
           updateActivationBar();
           checkAutoActivate();
         };
@@ -5798,6 +5838,43 @@ route("agentFlow", async (id) => {
     hintEl.style.display = state.cards.length ? "none" : "flex";
     renderEdges();
     updateActivationBar();
+    syncCanvasState(); // ← always keep preview in sync after any re-render
+  }
+
+  // Sync canvas state to window.harklyCanvasState so the Preview page and
+  // the dashboard voice preview always reflect the latest canvas content
+  // even if the user hasn't typed anything yet (e.g. starter cards on load).
+  function syncCanvasState() {
+    const ac = state.cards.find(c => c.type === "agent");
+    const vc = state.cards.find(c => c.type === "voice");
+    const lc = state.cards.find(c => c.type === "language");
+    const ic = state.cards.find(c => c.type === "info");
+    const gc = state.cards.find(c => c.type === "gcal");
+    const voiceId = ac?.config?.voice    || vc?.config?.voice    || "maya";
+    // Language stored as display label — map to BCP-47 for the preview page
+    const langKey  = ac?.config?.language || lc?.config?.language || "English (US)";
+    const ic_cfg   = ic?.config || {};
+    const ac_cfg   = ac?.config || {};
+    window.harklyCanvasState = {
+      voiceId,
+      language:          PREVIEW_LANG_MAP[langKey] || "en-US",
+      // agent identity — used by dashboard preview & setup page
+      agent_name:        ac_cfg.name     || "",
+      greeting_message:  ac_cfg.greeting || "",
+      agent_type:        ac_cfg.biz_type || ac_cfg.text || "",
+      // business context — flows directly into buildVapiOverrides agentConfig
+      business_name:     ic_cfg.bizname   || ac_cfg.business_name || "",
+      business_info:     ic_cfg.text      || "",
+      business_hours:    ic_cfg.hours     || "",
+      business_services: ic_cfg.services  || "",
+      business_pricing:  ic_cfg.pricing   || "",
+      business_address:  ic_cfg.address   || "",
+      business_faq:      ic_cfg.faq       || "",
+      calendly_url:      gc?.config?.calendly || "",
+    };
+    // Also persist voice + lang so dashboard preview survives page navigation
+    if (voiceId) localStorage.setItem("oc_last_voice", voiceId);
+    if (langKey)  localStorage.setItem("oc_last_lang",  langKey);
   }
 
   // Mouse tracking for ghost edge
@@ -5854,6 +5931,12 @@ route("agentFlow", async (id) => {
         if (card.type === "phone"    && c.phone)    nc.forwarding_number = c.phone;
         if (card.type === "gcal"     && c.calendly) nc.calendly_url = c.calendly;
         if (card.type === "whatsapp" && c.whatsapp) nc.owner_whatsapp = c.whatsapp;
+        if (card.type === "agent") {
+          if (c.name)     nc.agent_name           = c.name;
+          if (c.greeting) nc.greeting_message     = c.greeting;
+          if (c.biz_type) nc.agent_type           = c.biz_type;
+          if (c.text)     nc.agent_persona        = c.text;
+        }
         if (card.type === "info") {
           if (c.text)     nc.business_info    = c.text;
           if (c.url)      nc.business_url     = c.url;
