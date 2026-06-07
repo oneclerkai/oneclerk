@@ -5777,7 +5777,7 @@ route("agentFlow", async (id) => {
           // Phone one-agent-only: warn if number already used by another agent
           if (card.type === "phone" && inp.dataset.field === "phone" && inp.value.trim().length >= 7) {
             try {
-              const allAgents = await api("/agents");
+              const allAgents = await api("/agents/list");
               const agents = Array.isArray(allAgents) ? allAgents : (allAgents.agents || []);
               const conflict = agents.find(ag =>
                 String(ag.id) !== String(id) &&
