@@ -3,14 +3,89 @@
  */
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { auth, setToken } from '../../lib/api'
+
+// Declare global window.google type
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
+
+  // Initialize Google Sign-In
+  useEffect(() => {
+    const initGoogleSignIn = async () => {
+      // Load Google SDK
+      const script = document.createElement('script')
+      script.src = 'https://accounts.google.com/gsi/client'
+      script.async = true
+      script.defer = true
+      document.body.appendChild(script)
+
+      script.onload = () => {
+        if (window.google && window.google.accounts) {
+          window.google.accounts.id.initialize({
+            client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
+            callback: handleGoogleSignIn,
+          })
+          
+          // Render the Google Sign-In button
+          const buttonContainer = document.getElementById('google-signin-button')
+          if (buttonContainer) {
+            window.google.accounts.id.renderButton(buttonContainer, {
+              type: 'standard',
+              theme: 'outline',
+              size: 'large',
+              width: '100%',
+              text: 'signin',
+            })
+          }
+        }
+      }
+    }
+
+    initGoogleSignIn()
+  }, [])
+
+  const handleGoogleSignIn = async (response: any) => {
+    setGoogleLoading(true)
+    setError('')
+    
+    try {
+      console.log('Google sign-in response received')
+      
+      if (!response.credential) {
+        throw new Error('No credential received from Google')
+      }
+
+      console.log('Sending credential to backend...')
+      
+      // Send credential to backend
+      const result = await auth.google(response.credential)
+      
+      console.log('Backend response:', result)
+      
+      if (result.access_token) {
+        setToken(result.access_token)
+        window.location.href = '/dashboard'
+      } else {
+        throw new Error('No access token in response')
+      }
+    } catch (err: any) {
+      console.error('Google sign-in error:', err)
+      setError(err.message || 'Google sign-in failed. Please try again.')
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,6 +120,24 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h1>
           <p className="text-sm text-gray-500 mb-6">Sign in to manage your AI receptionist.</p>
 
+          {/* Google Sign-In Button */}
+          <div className="mb-6">
+            <div id="google-signin-button" className="flex justify-center" />
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 mt-4">
+                {error}
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="flex items-center gap-4 my-6">
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-xs text-gray-500">OR</span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+
+          {/* Email/Password Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
@@ -77,7 +170,7 @@ export default function LoginPage() {
               />
             </div>
 
-            {error && (
+            {error && !error.includes('Google') && (
               <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
                 {error}
               </div>
