@@ -678,6 +678,13 @@ RESPONSE STYLE:
     toolsBlock,
   ].join("\n");
 
+  // Cartesia custom voice IDs (from HARKLY_VOICE_MAP) are English-only clones.
+  // For non-English, omit voiceId so Cartesia selects the best multilingual voice.
+  const isEnglish = langCode === "en" || langCode === "en-GB";
+  const voiceBlock = isEnglish
+    ? { provider: "cartesia", model: "sonic-multilingual", voiceId: cartesiaId, language: langCode }
+    : { provider: "cartesia", model: "sonic-multilingual", language: langCode };
+
   return {
     backgroundDenoisingEnabled: false,        // Krisp init adds ~2s lag — keep disabled
     firstMessage: HARKLY_FIRST_MSG[langCode] || HARKLY_FIRST_MSG["en"],
@@ -695,12 +702,7 @@ RESPONSE STYLE:
         { role: "system", content: systemPrompt },
       ],
     },
-    voice: {
-      provider: "cartesia",
-      model:    "sonic-multilingual",         // MUST be sonic-multilingual, not sonic-english
-      voiceId:  cartesiaId,
-      language: langCode,                     // Cartesia uses the short BCP-47 code
-    },
+    voice: voiceBlock,
   };
 }
 // Variant that takes a BCP-47 code directly (used by the agent setup page).
@@ -1038,24 +1040,31 @@ route("auth", async () => {
         <div class="lp-billing-head">
           <span class="eb">PRICING</span>
           <h2>Pay only for the calls you <em>actually</em> answer.</h2>
-          <p>Every plan starts with a 7-day free trial. No credit card required. Cancel any time.</p>
+          <p>Every plan starts with a <strong>7-day free trial</strong>. No credit card required. Cancel any time.</p>
         </div>
         <div class="lp-plan-grid">
           ${LANDING_PLANS.map(p => `
-            <div class="lp-plan ${p.badge ? 'has-badge' : ''} ${p.key === 'growth' ? 'featured' : ''}">
-              ${p.badge ? `<span class="lp-plan-badge">${p.badge}</span>` : ""}
+            <div class="lp-plan ${p.key === 'growth' ? 'featured' : ''}">
+              ${p.key === 'growth' ? `
+                <div class="lp-plan-popular-wrap">
+                  <span class="lp-plan-popular-badge">
+                    <span class="lp-popular-dot"></span>Most popular
+                  </span>
+                </div>` : ""}
+              ${p.badge && p.key !== 'growth' ? `<span class="lp-plan-badge">${p.badge}</span>` : ""}
               <div class="lp-plan-name">${p.name}</div>
               <div class="lp-plan-sub">${p.sub}</div>
               <div class="lp-plan-price">
                 ${p.price !== null
-                  ? `<span class="amt">$${p.price}</span><span class="per">/month</span>`
+                  ? `<span class="amt">$${p.price}</span><span class="per">/mo</span>`
                   : `<span class="amt amt-talk">Custom</span>`}
               </div>
+              <div class="lp-plan-divider"></div>
               <ul class="lp-plan-feats">
                 ${p.features.map(f => `<li><span class="tick">✓</span>${f}</li>`).join("")}
               </ul>
               <button class="lp-plan-cta" data-open-auth="signup">
-                ${p.price !== null ? "Start free trial" : "Talk to us"}
+                ${p.key === 'enterprise' ? "Talk to us" : p.key === 'growth' ? "Start free — it's on us" : "Start free trial"}
               </button>
             </div>`).join("")}
         </div>
@@ -1086,13 +1095,8 @@ route("auth", async () => {
           </div>
         </div>
 
-        <div class="lp-bigword" id="lp-bigword">
-          <svg class="lp-bigword-svg" viewBox="0 0 1400 310" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-label="HARKLY AI">
-            <defs><path id="harkly-arc" d="M 0,288 Q 700,90 1400,288" fill="none"/></defs>
-            <text font-family="'Syne','Nunito',system-ui,sans-serif" font-weight="800" font-size="168" fill="#f6f6f1" letter-spacing="22" opacity="0.92">
-              <textPath href="#harkly-arc" startOffset="50%" text-anchor="middle">HARKLY AI</textPath>
-            </text>
-          </svg>
+        <div class="lp-bigword" id="lp-bigword" aria-label="HARKLY AI">
+          ${"HARKLY AI".split("").map(c => c === " " ? `<span class="ltr ltr-space" aria-hidden="true">&nbsp;</span>` : `<span class="ltr" aria-hidden="true">${c}</span>`).join("")}
         </div>
 
         <div class="lp-footer-bottom">
@@ -1477,11 +1481,14 @@ function initVoiceTester(root) {
           onError: (err) => {
             clearTimeout(connectTimeout);
             setButtonIdle();
-            console.warn("[Harkly] Vapi error:", err);
-            // Retry once on transient errors
-            const msg = (err?.message || err?.error || "").toLowerCase();
+            console.warn("[Harkly] Vapi error:", JSON.stringify(err));
+            // err.message can be an object/array from Vapi — always stringify first
+            const rawMsg = err?.message ?? err?.error ?? "";
+            const msg = (typeof rawMsg === "string" ? rawMsg : JSON.stringify(rawMsg)).toLowerCase();
             if (msg.includes("ice") || msg.includes("network") || msg.includes("transport")) {
               status.innerHTML = `Connection hiccup — tap the mic again to reconnect.`;
+            } else if (msg.includes("voiceid") || msg.includes("voice") || msg.includes("bad request")) {
+              status.innerHTML = `Voice config issue — please try a different language or voice.`;
             } else {
               status.innerHTML = `Something went wrong — tap the mic to try again.`;
             }
@@ -1694,8 +1701,8 @@ function openAuthModal(initialMode = "login") {
             </select>
           </div>
           <div>
-            <label class="label">Gmail</label>
-            <input id="m-email" type="email" class="field" placeholder="you@gmail.com" autocomplete="email" required/>
+            <label class="label">Email address</label>
+            <input id="m-email" type="email" class="field" placeholder="you@example.com" autocomplete="email" required/>
           </div>
           <div>
             <label class="label">Password</label>
