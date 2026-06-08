@@ -3702,8 +3702,10 @@ route("agents", async () => {
     const callCount = calls.filter(c => c.agent_id === a.id).length;
     const biz = cfg.business_name || cfg.business_type || "";
     const phone = a.twilio_number || "";
-    const lang  = cfg.language  || a.language  || "";
-    const voice = a.voice_id   || cfg.voice_id || "";
+    const lang      = cfg.language  || a.language  || "";
+    const _rawVoice = cfg.voice || cfg.voice_id || a.voice_id || "";
+    const _pvMatch  = PREVIEW_VOICES.find(v => v.id === _rawVoice || v.label.toLowerCase() === String(_rawVoice).toLowerCase());
+    const voice     = _pvMatch ? _pvMatch.label : (_rawVoice.length > 20 ? "" : _rawVoice);
     const colorIdx = a.id ? a.id.charCodeAt(0) % 6 : 0;
     const COLORS = ["#6366f1","#10b981","#f59e0b","#3b82f6","#ec4899","#8b5cf6"];
     const col = COLORS[colorIdx];
