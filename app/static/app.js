@@ -4739,7 +4739,7 @@ function mountTestChat(root, agentId, cfg) {
 }
 
 route("settings", async () => {
-  const wrap = shell("settings", "Settings", "Account, notifications and integration status.");
+  const wrap = shell("settings", "Settings", "Account preferences and notification controls.");
   const page = $("#page", wrap);
   const u = Store.user || {};
   const bp = u.business_profile || {};
@@ -4846,30 +4846,6 @@ route("settings", async () => {
     btn.disabled = false; btn.textContent = "Save changes";
   });
 
-  // Load health — response is { status, services: { database, openai, telnyx, … } }
-  try {
-    const h = await api("/health", { auth: false });
-    const svc = h.services || {};
-    const intRow = (label, ok, note="") => `
-      <div class="set-int-row">
-        <span class="set-int-dot ${ok ? 'set-int-ok' : 'set-int-off'}"></span>
-        <div class="set-int-body">
-          <div class="set-int-label">${label}</div>
-          ${note ? `<div class="set-int-note">${escapeHtml(note)}</div>` : ""}
-        </div>
-        <span class="badge ${ok ? 'badge-success' : 'badge-muted'}">${ok ? 'Connected' : 'Not set'}</span>
-      </div>`;
-    $("#set-health", page).innerHTML = [
-      intRow("PostgreSQL",         svc.database,    "Agent data, calls, users"),
-      intRow("OpenAI (AI brain)",  svc.openai,      "Conversation intelligence"),
-      intRow("Telnyx (calls)",     svc.telnyx,      "Inbound phone calls"),
-      intRow("ElevenLabs (TTS)",   svc.elevenlabs,  "High-quality voice synthesis"),
-      intRow("Twilio",             svc.twilio,      "Fallback voice & WhatsApp"),
-      intRow("Stripe (billing)",   svc.stripe,      "Subscription management"),
-      intRow("Redis (cache)",      svc.redis,       "Response caching & rate limits"),
-      intRow("Google Calendar",    svc.google_calendar, "AI booking integration"),
-    ].join("");
-  } catch (e) { toast(e.message, "error"); }
   return wrap;
 });
 
@@ -5239,7 +5215,6 @@ route("agentFlow", async (id) => {
             <div class="fb-gp-sub">Drag to canvas · click to add</div>
           </div>
           <div class="fb-gp-list" id="fb-gp-list"></div>
-          <div class="fb-gp-divider"></div>
         </div>
       </aside>
     </div>
@@ -5350,7 +5325,6 @@ route("agentFlow", async (id) => {
 
   function updateActivationBar() {
     const barEl  = shellEl.querySelector("#fb-act-bar");
-    const prvEl  = shellEl.querySelector("#fb-gp-preview");
     const issues = validateCards();
 
     // ── Per-card invalid highlighting ─────────────────────────────────────
@@ -5392,207 +5366,6 @@ route("agentFlow", async (id) => {
       }
     }
 
-    // ── Live preview panel ────────────────────────────────────────────────
-    if (!prvEl) return;
-    const vc = state.cards.find(c => c.type === "voice");
-    const lc = state.cards.find(c => c.type === "language");
-    const pc = state.cards.find(c => c.type === "phone");
-    const wc = state.cards.find(c => c.type === "whatsapp");
-    const ic = state.cards.find(c => c.type === "info");
-    const gc = state.cards.find(c => c.type === "gcal");
-
-    if (!pc && !vc && !lc) {
-      prvEl.innerHTML = `<div class="fb-pv-empty">Fill cards to see a live preview.</div>`;
-      return;
-    }
-
-    const voiceName = PREVIEW_VOICES.find(v => v.id === (vc?.config?.voice || "maya"))?.label || "Maya";
-    const langName  = lc?.config?.language || "English (US)";
-    const phoneNum  = pc?.config?.phone || a.forwarding_number || "—";
-    const waNum     = wc?.config?.whatsapp || cfg.owner_whatsapp || "—";
-    const calUrl    = gc?.config?.calendly || cfg.calendly_url || "";
-    const infoSnip  = ic?.config?.text ? ic.config.text.slice(0, 80) + (ic.config.text.length > 80 ? "…" : "") : "";
-
-    const row = (lbl, val, cls = "") =>
-      val && val !== "—"
-        ? `<div class="fb-pv-row"><span class="fb-pv-lbl">${lbl}</span><span class="fb-pv-val ${cls}">${escapeHtml(val)}</span></div>`
-        : `<div class="fb-pv-row fb-pv-row-dim"><span class="fb-pv-lbl">${lbl}</span><span class="fb-pv-val fb-pv-miss">not set</span></div>`;
-
-    const statusCls = a.is_active ? "fb-pv-live" : "fb-pv-draft";
-    const statusLbl = a.is_active ? "Live" : "Draft";
-    const acCard = state.cards.find(c => c.type === "agent");
-    const voiceForPreview = acCard?.config?.voice || vc?.config?.voice || "maya";
-    const langForPreview  = lc?.config?.language || "English (US)";
-    const bizName = ic?.config?.bizname || "";
-
-    prvEl.innerHTML = `
-      <div class="fb-pv-status-row">
-        <div class="fb-pv-dot ${statusCls}"></div>
-        <span class="fb-pv-status-lbl">${statusLbl}</span>
-        <span class="fb-pv-agent-name">${escapeHtml(a.name || "")}</span>
-      </div>
-      ${bizName ? `<div class="fb-pv-biz">${escapeHtml(bizName)}</div>` : ""}
-      ${row("Voice",    voiceName)}
-      ${row("Language", langForPreview)}
-      ${row("Phone",    phoneNum)}
-      ${wc ? row("WhatsApp", waNum) : ""}
-      ${gc ? row("Booking",  calUrl || "—") : ""}
-      ${infoSnip ? `<div class="fb-pv-info">${escapeHtml(infoSnip)}</div>` : ""}
-        <canvas id="fb-pv-wave" class="fb-pv-wave"></canvas>
-      <button class="fb-pv-talk-btn" id="fb-pv-talk" data-voice="${escapeHtml(voiceForPreview)}" data-lang="${escapeHtml(langForPreview)}">
-        <svg viewBox="0 0 20 20" style="width:14px;height:14px;margin-right:5px;flex-shrink:0"><path d="M10 12a2 2 0 0 0 2-2V5a2 2 0 0 0-4 0v5a2 2 0 0 0 2 2zm4-2a4 4 0 0 1-8 0H4a6 6 0 0 0 12 0h-2z" fill="currentColor"/></svg>
-        <span id="fb-pv-talk-lbl">Talk to your agent</span>
-      </button>
-    `;
-
-    // ── Inline Vapi preview for the flow builder ──────────────────────────
-    const FLOW_PREV_AID = "d5f28a96-25da-4905-bac8-5dee52a15f4e";
-    let fbCallActive = false;
-    const talkBtn  = prvEl.querySelector("#fb-pv-talk");
-    const talkLbl  = prvEl.querySelector("#fb-pv-talk-lbl");
-    const waveEl   = prvEl.querySelector("#fb-pv-wave");
-
-    // Mini waveform
-    if (waveEl) {
-      const wCtx = waveEl.getContext("2d");
-      const dpr  = window.devicePixelRatio || 1;
-      let wT = 0, wLv = 0.08, wSpk = false, wRaf;
-      function wResize() { const r = waveEl.getBoundingClientRect(); waveEl.width = r.width*dpr; waveEl.height = r.height*dpr; }
-      wResize();
-      window.addEventListener("resize", wResize);
-      function wDraw() {
-        wT += 0.04; wLv += ((wSpk ? 0.82 : 0.08) - wLv) * 0.06;
-        const w = waveEl.width, h = waveEl.height;
-        if (!w || !h) { wRaf = requestAnimationFrame(wDraw); return; }
-        wCtx.fillStyle = "rgba(10,15,30,0.96)"; wCtx.fillRect(0, 0, w, h);
-        const bars = 22, gap = 3 * dpr, bw = (w - gap*(bars-1)) / bars;
-        for (let i = 0; i < bars; i++) {
-          const ph = i*0.52 + wT;
-          const amp = Math.sin(ph)*0.4 + Math.sin(ph*1.9)*0.32 + Math.sin(ph*0.55)*0.28;
-          const bh = Math.max(3*dpr, Math.abs(amp)*wLv*h*0.88);
-          const x = i*(bw+gap), y = (h-bh)/2;
-          const ratio = i/(bars-1);
-          const r2 = Math.round(99+ratio*156), g2 = Math.round(102-ratio*72), b2 = Math.round(241-ratio*80);
-          wCtx.fillStyle = `rgba(${r2},${g2},${b2},0.9)`;
-          wCtx.beginPath(); wCtx.roundRect(x, y, bw, bh, 2); wCtx.fill();
-        }
-        wRaf = requestAnimationFrame(wDraw);
-      }
-      requestAnimationFrame(() => { wResize(); wDraw(); });
-
-      // Expose so parent can animate
-      talkBtn._wSpk = (v) => { wSpk = v; };
-    }
-
-    // Expose globally so any other widget can trigger it
-    window._vapiStart = (_vid, _lang) => { talkBtn?.click(); };
-
-    // Mic permission state machine
-    let _micState = "unknown"; // unknown | ok | blocked | requesting
-    const micBanner = document.createElement("div");
-    micBanner.className = "fb-mic-banner fb-mic-req";
-    micBanner.innerHTML = `<span class="fb-mic-ico">🎙️</span><div class="fb-mic-txt"><b>Microphone access needed</b>Click "Talk to your agent" — your browser will ask for mic permission.</div>`;
-    talkBtn?.parentNode?.insertBefore(micBanner, talkBtn);
-
-    const setMicState = (state, msg) => {
-      _micState = state;
-      micBanner.className = `fb-mic-banner fb-mic-${state === "ok" ? "ok" : state === "blocked" ? "err" : "req"}`;
-      if (state === "ok") {
-        micBanner.innerHTML = `<span class="fb-mic-ico">✅</span><div class="fb-mic-txt"><b>Microphone ready</b>${msg || "Tap the button below to call your agent."}</div>`;
-        talkBtn?.classList.remove("mic-blocked");
-        if (talkBtn) talkBtn.disabled = false;
-      } else if (state === "blocked") {
-        micBanner.innerHTML = `<span class="fb-mic-ico">🚫</span><div class="fb-mic-txt"><b>Microphone blocked</b>${msg || "Allow mic access in your browser settings, then refresh."}</div>`;
-        talkBtn?.classList.add("mic-blocked");
-      } else {
-        micBanner.innerHTML = `<span class="fb-mic-ico">🎙️</span><div class="fb-mic-txt"><b>Microphone access needed</b>${msg || 'Click \u201cTalk to your agent\u201d — your browser will ask for mic permission.'}</div>`;
-        talkBtn?.classList.remove("mic-blocked");
-      }
-    };
-    // Probe mic permission silently on load (doesn't show browser prompt)
-    if (navigator.permissions) {
-      navigator.permissions.query({ name: "microphone" }).then(ps => {
-        if (ps.state === "granted")  setMicState("ok",      "Microphone ready.");
-        if (ps.state === "denied")   setMicState("blocked", "Open browser settings → Site settings → Microphone and allow this site.");
-        ps.onchange = () => {
-          if (ps.state === "granted") setMicState("ok");
-          if (ps.state === "denied")  setMicState("blocked", "Open browser settings → Site settings → Microphone and allow this site.");
-        };
-      }).catch(() => {});
-    }
-
-    talkBtn?.addEventListener("click", () => {
-      localStorage.setItem("oc_last_voice", voiceForPreview);
-      localStorage.setItem("oc_last_lang",  langForPreview);
-      if (fbCallActive) { stopVapiCall(); return; }
-      if (_micState === "blocked") { toast("Microphone is blocked — allow mic in browser settings and refresh", "error"); return; }
-      if (!getVapi()) { toast("Vapi unavailable — check your connection and retry", "error"); return; }
-
-      // If mic permission unknown, request it first, then proceed
-      if (_micState !== "ok") {
-        setMicState("requesting", "Requesting microphone access…");
-        talkBtn.disabled = true;
-        navigator.mediaDevices.getUserMedia({ audio: true })
-          .then(stream => {
-            stream.getTracks().forEach(t => t.stop()); // immediately release
-            setMicState("ok", "Microphone ready — connecting…");
-            preWarmWebRTC(); // heat ICE/STUN paths NOW so vapi.start() is fast
-            talkBtn.disabled = false;
-            talkBtn.click(); // re-fire after permission granted
-          })
-          .catch(err => {
-            const msg = err.name === "NotAllowedError"
-              ? "Open browser settings → Site settings → Microphone and allow this site."
-              : `Could not access mic: ${err.message}`;
-            setMicState("blocked", msg);
-            toast("Microphone blocked — " + msg, "error");
-          });
-        return;
-      }
-
-      if (talkLbl) talkLbl.textContent = "Connecting…";
-      talkBtn.disabled = true;
-      const voiceObj = PREVIEW_VOICES.find(v => v.id === voiceForPreview) || PREVIEW_VOICES[0];
-      // Gather all card configs so the agent "knows" the full business context during the preview call
-      const _cardCfg = {};
-      state.cards.forEach(card => {
-        const cc = card.config || {};
-        if (card.type === "info") {
-          if (cc.bizname)  _cardCfg.business_name     = cc.bizname;
-          if (cc.text)     _cardCfg.business_info     = cc.text;
-          if (cc.hours)    _cardCfg.business_hours    = cc.hours;
-          if (cc.services) _cardCfg.business_services = cc.services;
-          if (cc.pricing)  _cardCfg.business_pricing  = cc.pricing;
-          if (cc.address)  _cardCfg.business_address  = cc.address;
-          if (cc.faq)      _cardCfg.business_faq      = cc.faq;
-        }
-        if (card.type === "gcal" && cc.calendly) _cardCfg.calendly_url = cc.calendly;
-      });
-      let fbConnTimeout;
-      const fbReset = () => {
-        clearTimeout(fbConnTimeout);
-        fbCallActive = false;
-        if (talkLbl) talkLbl.textContent = "Talk to your agent";
-        talkBtn.classList.remove("playing"); talkBtn.disabled = false;
-        talkBtn._wSpk?.(false);
-      };
-      startVapiCall(FLOW_PREV_AID, buildVapiOverrides(voiceObj, langForPreview, null, _cardCfg), {
-        onStart: () => {
-          clearTimeout(fbConnTimeout);
-          fbCallActive = true;
-          if (talkLbl) talkLbl.textContent = "Stop call";
-          talkBtn.classList.add("playing"); talkBtn.disabled = false;
-          talkBtn._wSpk?.(true);
-        },
-        onEnd:         () => { fbReset(); },
-        onSpeechStart: () => { talkBtn._wSpk?.(true);  },
-        onSpeechEnd:   () => { talkBtn._wSpk?.(false); },
-        onVolume: () => {},
-        onError: () => { fbReset(); toast("Could not start preview — allow microphone access and retry", "error"); },
-      });
-      fbConnTimeout = setTimeout(() => { if (!fbCallActive) fbReset(); }, 25000);
-    });
-    renderIcons(prvEl);
   }
 
   function cardBodyHTML(card) {
