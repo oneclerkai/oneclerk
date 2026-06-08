@@ -71,17 +71,20 @@ async function restartVapiCall(assistantId, overrides, callbacks) {
   return startVapiCall(assistantId, overrides, callbacks);
 }
 
-// ── Harkly AI Vapi production mapping dictionaries ───────────────────────────
-// Cartesia voice IDs (used as the 'voice.voiceId' in Vapi assistantOverrides)
-const HARKLY_VOICE_MAP = {
-  "maya":   "244f6fbf-8afb-47e2-8958-3d1487216a90", // warm, mid-30s female
-  "arjun":  "57dcab65-68ac-45a6-8480-6c4c52ec1cd1", // calm, deep male
-  "sofia":  "f785af04-229c-4a7c-b71b-f3194c7f08bb", // bright, friendly female
-  "daniel": "3b554273-4299-48b9-9aaf-eefd438e3941", // professional male
-  "linh":   "a0e99841-438c-4a64-b679-ae501e7d6091", // soft, soothing female
-  "emma":   "79a125e8-cd45-4c13-8a67-188112f4dd22", // empathetic female
-  "chris":  "2ee87190-8f84-4925-97da-e52547f9462c", // energetic male
+// ── Harkly AI Vapi production voice mapping ────────────────────────────────
+// OpenAI TTS voice IDs — used for ALL languages (Cartesia not configured on account).
+// OpenAI TTS speaks any language naturally from the text, so one map covers everything.
+const OPENAI_VOICE_MAP = {
+  "maya":   "nova",    // warm, mid-30s female
+  "arjun":  "echo",    // calm, deep male
+  "sofia":  "shimmer", // bright, friendly female
+  "daniel": "onyx",    // professional male
+  "linh":   "shimmer", // soft, soothing female
+  "emma":   "nova",    // empathetic female
+  "chris":  "fable",   // energetic male
 };
+// Keep for any legacy references (not used in overrides)
+const HARKLY_VOICE_MAP = OPENAI_VOICE_MAP;
 
 // Deepgram transcriber language codes (BCP-47 → short code for Vapi/Deepgram)
 const HARKLY_LANG_MAP = {
@@ -639,13 +642,12 @@ const HARKLY_FIRST_MSG = {
 // ── Shared Vapi override builder ──────────────────────────────────────────────
 // Builds a fully valid Vapi assistantOverrides payload.
 // KEY REQUIREMENTS for language switching:
-//   1. firstMessage     — overrides the base assistant's English greeting (CRITICAL)
+//   1. firstMessage        — overrides the base assistant's English greeting (CRITICAL)
 //   2. transcriber.language — tells Deepgram which language to expect from the user
-//   3. voice.model      — must be "sonic-multilingual" (not sonic-english)
-//   4. voice.language   — tells Cartesia which language to synthesise
-//   5. Language instruction at TOP of system prompt so the LLM obeys it
+//   3. voice.provider      — always "openai" (Cartesia not configured on account)
+//   4. voice.voiceId       — per-voice OpenAI TTS ID from OPENAI_VOICE_MAP
+//   5. Language rule at TOP of system prompt so the LLM stays in the right language
 function buildVapiOverrides(voice, lang, agentType, agentConfig) {
-  const cartesiaId   = HARKLY_VOICE_MAP[voice?.id] || HARKLY_VOICE_MAP["maya"];
   const langCode     = HARKLY_LANG_MAP[lang] || "en";
   const deepgramCode = DEEPGRAM_CODE[langCode] || "multi"; // "multi" = auto-detect
   // Clean language name for the system prompt (strip native script in parens)
@@ -702,34 +704,32 @@ RESPONSE STYLE:
     toolsBlock,
   ].join("\n");
 
-  // Cartesia custom voice IDs are English-only clones — using them for non-English
-  // causes Vapi to reject with "voiceId must be a string / invalid for X language".
-  // For non-English we switch to OpenAI TTS which renders any language naturally
-  // without needing a language-specific voiceId whitelist.
-  const isEnglish = langCode === "en" || langCode === "en-GB";
-  const isMaleVoice = ["arjun", "daniel", "chris"].includes(voice?.id);
-  const voiceBlock = isEnglish
-    ? { provider: "cartesia", model: "sonic-multilingual", voiceId: cartesiaId, language: langCode }
-    : { provider: "openai", voiceId: isMaleVoice ? "onyx" : "nova" };
+  // Always use OpenAI TTS — Cartesia is not configured on the Vapi account.
+  // OpenAI voices (nova/echo/shimmer/onyx/fable/alloy) speak any language naturally
+  // from the text content, so no language-specific voice IDs are needed.
+  const openaiVoiceId = OPENAI_VOICE_MAP[voice?.id] || "nova";
 
   return {
     backgroundDenoisingEnabled: false,        // Krisp init adds ~2s lag — keep disabled
     firstMessage: HARKLY_FIRST_MSG[langCode] || HARKLY_FIRST_MSG["en"],
     transcriber: {
       provider: "deepgram",
-      // nova-2 for natively-supported langs; falls back to "multi" auto-detect for the rest
+      // nova-2 for natively-supported langs; nova-2-general + "multi" for auto-detect
       model:    deepgramCode === "multi" ? "nova-2-general" : "nova-2",
       language: deepgramCode,
     },
     model: {
-      provider: "google",
-      model:    "gemini-2.0-flash",           // no thinking overhead → fastest responses
-      temperature: 0,                         // deterministic = less compute = lower latency
+      provider: "openai",
+      model:    "gpt-4o-mini",               // fast, cheap, reliable — widely configured
+      temperature: 0,
       messages: [
         { role: "system", content: systemPrompt },
       ],
     },
-    voice: voiceBlock,
+    voice: {
+      provider: "openai",
+      voiceId:  openaiVoiceId,
+    },
   };
 }
 // Variant that takes a BCP-47 code directly (used by the agent setup page).
