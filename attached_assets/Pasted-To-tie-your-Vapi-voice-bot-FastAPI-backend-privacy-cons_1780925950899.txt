@@ -1,0 +1,127 @@
+To tie your Vapi voice bot, FastAPI backend, privacy consent, authentication, and dynamic language/voice shifting together, you need a unified backend infrastructure.
+
+Since your logs show you are using FastAPI and SQLAlchemy, here is the architectural blueprint, the exact backend code, and the specialized prompts required to make all these systems interact perfectly.
+
+1. The Backend Infrastructure Code (FastAPI)
+This complete backend router handles your updated user signup (including the privacy policy checkbox), authentication validation, and a dynamic configuration endpoint that Vapi can query to shift languages, voices, and system instructions on the fly.
+
+Python
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, EmailStr
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, Column, String, Boolean
+from sqlalchemy.orm import declarative_base
+import os
+
+# Assuming your existing database setup
+Base = declarative_base()
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(String, primary_key=True)
+    username = Column(String, unique=True, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    # New architecture fields
+    privacy_policy_accepted = Column(Boolean, default=False)
+    preferred_language = Column(String, default="en")  # e.g., 'en', 'hi', 'es'
+    preferred_voice = Column(String, default="jennifer") 
+    razorpay_payment_id = Column(String, nullable=True)
+    razorpay_order_id = Column(String, nullable=True)
+
+# Pydantic Schemas
+class SignupRequest(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+    accept_privacy_policy: bool  # Ties directly to your frontend tick button
+
+class VapiConfigRequest(BaseModel):
+    user_id: str
+    current_language: str = "en"
+
+router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+# 1. PROPER AUTH WORKING (WITH PRIVACY POLICY REQ)
+@router.post("/signup", status_code=status.HTTP_201_CREATED)
+async def signup(payload: SignupRequest, db: AsyncSession = Depends(get_db)):
+    # Enforce privacy policy tick block before anything else
+    if not payload.accept_privacy_policy:
+        raise HTTPException(
+            status_code=400, 
+            detail="You must accept the privacy policy requirements to create an account."
+        )
+        
+    # Check if user exists
+    existing = await db.execute(select(User).where(User.username == payload.username))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Username already taken")
+        
+    # Generate user and save to DB
+    new_user = User(
+        username=payload.username,
+        email=payload.email,
+        hashed_password="hashed_secure_password_here", # Use your actual pwd context bcrypt
+        privacy_policy_accepted=True
+    )
+    db.add(new_user)
+    await db.commit()
+    return {"status": "success", "message": "User created and privacy policy recorded."}
+
+# 2. INSTANT VAPI CONNECTION & LANGUAGE/VOICE SHIFTING
+@router.post("/vapi-config")
+async def get_vapi_config(payload: VapiConfigRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Called by your frontend before initializing the Vapi SDK, 
+    or as a Vapi Server Secret Webhook to fetch voice and language overrides.
+    """
+    result = await db.execute(select(User).where(User.id == payload.user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Map database choices to exact Vapi system components
+    vapi_voice_mapping = {
+        "en": {"voice": "jennifer", "model": "fixie-ai/ultra-en"},
+        "hi": {"voice": "hindi-male-1", "model": "fixie-ai/ultra-hi"},
+        "es": {"voice": "spanish-female-1", "model": "fixie-ai/ultra-es"}
+    }
+    
+    selected_config = vapi_voice_mapping.get(payload.current_language, vapi_voice_mapping["en"])
+    
+    return {
+        "assistant": {
+            "name": f"Harkly Bot - {payload.current_language.upper()}",
+            "voice": selected_config["voice"],
+            "model": {
+                "provider": "openai",
+                "model": "gpt-4o",
+                "temperature": 0.7,
+                "systemPrompt": get_system_prompt(payload.current_language)
+            }
+        }
+    }
+
+def get_system_prompt(lang: str) -> str:
+    prompts = {
+        "en": "You are Harkly's official voice assistant. Speak concisely, clearly, and guide the user through our main dashboard tools.",
+        "hi": "आप हार्कली के आधिकारिक वॉयस असिस्टेंट हैं। कृपया स्पष्ट और संक्षिप्त रूप से बात करें और उपयोगकर्ता को डैशबोर्ड समझाने में मदद करें।",
+    }
+    return prompts.get(lang, prompts["en"])
+2. Prompts For Your AI System & Frontend Builder
+To build out the specific UI elements and the inner thoughts of your voice bot, feed these precise prompts to your generation tools:
+
+Prompt A: For Your Frontend AI Builder (Privacy Policy Button)
+"Generate a React/Next.js frontend component featuring a checkbox button for our authentication page. It must explicitly state: 'I agree to the Privacy Policy and authorize Harkly to handle audio data processing.' The signup submit button must remain entirely disabled and un-clickable until this box is checked. When checked, it passes accept_privacy_policy: true inside the JSON payload to the /api/auth/signup backend endpoint."
+
+Prompt B: For Vapi's Core System Prompt (Handling Language Shifting)
+If you want the voice bot to smoothly switch target settings directly during a live conversation when a user requests it, paste this instruction into your Vapi Assistant System Prompt:
+
+Plaintext
+You are an advanced multilingual voice interface. Your language state defaults to English.
+CRITICAL BEHAVIOR:
+1. Listen closely to the user's spoken intent. If they say a phrase like "switch to Hindi", "talk to me in Spanish", or shift languages mid-sentence, you must instantly adjust your spoken response language to match their preference.
+2. If your tool definitions support variable voice parameters, trigger the 'update_assistant_voice' tool immediately upon a language shift command to align your accent perfectly with the language target.
+3. Keep sentences short, avoid trailin

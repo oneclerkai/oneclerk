@@ -2402,6 +2402,77 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 .cl-agent-meta { font-size: 11px; color: var(--muted); }
 .cl-agent-row .icon { color: var(--muted-2); width: 14px; height: 14px; }
 
+/* ── 3-D Glass Agent History Card ────────────────────────────── */
+.cl-agent-glass {
+  width: 100%;
+  background: linear-gradient(145deg, #fff 0%, rgba(245,247,255,0.97) 100%);
+  border-radius: 14px;
+  border-top:   1.5px solid rgba(255,255,255,0.95);
+  border-left:  1.5px solid rgba(255,255,255,0.80);
+  border-right: 1px solid rgba(160,170,220,0.22);
+  border-bottom:1px solid rgba(160,170,220,0.22);
+  padding: 12px 13px 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: transform 180ms cubic-bezier(0.2,0.8,0.2,1), box-shadow 180ms ease;
+  box-shadow:
+    0 3px 12px rgba(99,102,241,0.10),
+    0 1px 4px rgba(0,0,0,0.06),
+    inset 0 1.5px 0 rgba(255,255,255,0.98),
+    inset 1.5px 0 0 rgba(255,255,255,0.75);
+  transform-style: preserve-3d;
+  perspective: 800px;
+}
+.cl-agent-glass:hover {
+  transform: translateY(-2px) rotateX(1deg);
+  box-shadow:
+    0 8px 24px rgba(99,102,241,0.16),
+    0 3px 8px rgba(0,0,0,0.08),
+    inset 0 1.5px 0 rgba(255,255,255,1),
+    inset 1.5px 0 0 rgba(255,255,255,0.9);
+}
+.cl-agent-glass.selected {
+  border-color: rgba(99,102,241,0.45) !important;
+  box-shadow:
+    0 6px 22px rgba(99,102,241,0.22),
+    0 2px 8px rgba(0,0,0,0.07),
+    inset 0 1.5px 0 rgba(255,255,255,1) !important;
+  background: linear-gradient(145deg, #fafbff 0%, rgba(238,240,255,0.98) 100%) !important;
+}
+.cl-agc-top {
+  display: flex; align-items: center; gap: 9px; margin-bottom: 9px;
+}
+.cl-agc-avatar {
+  width: 34px; height: 34px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700; color: #fff; flex-shrink: 0;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+}
+.cl-agc-id { flex: 1; min-width: 0; }
+.cl-agc-name {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cl-agc-biz {
+  font-size: 11px; color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  margin-top: 1px;
+}
+.cl-agc-badge {
+  font-size: 10px; font-weight: 700; padding: 3px 8px;
+  border-radius: 20px; letter-spacing: 0.03em; flex-shrink: 0;
+}
+.cl-agc-badge-live { background: rgba(16,185,129,0.12); color: #059669; }
+.cl-agc-badge-pause { background: rgba(156,163,175,0.12); color: #6b7280; }
+.cl-agc-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0,0,0,0.05);
+}
+.cl-agc-calls { font-size: 11.5px; color: var(--muted); }
+.cl-agc-calls b { color: var(--text); font-weight: 700; margin-right: 2px; }
+.cl-agc-phone { font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
 /* Center column */
 .cl-center {
   display: flex; flex-direction: column; gap: 14px;
@@ -3971,6 +4042,24 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   .am-row-2 { grid-template-columns: 1fr; }
 }
 
+/* ── Password strength meter ─────────────────────────────────── */
+.am-pw-strength {
+  display: flex; align-items: center; gap: 9px; margin-top: 7px;
+}
+.am-pw-bar-track {
+  flex: 1; height: 4px; background: rgba(15,15,20,0.1); border-radius: 99px; overflow: hidden;
+}
+.am-pw-bar {
+  height: 100%; width: 0; border-radius: 99px;
+  transition: width 280ms cubic-bezier(0.4,0,0.2,1), background 280ms ease;
+}
+.am-pw-label {
+  font-size: 11px; font-weight: 600; min-width: 60px;
+  transition: color 280ms ease;
+}
+.auth-modal-backdrop-light .am-pw-bar-track { background: rgba(255,255,255,0.15) !important; }
+.auth-modal-backdrop-light .am-pw-label { color: rgba(255,255,255,0.7) !important; }
+
 .auth-mesh {
   position: absolute; inset: 0; pointer-events: none; z-index: 1;
   background-image:
@@ -4917,6 +5006,25 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
 }
 .fb-canvas-bar-title { font-size: 13px; font-weight: 600; color: var(--text); }
 
+/* Zoom controls */
+.fb-zoom-ctrl {
+  display: flex; align-items: center; gap: 4px;
+  background: rgba(15,15,20,0.05); border: 1px solid var(--border);
+  border-radius: 8px; padding: 2px 6px; user-select: none;
+}
+.fb-zoom-btn {
+  background: none; border: none; cursor: pointer; font-size: 15px; font-weight: 700;
+  color: var(--text); width: 22px; height: 22px; border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 120ms ease;
+  line-height: 1;
+}
+.fb-zoom-btn:hover { background: rgba(99,102,241,0.10); }
+.fb-zoom-val {
+  font-size: 11.5px; font-weight: 600; color: var(--muted); min-width: 36px; text-align: center;
+}
+.fb-template-btn { gap: 5px; }
+
 /* The canvas with infinite square mesh */
 .fb-canvas {
   flex: 1; position: relative; overflow: hidden; cursor: default;
@@ -5420,6 +5528,11 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
   padding: 6px 9px;
 }
 .ag-btn-del:hover { background: rgba(220,38,38,0.08); color: var(--danger); border-color: rgba(220,38,38,0.25); }
+.ag-btn-builder {
+  background: rgba(99,102,241,0.08); color: #6366f1;
+  border-color: rgba(99,102,241,0.22);
+}
+.ag-btn-builder:hover { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.4); }
 
 @media (max-width: 860px) {
   .ag-stats-row { gap: 8px; }
@@ -8174,19 +8287,98 @@ textarea.ob-text-input { resize: vertical; min-height: 90px; }
     inset 1px 0 0 rgba(255,255,255,0.72) !important;
 }
 
-/* ── AUTH MODAL — pure transparent glass ─────────────────────────────── */
-.auth-modal-backdrop-light .auth-modal {
-  background: rgba(255,255,255,0.16) !important;
-  backdrop-filter: blur(52px) saturate(200%) brightness(1.06) !important;
-  -webkit-backdrop-filter: blur(52px) saturate(200%) brightness(1.06) !important;
-  border-top:    1px solid rgba(255,255,255,0.72) !important;
-  border-left:   1px solid rgba(255,255,255,0.56) !important;
-  border-right:  1px solid rgba(255,255,255,0.22) !important;
-  border-bottom: 1px solid rgba(255,255,255,0.22) !important;
-  box-shadow:
-    0 40px 80px -16px rgba(15,15,20,0.24),
-    inset 0 1px 0 rgba(255,255,255,0.88) !important;
+/* ── AUTH MODAL — black shiny textured glassmorphic card ──────────────── */
+.auth-modal-backdrop-light {
+  background: #f0f2f8 !important;
 }
+.auth-modal-backdrop-light .auth-mesh {
+  background-image:
+    linear-gradient(to right, rgba(99,102,241,0.13) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(99,102,241,0.13) 1px, transparent 1px) !important;
+  background-size: 38px 38px !important;
+  -webkit-mask-image: radial-gradient(ellipse 90% 90% at center, #000 20%, transparent 85%) !important;
+  mask-image: radial-gradient(ellipse 90% 90% at center, #000 20%, transparent 85%) !important;
+  opacity: 1 !important;
+}
+.auth-modal-backdrop-light .auth-modal {
+  position: relative;
+  background: linear-gradient(145deg, rgba(10,10,18,0.97) 0%, rgba(18,16,32,0.96) 50%, rgba(8,12,24,0.97) 100%) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  border-top:    1px solid rgba(255,255,255,0.18) !important;
+  border-left:   1px solid rgba(255,255,255,0.14) !important;
+  border-right:  1px solid rgba(255,255,255,0.06) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+  box-shadow:
+    0 48px 96px -24px rgba(0,0,0,0.7),
+    0 0 0 0.5px rgba(255,255,255,0.1),
+    inset 0 1px 0 rgba(255,255,255,0.14),
+    inset 0 -1px 0 rgba(0,0,0,0.4) !important;
+  overflow: hidden;
+}
+.auth-modal-backdrop-light .auth-modal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      0deg, transparent, transparent 22px,
+      rgba(255,255,255,0.018) 22px, rgba(255,255,255,0.018) 23px
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+.auth-modal-backdrop-light .auth-modal > * { position: relative; z-index: 1; }
+.auth-modal-backdrop-light .auth-modal h2,
+.auth-modal-backdrop-light #m-title { color: #fff !important; }
+.auth-modal-backdrop-light .modal-sub { color: rgba(255,255,255,0.55) !important; }
+.auth-modal-backdrop-light p.text-xs { color: rgba(255,255,255,0.35) !important; }
+.auth-modal-backdrop-light .auth-modal .auth-tabs { background: rgba(255,255,255,0.06) !important; border-radius: 10px; }
+.auth-modal-backdrop-light .auth-modal .auth-tabs button { color: rgba(255,255,255,0.45) !important; }
+.auth-modal-backdrop-light .auth-modal .auth-tabs button.active {
+  color: #fff !important;
+  background: rgba(255,255,255,0.13) !important;
+}
+.auth-modal-backdrop-light .am-label { color: rgba(255,255,255,0.45) !important; }
+.auth-modal-backdrop-light .am-field {
+  background: rgba(255,255,255,0.07) !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  color: #fff !important;
+}
+.auth-modal-backdrop-light .am-field::placeholder { color: rgba(255,255,255,0.25) !important; }
+.auth-modal-backdrop-light .am-field:focus {
+  border-color: rgba(249,115,22,0.7) !important;
+  box-shadow: 0 0 0 3px rgba(249,115,22,0.14) !important;
+  background: rgba(255,255,255,0.1) !important;
+}
+.auth-modal-backdrop-light .am-select {
+  background: rgba(255,255,255,0.07) !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  color: #fff !important;
+}
+.auth-modal-backdrop-light .am-select option { background: #111; color: #fff; }
+.auth-modal-backdrop-light .am-chevron { color: rgba(255,255,255,0.35) !important; }
+.auth-modal-backdrop-light .am-submit {
+  background: #fff !important;
+  color: #0d0d0f !important;
+  box-shadow: 0 4px 20px rgba(255,255,255,0.18) !important;
+}
+.auth-modal-backdrop-light .am-submit:hover {
+  background: #f5f5f5 !important;
+  box-shadow: 0 6px 28px rgba(255,255,255,0.26) !important;
+}
+.auth-modal-backdrop-light .am-submit .icon { color: #0d0d0f !important; }
+.auth-modal-backdrop-light .x-close {
+  color: rgba(255,255,255,0.5) !important;
+  background: rgba(255,255,255,0.07) !important;
+}
+.auth-modal-backdrop-light .x-close:hover { background: rgba(255,255,255,0.12) !important; color: #fff !important; }
+.auth-modal-backdrop-light .am-err {
+  background: rgba(239,68,68,0.12) !important;
+  border-color: rgba(239,68,68,0.28) !important;
+  color: #fca5a5 !important;
+}
+.auth-modal-backdrop-light .field-error { color: #fca5a5 !important; }
 
 /* ── ONBOARDING brand bar + cards ─────────────────────────────────────── */
 .ob-brand {

@@ -1717,12 +1717,31 @@ function openAuthModal(initialMode = "login") {
   let mode = initialMode === "signup" ? "signup" : "login";
 
   const BUSINESS_TYPES = [
-    "Dental clinic","Hair salon / spa","Restaurant / café","Medical clinic",
-    "HVAC / home services","Law firm","Real estate","Retail store",
-    "Education / tutoring","Other",
+    "Technology / SaaS","Software / IT Services","E-commerce / Online Retail","Digital Marketing / Agency",
+    "Startup / Venture","Consulting / Strategy","Freelance / Creative",
+    "Healthcare / General Clinic","Dental Practice","Mental Health / Therapy","Physiotherapy / Rehab",
+    "Veterinary / Pet Care","Pharmacy / Chemist","Optometry / Eye Care",
+    "Beauty Salon / Spa","Hair Studio / Barber","Nail Studio","Massage & Wellness",
+    "Restaurant / Café","Fast Food / QSR","Food Delivery","Catering Service",
+    "Hotel / Resort","Bed & Breakfast","Travel Agency","Tour Operator",
+    "Law Firm / Legal","Financial Advisory / Accounting","Real Estate Agency","Mortgage / Insurance",
+    "Fitness / Gym","Yoga / Pilates Studio","Personal Training","Sports Club",
+    "K-12 Education","Tutoring Centre","University / College","Online Courses / EdTech",
+    "Auto Dealership / Service","HVAC / Plumbing / Electrical","Construction / Contracting","Landscaping / Cleaning",
+    "Photography / Videography","Events / Wedding Planning","PR / Branding Agency",
+    "Non-profit / NGO","Government / Public Sector","Other",
   ];
   const USER_ROLES = [
-    "Owner / Founder","Manager","Receptionist","Front desk staff","Admin","Other",
+    "CEO / Chief Executive Officer","Founder / Co-Founder","Managing Director",
+    "President / Vice President","COO / Chief Operating Officer","CTO / Chief Technology Officer",
+    "CFO / Chief Financial Officer","CMO / Chief Marketing Officer",
+    "General Manager","Operations Manager","Business Owner / Proprietor",
+    "Marketing Director / Head of Marketing","Head of Customer Experience",
+    "Office Manager / Admin Manager","Practice Manager / Clinic Director",
+    "Front Desk Manager","Receptionist / Front Desk",
+    "Executive Assistant / PA","Sales Manager / Director","Product Manager",
+    "HR Manager / Director","IT Manager / Systems Admin","Consultant / Advisor",
+    "Department Head / Team Lead","Freelancer / Independent","Other",
   ];
   const dropOpts = (opts, placeholder) =>
     `<option value="" disabled selected>${placeholder}</option>` +
@@ -1792,6 +1811,10 @@ function openAuthModal(initialMode = "login") {
           <div>
             <label class="am-label">Password</label>
             <input id="m-password" type="password" class="am-field" placeholder="${mode==='signup'?'Choose a secure password':'Enter your password'}" minlength="4" autocomplete="${mode==='signup'?'new-password':'current-password'}" required/>
+            <div id="m-pw-strength" class="am-pw-strength" style="display:none">
+              <div class="am-pw-bar-track"><div class="am-pw-bar" id="m-pw-bar"></div></div>
+              <span class="am-pw-label" id="m-pw-label">Weak</span>
+            </div>
           </div>
 
           <button class="am-submit" id="m-submit" type="submit">
@@ -1821,6 +1844,35 @@ function openAuthModal(initialMode = "login") {
   const signupEmailWrap   = $("#m-signup-email-wrap", modal);
   const loginEmailWrap    = $("#m-login-email-wrap", modal);
   const pwEl              = $("#m-password", modal);
+  const pwStrengthEl      = $("#m-pw-strength", modal);
+  const pwBarEl           = $("#m-pw-bar", modal);
+  const pwLabelEl         = $("#m-pw-label", modal);
+
+  function getPasswordStrength(pw) {
+    let s = 0;
+    if (pw.length >= 8)             s++;
+    if (pw.length >= 14)            s++;
+    if (/[A-Z]/.test(pw))           s++;
+    if (/[0-9]/.test(pw))           s++;
+    if (/[^A-Za-z0-9]/.test(pw))    s++;
+    return Math.min(s, 4);
+  }
+  const PW_LEVELS = [
+    { pct:"18%", color:"#ef4444", label:"Weak"        },
+    { pct:"40%", color:"#f97316", label:"Fair"        },
+    { pct:"65%", color:"#eab308", label:"Good"        },
+    { pct:"88%", color:"#22c55e", label:"Strong"      },
+    { pct:"100%",color:"#16a34a", label:"Very strong" },
+  ];
+  pwEl.addEventListener("input", () => {
+    if (mode !== "signup") { if (pwStrengthEl) pwStrengthEl.style.display = "none"; return; }
+    const v = pwEl.value;
+    if (!v) { if (pwStrengthEl) pwStrengthEl.style.display = "none"; return; }
+    if (pwStrengthEl) pwStrengthEl.style.display = "flex";
+    const lv = PW_LEVELS[getPasswordStrength(v)];
+    if (pwBarEl)   { pwBarEl.style.width = lv.pct; pwBarEl.style.background = lv.color; }
+    if (pwLabelEl) { pwLabelEl.textContent = lv.label; pwLabelEl.style.color = lv.color; }
+  });
 
   const setMode = (m) => {
     mode = m;
@@ -1907,7 +1959,7 @@ function openAuthModal(initialMode = "login") {
       const displayName = r.user?.username || r.user?.name || "";
       toast(`Welcome${displayName ? ", " + displayName.split(" ")[0] : ""}!`, "success");
       close();
-      navigate("#/dashboard");
+      navigate("#/agents");
     } catch (ex) {
       const msg = (ex.message || "").toLowerCase();
       if (msg.includes("wrong") || msg.includes("invalid") || msg.includes("credentials") || msg.includes("password")) {
@@ -2969,15 +3021,24 @@ route("calls", async () => {
       const count = calls.filter(c => c.agent_id === a.id).length;
       const company = (a.config && (a.config.business_name || a.config.business_type)) || "—";
       return `
-        <button class="cl-agent-row" data-aid="${a.id}">
-          <span class="dot ${a.is_active ? 'dot-success' : 'dot-muted'}"></span>
-          <div class="cl-agent-info">
-            <div class="cl-agent-name">${escapeHtml(a.name)}</div>
-            <div class="cl-agent-meta">${escapeHtml(company)} · ${count} call${count === 1 ? '' : 's'}</div>
-            <div class="cl-agent-meta-2">${escapeHtml(a.twilio_number || 'no number')}</div>
+        <div class="cl-agent-glass" data-aid="${a.id}" role="button" tabindex="0">
+          <div class="cl-agc-top">
+            <div class="cl-agc-avatar" style="background:linear-gradient(135deg,${a.is_active?'#6366f1':'#94a3b8'},${a.is_active?'#818cf8':'#cbd5e1'})">
+              ${escapeHtml((a.name||"?").charAt(0).toUpperCase())}
+            </div>
+            <div class="cl-agc-id">
+              <div class="cl-agc-name">${escapeHtml(a.name)}</div>
+              <div class="cl-agc-biz">${escapeHtml(company)}</div>
+            </div>
+            <span class="cl-agc-badge ${a.is_active ? 'cl-agc-badge-live' : 'cl-agc-badge-pause'}">
+              ${a.is_active ? 'Live' : 'Paused'}
+            </span>
           </div>
-          <i data-lucide="chevron-right" class="icon"></i>
-        </button>`;
+          <div class="cl-agc-footer">
+            <span class="cl-agc-calls"><b>${count}</b> call${count===1?'':'s'}</span>
+            <span class="cl-agc-phone">${escapeHtml(a.twilio_number || '—')}</span>
+          </div>
+        </div>`;
     }).join("");
     renderIcons(agentsEl);
   }
@@ -3637,8 +3698,8 @@ route("agents", async () => {
     const callCount = calls.filter(c => c.agent_id === a.id).length;
     const biz = cfg.business_name || cfg.business_type || "";
     const phone = a.twilio_number || "";
-    const lang  = cfg.language || a.language || "English";
-    const voice = a.voice_id || "Default";
+    const lang  = cfg.language  || a.language  || "";
+    const voice = a.voice_id   || cfg.voice_id || "";
     const colorIdx = a.id ? a.id.charCodeAt(0) % 6 : 0;
     const COLORS = ["#6366f1","#10b981","#f59e0b","#3b82f6","#ec4899","#8b5cf6"];
     const col = COLORS[colorIdx];
@@ -3661,10 +3722,10 @@ route("agents", async () => {
         <div class="ag-card-meta">
           ${phone ? `<div class="ag-meta-row"><i data-lucide="phone" class="icon"></i><span>${escapeHtml(phone)}</span></div>` : `<div class="ag-meta-row ag-meta-dim"><i data-lucide="phone-missed" class="icon"></i><span>No number linked</span></div>`}
           ${biz ? `` : `<div class="ag-meta-row ag-meta-dim"><i data-lucide="building-2" class="icon"></i><span>Open Flow to configure</span></div>`}
-          ${(a.config?.agent_language || a.config?.voice_name) ? `
+          ${(lang || voice) ? `
           <div class="ag-meta-row ag-meta-voice">
             <i data-lucide="mic-2" class="icon"></i>
-            <span>${escapeHtml(a.config?.agent_language || "English")}${a.config?.voice_name ? " · " + escapeHtml(a.config.voice_name) : ""}</span>
+            <span>${escapeHtml(lang)}${lang && voice ? " · " : ""}${escapeHtml(voice)}</span>
           </div>` : ""}
         </div>
 
@@ -3679,6 +3740,9 @@ route("agents", async () => {
         </div>
 
         <div class="ag-card-actions">
+          <button class="ag-btn ag-btn-builder" data-act="flow" data-id="${a.id}" title="Open agent builder">
+            <i data-lucide="git-branch" class="icon"></i>Builder
+          </button>
           <button class="ag-btn ${a.is_active ? "ag-btn-warn" : "ag-btn-success"}" data-act="toggle" data-id="${a.id}" data-active="${a.is_active}">
             <i data-lucide="${a.is_active ? "pause" : "play"}" class="icon"></i>${a.is_active ? "Pause" : "Activate"}
           </button>
@@ -4754,11 +4818,6 @@ route("settings", async () => {
         <div class="text-xs text-muted mt-3">Notifications are sent to your WhatsApp number above.</div>
       </div>
 
-      <!-- ── Integration status card ───────────────────────────── -->
-      <div class="card p-5" style="grid-column:1/-1">
-        <div class="set-card-title"><i data-lucide="plug" class="icon"></i>Integration status</div>
-        <div id="set-health" class="set-health-grid">${skeleton(2)}</div>
-      </div>
 
     </div>`;
   renderIcons(page);
@@ -5150,15 +5209,23 @@ route("agentFlow", async (id) => {
         <div class="fb-canvas-bar">
           <span class="fb-canvas-bar-title">Canvas · <span id="fb-cnt">0</span> cards</span>
           <div id="fb-act-bar" class="fb-act-bar"></div>
-          <div style="display:flex;gap:6px">
+          <div style="display:flex;gap:6px;align-items:center">
             <button class="btn btn-sm" id="fb-guide" title="How to use the builder" style="gap:5px"><i data-lucide="book-open" class="icon" style="width:13px;height:13px"></i>Guide</button>
+            <button class="btn btn-sm fb-template-btn" id="fb-template" title="Load a starter template" style="gap:5px"><i data-lucide="layout-template" class="icon" style="width:13px;height:13px"></i>Template</button>
+            <div class="fb-zoom-ctrl">
+              <button class="fb-zoom-btn" id="fb-zoom-out" title="Zoom out">−</button>
+              <span class="fb-zoom-val" id="fb-zoom-val">100%</span>
+              <button class="fb-zoom-btn" id="fb-zoom-in" title="Zoom in">+</button>
+            </div>
             <button class="btn btn-sm" id="fb-clear">Clear</button>
             <button class="btn btn-primary btn-sm" id="fb-save"><i data-lucide="save" class="icon"></i>Save &amp; activate</button>
           </div>
         </div>
         <div class="fb-canvas" id="fb-canvas">
-          <svg class="fb-svg" id="fb-svg" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:1"></svg>
-          <div class="fb-items" id="fb-items" style="position:absolute;inset:0;z-index:2"></div>
+          <div class="fb-zoom-layer" id="fb-zoom-layer" style="position:absolute;inset:0;transform-origin:0 0;will-change:transform">
+            <svg class="fb-svg" id="fb-svg" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:1"></svg>
+            <div class="fb-items" id="fb-items" style="position:absolute;inset:0;z-index:2"></div>
+          </div>
           <div class="fb-empty-hint" id="fb-hint">
             <div class="fb-hint-arrow">←</div>
             <div>Drag integrations from the panel onto the canvas</div>
@@ -5173,8 +5240,6 @@ route("agentFlow", async (id) => {
           </div>
           <div class="fb-gp-list" id="fb-gp-list"></div>
           <div class="fb-gp-divider"></div>
-          <div class="fb-gp-preview-head">Agent preview</div>
-          <div class="fb-gp-preview" id="fb-gp-preview"><div class="fb-pv-empty">Fill cards to see a live preview.</div></div>
         </div>
       </aside>
     </div>
@@ -5184,12 +5249,62 @@ route("agentFlow", async (id) => {
   renderIcons(shellEl);
   shellEl.querySelector("#fb-guide")?.addEventListener("click", openDemoGuide);
 
-  const canvasEl = $("#fb-canvas", shellEl);
-  const itemsEl  = $("#fb-items", shellEl);
-  const svgEl    = $("#fb-svg", shellEl);
-  const hintEl   = $("#fb-hint", shellEl);
-  const cntEl    = $("#fb-cnt", shellEl);
-  const gpList   = $("#fb-gp-list", shellEl);
+  const canvasEl    = $("#fb-canvas", shellEl);
+  const itemsEl     = $("#fb-items", shellEl);
+  const svgEl       = $("#fb-svg", shellEl);
+  const hintEl      = $("#fb-hint", shellEl);
+  const cntEl       = $("#fb-cnt", shellEl);
+  const gpList      = $("#fb-gp-list", shellEl);
+  const zoomLayerEl = $("#fb-zoom-layer", shellEl);
+
+  // ── Zoom state ─────────────────────────────────────────────────────────────
+  const zoomState = { level: 1 };
+  function applyZoom() {
+    zoomLayerEl.style.transform = `scale(${zoomState.level})`;
+    const zv = shellEl.querySelector("#fb-zoom-val");
+    if (zv) zv.textContent = Math.round(zoomState.level * 100) + "%";
+  }
+  shellEl.querySelector("#fb-zoom-in")?.addEventListener("click", () => {
+    zoomState.level = Math.min(2.5, zoomState.level + 0.15);
+    applyZoom();
+  });
+  shellEl.querySelector("#fb-zoom-out")?.addEventListener("click", () => {
+    zoomState.level = Math.max(0.3, zoomState.level - 0.15);
+    applyZoom();
+  });
+  canvasEl.addEventListener("wheel", ev => {
+    ev.preventDefault();
+    zoomState.level = Math.max(0.3, Math.min(2.5, zoomState.level + (ev.deltaY > 0 ? -0.07 : 0.07)));
+    applyZoom();
+  }, { passive: false });
+  let _pinchDist = null;
+  canvasEl.addEventListener("touchstart", ev => {
+    if (ev.touches.length === 2) ev.preventDefault();
+  }, { passive: false });
+  canvasEl.addEventListener("touchmove", ev => {
+    if (ev.touches.length === 2) {
+      ev.preventDefault();
+      const dx = ev.touches[0].clientX - ev.touches[1].clientX;
+      const dy = ev.touches[0].clientY - ev.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (_pinchDist) {
+        zoomState.level = Math.max(0.3, Math.min(2.5, zoomState.level * (dist / _pinchDist)));
+        applyZoom();
+      }
+      _pinchDist = dist;
+    }
+  }, { passive: false });
+  canvasEl.addEventListener("touchend", () => { _pinchDist = null; });
+
+  // Template button — loads starter layout onto the canvas
+  shellEl.querySelector("#fb-template")?.addEventListener("click", () => {
+    if (state.cards.length > 0 && !confirm("Load starter template? This replaces your current canvas.")) return;
+    const tpl = makeStarterLayout();
+    state.cards = tpl.cards;
+    state.edges = tpl.edges;
+    renderCanvas();
+    toast("Starter template loaded — edit the cards and hit Save.", "success");
+  });
 
   // Build glass panel
   gpList.innerHTML = INT_CARDS.map(c => `
@@ -5679,8 +5794,8 @@ route("agentFlow", async (id) => {
       });
       const onMove = ev => {
         if (!ds) return;
-        card.x = Math.max(0, ds.ox + ev.clientX - ds.mx);
-        card.y = Math.max(0, ds.oy + ev.clientY - ds.my);
+        card.x = Math.max(0, ds.ox + (ev.clientX - ds.mx) / zoomState.level);
+        card.y = Math.max(0, ds.oy + (ev.clientY - ds.my) / zoomState.level);
         el.style.left = card.x + "px";
         el.style.top = card.y + "px";
         renderEdges();
@@ -5833,10 +5948,10 @@ route("agentFlow", async (id) => {
     if (langKey)  localStorage.setItem("oc_last_lang",  langKey);
   }
 
-  // Mouse tracking for ghost edge
+  // Mouse tracking for ghost edge (account for zoom)
   canvasEl.addEventListener("mousemove", ev => {
     const r = canvasEl.getBoundingClientRect();
-    state.mouse = { x: ev.clientX - r.left, y: ev.clientY - r.top };
+    state.mouse = { x: (ev.clientX - r.left) / zoomState.level, y: (ev.clientY - r.top) / zoomState.level };
     if (state.dragEdgeFrom) renderEdges();
   });
   canvasEl.addEventListener("mouseup", () => { if (state.dragEdgeFrom) { state.dragEdgeFrom = null; renderEdges(); } });
@@ -5859,7 +5974,7 @@ route("agentFlow", async (id) => {
     const type = ev.dataTransfer.getData("text/plain");
     if (!type) return;
     const r = canvasEl.getBoundingClientRect();
-    state.cards.push({ id: genId(), type, x: Math.max(10, ev.clientX - r.left - CARD_W / 2), y: Math.max(10, ev.clientY - r.top - 40), config: {} });
+    state.cards.push({ id: genId(), type, x: Math.max(10, (ev.clientX - r.left) / zoomState.level - CARD_W / 2), y: Math.max(10, (ev.clientY - r.top) / zoomState.level - 40), config: {} });
     renderCanvas();
   });
 
