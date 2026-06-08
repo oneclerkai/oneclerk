@@ -87,32 +87,40 @@ const HARKLY_VOICE_MAP = {
 const HARKLY_LANG_MAP = {
   "English (US)":            "en",
   "English (UK)":            "en-GB",
+  // Indian languages
   "Hindi (हिंदी)":           "hi",
-  "Spanish (Español)":       "es",
-  "French (Français)":       "fr",
-  "Mandarin (普通话)":        "zh",
-  "Portuguese (Português)":  "pt",
-  "Arabic (العربية)":        "ar",
-  "Vietnamese (Tiếng Việt)": "vi",
+  "Tamil (தமிழ்)":           "ta",
+  "Telugu (తెలుగు)":         "te",
   "Bengali (বাংলা)":         "bn",
-  "Russian (Русский)":       "ru",
+  "Marathi (मराठी)":         "mr",
+  "Kannada (ಕನ್ನಡ)":        "kn",
+  "Malayalam (മലയാളം)":     "ml",
+  "Gujarati (ગુજરાતી)":     "gu",
+  "Punjabi (ਪੰਜਾਬੀ)":       "pa",
+  "Urdu (اردو)":             "ur",
+  // Asian
+  "Mandarin (普通话)":        "zh",
   "Japanese (日本語)":        "ja",
   "Korean (한국어)":          "ko",
+  "Vietnamese (Tiếng Việt)": "vi",
+  "Thai (ภาษาไทย)":          "th",
+  "Malay (Bahasa Melayu)":   "ms",
+  "Tagalog (Filipino)":      "fil",
+  // European
+  "Spanish (Español)":       "es",
+  "French (Français)":       "fr",
   "German (Deutsch)":        "de",
+  "Portuguese (Português)":  "pt",
   "Italian (Italiano)":      "it",
+  "Russian (Русский)":       "ru",
   "Turkish (Türkçe)":        "tr",
   "Polish (Polski)":         "pl",
   "Dutch (Nederlands)":      "nl",
-  "Thai (ภาษาไทย)":          "th",
-  "Swahili (Kiswahili)":     "sw",
-  "Tagalog (Filipino)":      "fil",
-  "Marathi (मराठी)":         "mr",
-  "Tamil (தமிழ்)":           "ta",
-  "Telugu (తెలుగు)":         "te",
-  "Urdu (اردو)":             "ur",
-  "Persian (فارسی)":         "fa",
-  "Malay (Bahasa Melayu)":   "ms",
   "Ukrainian (Українська)":  "uk",
+  // Middle East & Africa
+  "Arabic (العربية)":        "ar",
+  "Persian (فارسی)":         "fa",
+  "Swahili (Kiswahili)":     "sw",
   "Amharic (አማርኛ)":         "am",
   "Hausa (Hausa)":           "ha",
 };
@@ -128,22 +136,27 @@ const DEEPGRAM_CODE = {
   "de":    "de",    "it":    "it",     "tr":  "tr",
   "pl":    "pl",    "nl":    "nl",     "ta":  "ta",
   "ms":    "ms",    "uk":    "uk",     "sv":  "sv",
-  // Languages not natively in nova-2 → use multi (auto-detect)
+  // Indian + other languages not natively in nova-2 → use nova-2-general with "multi"
   "ar":    "multi", "bn":    "multi",  "th":  "multi",
   "sw":    "multi", "fil":   "multi",  "mr":  "multi",
   "te":    "multi", "ur":    "multi",  "fa":  "multi",
-  "am":    "multi", "ha":    "multi",
+  "am":    "multi", "ha":    "multi",  "kn":  "multi",
+  "ml":    "multi", "gu":    "multi",  "pa":  "multi",
 };
 
 // System prompt templates keyed by agent-type designation
 const HARKLY_PROMPT_MAP = {
-  "Dental clinic front desk":    "You are an elite, professional medical receptionist handling clinic inquiries for a dental office. Be concise, warm and help callers book or reschedule appointments efficiently.",
-  "Real Estate Agent":           "You are a professional real estate scheduling associate. Guide callers smoothly through booking property viewings and answering listing questions.",
-  "Hair salon receptionist":     "You are a friendly hair salon receptionist. Help callers book appointments with their preferred stylist, ask about their hair goals, and confirm timing.",
-  "Restaurant host":             "You are a warm and welcoming restaurant host. Help callers make reservations, check availability, and share tonight's specials when asked.",
-  "HVAC dispatcher":             "You are a professional HVAC service dispatcher. Determine whether the caller needs an emergency repair or routine maintenance, then schedule the right technician.",
-  "Law firm intake":             "You are a professional law firm intake specialist. Collect a brief overview of the caller's matter and route them to the appropriate attorney or schedule a consultation.",
-  "professional front desk receptionist": "You are a warm, professional front-desk receptionist. Help callers with scheduling, general enquiries, and routing to the right team member.",
+  "Medical clinic receptionist": "You are a professional medical clinic receptionist. Help callers book doctor appointments, check availability, and answer general clinic or health enquiries. Always respond in the caller's chosen language.",
+  "Dental clinic front desk":    "You are an elite, professional dental receptionist. Be concise and warm — help callers book or reschedule cleanings, check-ups, and procedures efficiently. Always respond in the caller's chosen language.",
+  "Hair salon receptionist":     "You are a friendly hair salon receptionist. Help callers book with their preferred stylist, ask about hair goals, and confirm timing. Always respond in the caller's chosen language.",
+  "Hotel front desk":            "You are a courteous hotel front desk agent. Help guests with reservations, check-in/out, room upgrades, and amenity questions. Always respond in the caller's chosen language.",
+  "Real Estate Agent":           "You are a professional real estate scheduling associate. Guide callers through booking property viewings and answering listing questions. Always respond in the caller's chosen language.",
+  "Restaurant host":             "You are a warm and welcoming restaurant host. Help callers make reservations, check availability, and share tonight's specials. Always respond in the caller's chosen language.",
+  "HVAC dispatcher":             "You are a professional HVAC service dispatcher. Determine whether the caller needs emergency repair or routine maintenance, then schedule the right technician. Always respond in the caller's chosen language.",
+  "Law firm intake":             "You are a professional law firm intake specialist. Collect a brief overview of the caller's matter and route them to the right attorney. Always respond in the caller's chosen language.",
+  "Chartered accountant office": "You are a professional intake receptionist for a chartered accountant firm. Help callers schedule consultations for tax filing, GST, audit, or general financial queries. Always respond in the caller's chosen language.",
+  "E-commerce support":          "You are a friendly e-commerce customer support agent. Help customers track orders, process returns, answer product questions, and escalate issues when needed. Always respond in the caller's chosen language.",
+  "professional front desk receptionist": "You are a warm, professional front-desk receptionist. Help callers with scheduling, general enquiries, and routing to the right team member. Always respond in the caller's chosen language.",
 };
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -617,6 +630,10 @@ const HARKLY_FIRST_MSG = {
   "am":  "ሰላም! ዛሬ እንዴት ልረዳዎ?",
   "ha":  "Sannu! Yaya zan iya taimaka muku yau?",
   "th":  "สวัสดี! วันนี้ฉันช่วยคุณได้อย่างไร?",
+  "kn":  "ನಮಸ್ಕಾರ! ಇಂದು ನಾನು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?",
+  "ml":  "ഹലോ! ഇന്ന് ഞാൻ നിങ്ങൾക്ക് എങ്ങനെ സഹായിക്കാം?",
+  "gu":  "હેલો! આજે હું આપની કેવી રીતે સહાય કરી શકું?",
+  "pa":  "ਸਤ ਸ੍ਰੀ ਅਕਾਲ! ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕਿਵੇਂ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?",
 };
 
 // ── Shared Vapi override builder ──────────────────────────────────────────────
@@ -995,14 +1012,48 @@ route("auth", async () => {
             <label class="lp-try-field">
               <span>Language</span>
               <select id="lp-try-lang">
-                <option>English (US)</option>
-                <option>Hindi (हिंदी)</option>
-                <option>Spanish (Español)</option>
-                <option>French (Français)</option>
-                <option>Mandarin (普通话)</option>
-                <option>Vietnamese (Tiếng Việt)</option>
-                <option>Arabic (العربية)</option>
-                <option>Portuguese (Português)</option>
+                <optgroup label="English">
+                  <option>English (US)</option>
+                  <option>English (UK)</option>
+                </optgroup>
+                <optgroup label="Indian Languages">
+                  <option>Hindi (हिंदी)</option>
+                  <option>Tamil (தமிழ்)</option>
+                  <option>Telugu (తెలుగు)</option>
+                  <option>Bengali (বাংলা)</option>
+                  <option>Marathi (मराठी)</option>
+                  <option>Kannada (ಕನ್ನಡ)</option>
+                  <option>Malayalam (മലയാളം)</option>
+                  <option>Gujarati (ગુજરાતી)</option>
+                  <option>Punjabi (ਪੰਜਾਬੀ)</option>
+                  <option>Urdu (اردو)</option>
+                </optgroup>
+                <optgroup label="Asian">
+                  <option>Mandarin (普通话)</option>
+                  <option>Japanese (日本語)</option>
+                  <option>Korean (한국어)</option>
+                  <option>Vietnamese (Tiếng Việt)</option>
+                  <option>Thai (ภาษาไทย)</option>
+                  <option>Malay (Bahasa Melayu)</option>
+                  <option>Tagalog (Filipino)</option>
+                </optgroup>
+                <optgroup label="European">
+                  <option>Spanish (Español)</option>
+                  <option>French (Français)</option>
+                  <option>German (Deutsch)</option>
+                  <option>Portuguese (Português)</option>
+                  <option>Italian (Italiano)</option>
+                  <option>Russian (Русский)</option>
+                  <option>Turkish (Türkçe)</option>
+                  <option>Polish (Polski)</option>
+                  <option>Dutch (Nederlands)</option>
+                  <option>Ukrainian (Українська)</option>
+                </optgroup>
+                <optgroup label="Middle East &amp; Africa">
+                  <option>Arabic (العربية)</option>
+                  <option>Persian (فارسی)</option>
+                  <option>Swahili (Kiswahili)</option>
+                </optgroup>
               </select>
             </label>
             <label class="lp-try-field">
@@ -1013,16 +1064,23 @@ route("auth", async () => {
                 <option>Sofia — bright, friendly</option>
                 <option>Daniel — professional</option>
                 <option>Linh — soft, soothing</option>
+                <option>Emma — empathetic</option>
+                <option>Chris — energetic</option>
               </select>
             </label>
             <label class="lp-try-field">
               <span>Agent type</span>
               <select id="lp-try-agent">
+                <option>Medical clinic receptionist</option>
                 <option>Dental clinic front desk</option>
                 <option>Hair salon receptionist</option>
+                <option>Hotel front desk</option>
+                <option>Real Estate Agent</option>
                 <option>Restaurant host</option>
                 <option>HVAC dispatcher</option>
                 <option>Law firm intake</option>
+                <option>Chartered accountant office</option>
+                <option>E-commerce support</option>
               </select>
             </label>
           </div>
@@ -1170,30 +1228,65 @@ function initLandingNavScroll(root) {
   });
 }
 
-// Voice-tester: animated waveform + Web Speech API with proper language + tone switching
+// Voice-tester: language → BCP-47 code + short greeting prefix
 const TRY_LANG_MAP = {
-  "English (US)":         { code: "en-US", greet: "Hi, this is" },
-  "Hindi (हिंदी)":         { code: "hi-IN", greet: "नमस्ते, यह है" },
-  "Spanish (Español)":    { code: "es-ES", greet: "Hola, le habla" },
-  "French (Français)":    { code: "fr-FR", greet: "Bonjour, ici" },
-  "Mandarin (普通话)":    { code: "zh-CN", greet: "您好,这里是" },
+  "English (US)":            { code: "en-US", greet: "Hi, this is" },
+  "English (UK)":            { code: "en-GB", greet: "Hello, this is" },
+  // Indian
+  "Hindi (हिंदी)":            { code: "hi-IN", greet: "नमस्ते, यह है" },
+  "Tamil (தமிழ்)":            { code: "ta-IN", greet: "வணக்கம், இது" },
+  "Telugu (తెలుగు)":          { code: "te-IN", greet: "నమస్కారం, ఇది" },
+  "Bengali (বাংলা)":          { code: "bn-IN", greet: "হ্যালো, এটি" },
+  "Marathi (मराठी)":          { code: "mr-IN", greet: "नमस्कार, हे आहे" },
+  "Kannada (ಕನ್ನಡ)":         { code: "kn-IN", greet: "ನಮಸ್ಕಾರ, ಇದು" },
+  "Malayalam (മലയാളം)":      { code: "ml-IN", greet: "ഹലോ, ഇത്" },
+  "Gujarati (ગુજરાતી)":      { code: "gu-IN", greet: "હેલો, આ છે" },
+  "Punjabi (ਪੰਜਾਬੀ)":        { code: "pa-IN", greet: "ਸਤ ਸ੍ਰੀ ਅਕਾਲ, ਇਹ ਹੈ" },
+  "Urdu (اردو)":              { code: "ur-PK", greet: "ہیلو، یہ ہے" },
+  // Asian
+  "Mandarin (普通话)":        { code: "zh-CN", greet: "您好，这里是" },
+  "Japanese (日本語)":        { code: "ja-JP", greet: "こんにちは、こちらは" },
+  "Korean (한국어)":          { code: "ko-KR", greet: "안녕하세요, 여기는" },
   "Vietnamese (Tiếng Việt)": { code: "vi-VN", greet: "Xin chào, đây là" },
-  "Arabic (العربية)":     { code: "ar-SA", greet: "مرحبا، هذه" },
-  "Portuguese (Português)": { code: "pt-PT", greet: "Olá, fala" },
+  "Thai (ภาษาไทย)":          { code: "th-TH", greet: "สวัสดี นี่คือ" },
+  "Malay (Bahasa Melayu)":   { code: "ms-MY", greet: "Halo, ini adalah" },
+  "Tagalog (Filipino)":      { code: "fil-PH", greet: "Kumusta, ito ay" },
+  // European
+  "Spanish (Español)":       { code: "es-ES", greet: "Hola, le habla" },
+  "French (Français)":       { code: "fr-FR", greet: "Bonjour, ici" },
+  "German (Deutsch)":        { code: "de-DE", greet: "Hallo, hier ist" },
+  "Portuguese (Português)":  { code: "pt-PT", greet: "Olá, fala" },
+  "Italian (Italiano)":      { code: "it-IT", greet: "Ciao, qui parla" },
+  "Russian (Русский)":       { code: "ru-RU", greet: "Здравствуйте, это" },
+  "Turkish (Türkçe)":        { code: "tr-TR", greet: "Merhaba, burada" },
+  "Polish (Polski)":         { code: "pl-PL", greet: "Dzień dobry, tu" },
+  "Dutch (Nederlands)":      { code: "nl-NL", greet: "Hallo, dit is" },
+  "Ukrainian (Українська)":  { code: "uk-UA", greet: "Привіт, це" },
+  // Middle East & Africa
+  "Arabic (العربية)":        { code: "ar-SA", greet: "مرحبا، هذه" },
+  "Persian (فارسی)":         { code: "fa-IR", greet: "سلام، اینجا" },
+  "Swahili (Kiswahili)":     { code: "sw-KE", greet: "Habari, hapa ni" },
 };
 const TRY_VOICE_MAP = {
   "Maya — warm, mid-30s":      { rate: 0.95, pitch: 1.15, gender: "female" },
-  "Arjun — calm, deep":        { rate: 0.88, pitch: 0.65, gender: "male" },
+  "Arjun — calm, deep":        { rate: 0.88, pitch: 0.65, gender: "male"   },
   "Sofia — bright, friendly":  { rate: 1.08, pitch: 1.35, gender: "female" },
-  "Daniel — professional":     { rate: 1.00, pitch: 0.90, gender: "male" },
+  "Daniel — professional":     { rate: 1.00, pitch: 0.90, gender: "male"   },
   "Linh — soft, soothing":     { rate: 0.85, pitch: 1.05, gender: "female" },
+  "Emma — empathetic":         { rate: 0.92, pitch: 1.20, gender: "female" },
+  "Chris — energetic":         { rate: 1.05, pitch: 0.85, gender: "male"   },
 };
 const TRY_LINES = {
-  "Dental clinic front desk": "Hi, this is City Dental. How can I help you today? I can book a cleaning, look up your insurance, or transfer you to Doctor Patel.",
-  "Hair salon receptionist":  "Hello, you've reached Glow Salon, this is Maya. Are you calling to book with your usual stylist, or trying us for the first time?",
-  "Restaurant host":          "Good evening, thanks for calling Lumière. Would you like to book a table for tonight, or hear about our new winter tasting menu?",
-  "HVAC dispatcher":          "Thanks for calling A and T Heating. Is your heat out right now? I can dispatch a tech, or schedule a tune up — which would you like?",
-  "Law firm intake":          "Jensen and Vega Law, this is the intake line. Can you tell me a bit about the matter so I can route you to the right partner?",
+  "Medical clinic receptionist": "Hello, Dr. Sharma's Clinic. Are you calling to book an appointment, or can I help with something else?",
+  "Dental clinic front desk":    "Hi, this is City Dental. How can I help you today? I can book a cleaning, check your insurance, or transfer you to Doctor Patel.",
+  "Hair salon receptionist":     "Hello, you've reached Glow Salon — this is Maya. Are you booking with your usual stylist, or trying us for the first time?",
+  "Hotel front desk":            "Good day, welcome to The Grand Hotel. Are you looking to make a reservation, or may I help with your current stay?",
+  "Real Estate Agent":           "Hello, this is the Premier Properties booking line. Are you interested in viewing a property, or would you like more information on a listing?",
+  "Restaurant host":             "Good evening, thanks for calling Lumière. Would you like to book a table tonight, or hear about our new tasting menu?",
+  "HVAC dispatcher":             "Thanks for calling A&T Heating. Is your heat out right now? I can dispatch a tech, or schedule a routine tune-up — which would you like?",
+  "Law firm intake":             "Jensen and Vega Law, intake line. Can you tell me a bit about your matter so I can route you to the right partner?",
+  "Chartered accountant office": "Hello, CA Associates. Are you calling to schedule a consultation for tax filing, GST, or another financial matter?",
+  "E-commerce support":          "Hi, thanks for contacting our support team. Could you share your order number so I can look into that for you right away?",
 };
 
 // Cache voices once they load (Chrome populates voices asynchronously)
@@ -1502,22 +1595,25 @@ function initVoiceTester(root) {
         }
 
         const langVal   = langSel  ? langSel.value  : "English (US)";
-        const voiceVal  = voiceSel ? voiceSel.value : "maya";
-        const agentType = agentSel ? agentSel.value : "professional front desk receptionist";
+        const voiceVal  = voiceSel ? voiceSel.value : "Maya — warm, mid-30s";
+        const agentType = agentSel ? agentSel.value : "Medical clinic receptionist";
+        // Short display name: "Hindi (हिंदी)" → "Hindi"
+        const langShort = langVal.split(" (")[0];
 
         const voiceKey  = voiceVal.includes("—") ? voiceVal.split("—")[0].trim().toLowerCase() : voiceVal.toLowerCase();
         const voiceObj  = PREVIEW_VOICES.find(v => v.id === voiceKey) || PREVIEW_VOICES[0];
         const overrides = buildVapiOverrides(voiceObj, langVal, agentType);
 
-        status.innerHTML = `<strong>Connecting…</strong> Starting call in ${escapeHtml(langVal)}…`;
+        status.innerHTML = `<strong>Connecting…</strong> Preparing <strong>${escapeHtml(voiceObj.label)}</strong> in <strong>${escapeHtml(langShort)}</strong>…`;
 
         let connectTimeout;
         startVapiCall("5b54d785-e86b-420e-ace0-26092882287e", overrides, {
           onStart: () => {
             clearTimeout(connectTimeout);
             setButtonActive();
-            status.innerHTML = `<strong>Connected!</strong> The agent is listening — speak now.`;
-            listening = true;
+            // Blue waveform = user's turn to speak
+            listening = true; agentSpeaking = false;
+            status.innerHTML = `<strong>Live in ${escapeHtml(langShort)}!</strong> Speak now — the agent will reply in <strong>${escapeHtml(langShort)}</strong>.`;
           },
           onEnd: () => {
             clearTimeout(connectTimeout);
@@ -1526,24 +1622,35 @@ function initVoiceTester(root) {
             listening = false; agentSpeaking = false;
           },
           onSpeechStart: () => {
-            agentSpeaking = true;
-            status.innerHTML = `<strong>Agent speaking…</strong>`;
+            // Agent starts speaking → orange/yellow waveform
+            agentSpeaking = true; listening = false;
+            status.innerHTML = `<strong>Agent speaking…</strong> <span class="lp-try-lang-tag">${escapeHtml(langShort)} · ${escapeHtml(voiceObj.label)}</span>`;
           },
           onSpeechEnd: () => {
-            agentSpeaking = false;
-            status.innerHTML = `<strong>Listening…</strong> Go ahead and speak.`;
+            // Agent done → back to user's turn
+            agentSpeaking = false; listening = true;
+            status.innerHTML = `<strong>Your turn</strong> — speak in <strong>${escapeHtml(langShort)}</strong>.`;
+          },
+          onVolume: (vol) => {
+            // vol is user mic level 0-1; drive waveform amplitude
+            if (!agentSpeaking) {
+              level = 0.12 + vol * 0.82;
+              // If user is actively speaking, pulse the level up
+              if (vol > 0.08) listening = true;
+            }
           },
           onError: (err) => {
             clearTimeout(connectTimeout);
             setButtonIdle();
             console.warn("[Harkly] Vapi error:", JSON.stringify(err));
-            // err.message can be an object/array from Vapi — always stringify first
             const rawMsg = err?.message ?? err?.error ?? "";
             const msg = (typeof rawMsg === "string" ? rawMsg : JSON.stringify(rawMsg)).toLowerCase();
             if (msg.includes("ice") || msg.includes("network") || msg.includes("transport")) {
               status.innerHTML = `Connection hiccup — tap the mic again to reconnect.`;
             } else if (msg.includes("voiceid") || msg.includes("voice") || msg.includes("bad request")) {
-              status.innerHTML = `Voice config issue — please try a different language or voice.`;
+              status.innerHTML = `<strong style="color:#ff5868">Voice config issue</strong> — try a different voice or language.`;
+            } else if (msg.includes("mic") || msg.includes("permission") || msg.includes("not-allowed")) {
+              status.innerHTML = `<strong style="color:#ff5868">Mic blocked</strong> — allow microphone access in browser settings.`;
             } else {
               status.innerHTML = `Something went wrong — tap the mic to try again.`;
             }
@@ -1553,12 +1660,15 @@ function initVoiceTester(root) {
 
         // Register message handler for live chat transcript
         vapi.on("message", (msg) => {
-          if (msg?.type === "transcript" && msg.transcriptType === "final") {
-            addChatMsg(msg.role === "assistant" ? "agent" : "user", msg.transcript);
+          if (msg?.type === "transcript" && msg.transcriptType === "final" && msg.transcript?.trim()) {
+            addChatMsg(msg.role === "assistant" ? "agent" : "user", msg.transcript.trim());
+          } else if (msg?.type === "transcript" && msg.transcriptType === "partial" && msg.role === "user" && msg.transcript?.trim()) {
+            // Show partial transcript as "hearing" indicator
+            status.innerHTML = `<strong>Hearing:</strong> "${escapeHtml(msg.transcript)}…"`;
           }
         });
 
-        // 25 s timeout — shows friendly nudge but does NOT kill the call
+        // 25 s nudge — does NOT kill the call
         connectTimeout = setTimeout(() => {
           if (!vapiCallActive) {
             status.innerHTML = `Still connecting… tap again if nothing happens in a few seconds.`;
