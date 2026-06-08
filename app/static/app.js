@@ -3216,11 +3216,15 @@ route("calls", async () => {
     b.classList.add("active");
     renderList();
   }));
-  $$("[data-aid]", page).forEach(b => b.addEventListener("click", () => {
-    agentFilter = agentFilter === b.dataset.aid ? null : b.dataset.aid;
-    $$("[data-aid]", page).forEach(x => x.classList.toggle("selected", x.dataset.aid === agentFilter));
-    renderList();
-  }));
+  $$("[data-aid]", page).forEach(b => {
+    const toggle = () => {
+      agentFilter = agentFilter === b.dataset.aid ? null : b.dataset.aid;
+      $$("[data-aid]", page).forEach(x => x.classList.toggle("selected", x.dataset.aid === agentFilter));
+      renderList();
+    };
+    b.addEventListener("click", toggle);
+    b.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+  });
 
   renderList();
   return wrap;
