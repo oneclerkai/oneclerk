@@ -2,212 +2,185 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — Harkly AI',
-  description: 'How Harkly AI collects, uses, and protects your data.',
+  title: 'Privacy Policy — Harkly',
+  description: 'How Harkly collects, uses, and protects your data. Effective June 10, 2026.',
 }
-
-const LAST_UPDATED = 'June 10, 2025'
-const CONTACT_EMAIL = 'privacy@harkly.in'
-const COMPANY_NAME = 'Harkly AI (OneClerk)'
-const WEBSITE = 'https://harkly.in'
 
 export default function PrivacyPolicyPage() {
   return (
-    <div className="min-h-screen bg-white text-gray-900">
-      <header className="border-b border-gray-100 bg-white sticky top-0 z-10 shadow-sm">
+    <div className="min-h-screen bg-gray-50 text-gray-900">
+
+      {/* Header */}
+      <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-gray-900 hover:text-indigo-600 transition-colors">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="28" height="28" rx="8" fill="#4F46E5"/>
-              <path d="M8 14C8 10.686 10.686 8 14 8C17.314 8 20 10.686 20 14C20 17.314 17.314 20 14 20" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-              <circle cx="14" cy="14" r="2.5" fill="white"/>
-            </svg>
-            <span className="font-semibold text-lg tracking-tight">Harkly AI</span>
+          <Link href="/" className="flex items-center gap-2.5 text-gray-900 hover:opacity-80 transition-opacity">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-black text-sm">
+              H
+            </div>
+            <span className="font-bold text-lg">Harkly</span>
           </Link>
-          <span className="text-sm text-gray-500">Last updated: {LAST_UPDATED}</span>
+          <span className="text-sm text-gray-400">Effective Date: June 10, 2026</span>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-14">
+
+        {/* Hero */}
         <div className="mb-12">
-          <div className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 text-sm font-medium px-3 py-1 rounded-full mb-4">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1L8.8 5.2L13.3 5.6L10 8.5L11 13L7 10.7L3 13L4 8.5L0.7 5.6L5.2 5.2L7 1Z" fill="currentColor"/></svg>
+          <span className="inline-block bg-indigo-50 text-indigo-700 text-xs font-semibold px-3 py-1 rounded-full mb-4 uppercase tracking-wider">
             Legal &amp; Compliance
-          </div>
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 mb-4">Privacy Policy</h1>
-          <p className="text-lg text-gray-600 leading-relaxed max-w-3xl">
-            {COMPANY_NAME} is committed to protecting your privacy. This policy explains exactly what data we
-            collect, why we collect it, how we use it, and the choices you have. We keep this document plain
-            and specific — no legalese padding.
+          </span>
+          <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 mb-3">Privacy Policy</h1>
+          <p className="text-lg text-gray-500 max-w-2xl leading-relaxed">
+            Welcome to Harkly, hosted at{' '}
+            <a href="https://harkly.in" className="text-indigo-600 underline">harkly.in</a>. We are committed
+            to protecting your privacy and handling your data with absolute security and transparency.
           </p>
         </div>
 
-        <nav className="bg-gray-50 rounded-2xl p-6 mb-12 border border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Contents</h2>
-          <ol className="space-y-1.5 text-sm">
+        {/* Table of contents */}
+        <nav className="bg-white rounded-2xl border border-gray-100 p-6 mb-14 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Contents</p>
+          <ol className="space-y-2 text-sm">
             {[
-              ['#overview', '1. Overview'],
-              ['#data-ingestion', '2. Data Ingestion — Voice &amp; Microphone'],
-              ['#google-scopes', '3. Google Integration Scopes'],
-              ['#data-safeguards', '4. Data Safeguards &amp; No-Sale Commitment'],
-              ['#data-retention', '5. Data Retention'],
-              ['#user-rights', '6. Your Rights'],
-              ['#cookies', '7. Cookies &amp; Tracking'],
-              ['#children', '8. Children\'s Privacy'],
-              ['#changes', '9. Changes to This Policy'],
-              ['#contact', '10. Contact Us'],
+              ['#s1', '1. Data Ingestion and Processing'],
+              ['#s2', '2. Google OAuth API Scope Disclosures'],
+              ['#s3', '3. Data Protection and Third-Party Sub-Processors'],
+              ['#s4', '4. Data Retention and Deletion Rights'],
+              ['#s5', '5. Contact Information'],
             ].map(([href, label]) => (
               <li key={href}>
-                <a href={href} className="text-indigo-600 hover:text-indigo-800 hover:underline" dangerouslySetInnerHTML={{ __html: label }} />
+                <a href={href} className="text-indigo-600 hover:underline">{label}</a>
               </li>
             ))}
           </ol>
         </nav>
 
-        <div className="space-y-14 text-gray-700 leading-relaxed">
+        <div className="space-y-16">
 
-          <section id="overview">
-            <SectionHeader number="1" title="Overview" />
-            <p>
-              {COMPANY_NAME} operates <a href={WEBSITE} className="text-indigo-600 underline">{WEBSITE}</a> and the
-              Harkly AI voice receptionist platform (&ldquo;Service&rdquo;). When you use our Service you trust us with
-              your information. We take that responsibility seriously. This Privacy Policy applies to all data
-              processed through our web application, mobile interfaces, and telephony integrations.
+          {/* Section 1 */}
+          <section id="s1">
+            <SectionHeading n="1" title="Data Ingestion and Processing" />
+
+            <h3 className="text-base font-semibold text-gray-900 mb-2 mt-6">A. Real-Time Voice and Audio Processing</h3>
+            <p className="text-gray-600 mb-3">
+              Harkly provides real-time voice automation tools. When you engage with our voice agents via telephone
+              or web browsers, our systems capture and process voice metadata streams using secure WebRTC (Web
+              Real-Time Communication) wrappers.
+            </p>
+            <ul className="list-disc list-inside space-y-2 text-gray-600 mb-4">
+              <li>Audio streams are captured solely to synthesize, transcribe, and process conversational input into textual commands via secure API integrations.</li>
+              <li>Voice data processed through our Vapi or OpenRouter network nodes is strictly <strong className="text-gray-900">transient</strong>. We do not store, retain, or compile raw audio files or audio recordings for marketing, tracking, or profiling purposes.</li>
+            </ul>
+            <Callout color="blue">
+              <strong>Key commitment:</strong> No raw audio recordings are ever written to permanent storage.
+              All voice data is processed in-transit over encrypted WebRTC (DTLS-SRTP) channels and discarded
+              immediately after transcription.
+            </Callout>
+
+            <h3 className="text-base font-semibold text-gray-900 mb-2 mt-6">B. User Profile and Registration Data</h3>
+            <p className="text-gray-600">
+              During signup, we collect user credentials, including username, encrypted password hashes, and a
+              verified email address. This data is handled via secure JWT validation keys and encrypted databases
+              to verify account status and access boundaries.
             </p>
           </section>
 
-          <section id="data-ingestion">
-            <SectionHeader number="2" title="Data Ingestion — Voice & Microphone" />
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-5 flex gap-3">
-              <svg className="shrink-0 mt-0.5 text-blue-600" width="20" height="20" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
-              <p className="text-sm text-blue-800">
-                <strong>Core voice processing statement:</strong> Harkly captures microphone audio streams exclusively
-                via real-time, encrypted WebRTC channels. Audio is processed in-transit and is never written to
-                permanent storage.
-              </p>
-            </div>
-            <h3 className="font-semibold text-gray-900 mb-2">What we capture</h3>
-            <ul className="list-disc list-inside space-y-2 mb-4">
-              <li>Live microphone input during an active AI call session, transmitted over a secure WebRTC peer-to-peer channel (DTLS-SRTP encrypted).</li>
-              <li>Transcribed text derived from your speech, used solely to generate an AI response in that session.</li>
-              <li>Session metadata (start/end timestamps, call duration) for billing and quality purposes.</li>
-            </ul>
-            <h3 className="font-semibold text-gray-900 mb-2">What we never capture</h3>
-            <ul className="list-disc list-inside space-y-2 mb-4">
-              <li>Raw audio recordings are <strong>not</strong> persisted to disk, databases, or cloud object storage after a call ends.</li>
-              <li>We do not use voiceprints, biometrics, or speaker-identification technology on your audio.</li>
-              <li>We do not share audio streams or transcripts with any advertising or analytics third parties.</li>
-            </ul>
-            <h3 className="font-semibold text-gray-900 mb-2">Telephony calls (PSTN)</h3>
-            <p>
-              For inbound phone calls handled by your Harkly agent, audio is processed in real-time through our
-              telephony partner (Telnyx) under their own HIPAA/SOC 2-aligned infrastructure. Short-lived audio
-              segments are deleted within 30 minutes of call completion.
+          <Divider />
+
+          {/* Section 2 */}
+          <section id="s2">
+            <SectionHeading n="2" title="Google OAuth API Scope Disclosures" />
+            <p className="text-gray-600 mb-6">
+              To provide cross-channel workflow automation, Harkly requests explicit, user-authorized permissions
+              via Google API OAuth scopes. Our usage of these scopes is strictly restricted as detailed below.
             </p>
+
+            <h3 className="text-base font-semibold text-gray-900 mb-3">A. Google Calendar API Access</h3>
+            <p className="text-gray-600 mb-3">
+              Harkly requests access to your Google Calendar to read availability and programmatically schedule,
+              modify, or delete calendar consultation appointments explicitly requested by you or your calling
+              customers.
+            </p>
+            <ScopeTable rows={[
+              ['calendar.events', 'Create, update, and delete booking appointments on behalf of the business owner when their AI agent handles a call.'],
+              ['calendar.readonly', 'Read existing availability and booked slots to avoid double-booking. Data is held in-memory per session only — never persisted.'],
+            ]} />
+
+            <h3 className="text-base font-semibold text-gray-900 mb-3 mt-6">B. Gmail API Access</h3>
+            <p className="text-gray-600 mb-3">
+              Harkly requests access to your Gmail infrastructure solely to dispatch direct automation status
+              updates, transactional confirmations, and appointment summaries on your behalf.
+            </p>
+            <ScopeTable rows={[
+              ['gmail.send', 'Send appointment confirmation and reminder emails to callers on behalf of the business. We never read, index, or analyse any existing emails in the connected inbox.'],
+            ]} />
+
+            <h3 className="text-base font-semibold text-gray-900 mb-3 mt-6">C. Limited Use Compliance Statement</h3>
+            <Callout color="green">
+              Harkly&apos;s use and transfer of information received from Google APIs to any other app will adhere
+              to the{' '}
+              <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="underline font-medium">
+                Google API Services User Data Policy
+              </a>
+              , including the Limited Use requirements. We do not under any circumstances sell, lease, or transfer
+              your Google user data to external advertising tracking companies or third-party data brokers.
+            </Callout>
           </section>
 
-          <section id="google-scopes">
-            <SectionHeader number="3" title="Google Integration Scopes" />
-            <div className="bg-amber-50 border border-amber-100 rounded-xl p-5 mb-5 flex gap-3">
-              <svg className="shrink-0 mt-0.5 text-amber-600" width="20" height="20" viewBox="0 0 24 24" fill="none"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-              <p className="text-sm text-amber-800">
-                <strong>Narrow-scope commitment:</strong> We request only the minimum OAuth scopes necessary to
-                deliver each feature. We do not request, store, or process Google data beyond what is explicitly
-                described below.
-              </p>
-            </div>
+          <Divider />
 
-            <h3 className="font-semibold text-gray-900 mb-3">Google Calendar</h3>
-            <div className="border border-gray-200 rounded-xl overflow-hidden mb-6">
+          {/* Section 3 */}
+          <section id="s3">
+            <SectionHeading n="3" title="Data Protection and Third-Party Sub-Processors" />
+            <p className="text-gray-600 mb-4">
+              We share limited, relevant data payloads with reputable infrastructure providers strictly necessary
+              to execute our application services:
+            </p>
+            <div className="overflow-hidden rounded-xl border border-gray-200">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700 w-2/5">Scope</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Reason &amp; Limitation</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Provider</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Role</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Data Shared</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  <tr>
-                    <td className="px-4 py-3 font-mono text-xs text-indigo-700">https://www.googleapis.com/auth/calendar.events</td>
-                    <td className="px-4 py-3 text-gray-700">
-                      Used <strong>exclusively</strong> to create, read, update, and delete calendar events on the
-                      user&rsquo;s behalf when their AI agent books or modifies appointments during a call. We never read
-                      personal calendar events unrelated to bookings made by Harkly.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3 font-mono text-xs text-indigo-700">https://www.googleapis.com/auth/calendar.readonly</td>
-                    <td className="px-4 py-3 text-gray-700">
-                      Used <strong>only</strong> to check existing bookings and available time slots so the AI
-                      agent can avoid double-booking. Slot data is held in-memory during the call session and not
-                      persisted.
-                    </td>
-                  </tr>
+                  {[
+                    ['Railway / PostgreSQL', 'Database Infrastructure', 'Core data profiles hosted on encrypted database networks.'],
+                    ['Deepgram', 'Telephony & Transcription', 'Real-time speech-to-text via isolated low-latency AI models. No audio retained.'],
+                    ['Resend', 'Email & Notifications', 'Operational messaging routed for transactional delivery only.'],
+                    ['Telnyx / Vapi', 'Telephony', 'Live call routing. Audio deleted within 30 minutes of call end.'],
+                  ].map(([provider, role, data]) => (
+                    <tr key={provider}>
+                      <td className="px-4 py-3 font-semibold text-gray-900">{provider}</td>
+                      <td className="px-4 py-3 text-gray-500">{role}</td>
+                      <td className="px-4 py-3 text-gray-600">{data}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-
-            <h3 className="font-semibold text-gray-900 mb-3">Gmail</h3>
-            <div className="border border-gray-200 rounded-xl overflow-hidden mb-6">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700 w-2/5">Scope</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Reason &amp; Limitation</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  <tr>
-                    <td className="px-4 py-3 font-mono text-xs text-indigo-700">https://www.googleapis.com/auth/gmail.send</td>
-                    <td className="px-4 py-3 text-gray-700">
-                      Used <strong>exclusively</strong> to send appointment confirmation and reminder emails to
-                      the caller on behalf of the business. We never read, index, or analyse existing emails in
-                      the connected inbox. This scope does not grant Harkly access to read any message in the
-                      user&rsquo;s Gmail account.
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <h3 className="font-semibold text-gray-900 mb-2">Google data usage rules</h3>
-            <ul className="list-disc list-inside space-y-2">
-              <li>Google user data is used only to operate the features described above.</li>
-              <li>We do not transfer Google user data to third parties except as necessary to provide the Service (e.g., delivering an email through the Gmail API).</li>
-              <li>We do not use Google user data for advertising, profiling, or any purpose unrelated to the feature the user explicitly enabled.</li>
-              <li>We comply with <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">Google API Services User Data Policy</a>, including the Limited Use requirements.</li>
-            </ul>
-          </section>
-
-          <section id="data-safeguards">
-            <SectionHeader number="4" title="Data Safeguards & No-Sale Commitment" />
-            <div className="grid sm:grid-cols-2 gap-4 mb-6">
-              {[
-                { icon: '🔒', title: 'Encryption in transit', body: 'All data transmitted between your browser, our servers, and third-party APIs uses TLS 1.2+ or DTLS-SRTP (for WebRTC audio).' },
-                { icon: '🗄️', title: 'Encryption at rest', body: 'Database records are stored in encrypted PostgreSQL instances. Sensitive fields (passwords) are hashed with bcrypt.' },
-                { icon: '🚫', title: 'No data selling', body: 'Zero user audio recordings, transcripts, or personal profile details are ever sold, rented, or shared with outside marketing networks — ever.' },
-                { icon: '🔑', title: 'Minimal access', body: 'Internal team access to production data follows least-privilege principles. Access logs are audited quarterly.' },
-                { icon: '🛡️', title: 'SOC 2-aligned partners', body: 'Our infrastructure partners (Telnyx, ElevenLabs, OpenAI) operate under SOC 2 Type II or equivalent certifications.' },
-                { icon: '📋', title: 'No third-party analytics on audio', body: 'Voice data is never forwarded to advertising networks, data brokers, or behavioural analytics platforms.' },
-              ].map(({ icon, title, body }) => (
-                <div key={title} className="border border-gray-100 rounded-xl p-5 bg-gray-50">
-                  <div className="text-2xl mb-2">{icon}</div>
-                  <h4 className="font-semibold text-gray-900 mb-1">{title}</h4>
-                  <p className="text-sm text-gray-600">{body}</p>
-                </div>
-              ))}
-            </div>
-            <p>
-              We sub-process data with the following categories of third-party providers solely to operate the
-              Service: cloud hosting, telephony, speech-to-text, text-to-speech, email delivery, and payment
-              processing. Each sub-processor is contractually bound to data protection standards equivalent to
-              those described in this policy.
+            <p className="text-gray-500 text-sm mt-3">
+              Each sub-processor is contractually bound to data protection standards equivalent to those described
+              in this policy. None are authorised to use your data for their own marketing or analytical purposes.
             </p>
           </section>
 
-          <section id="data-retention">
-            <SectionHeader number="5" title="Data Retention" />
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
+          <Divider />
+
+          {/* Section 4 */}
+          <section id="s4">
+            <SectionHeading n="4" title="Data Retention and Deletion Rights" />
+            <p className="text-gray-600 mb-4">
+              You retain full ownership of your data parameters. You may request the absolute deletion of your user
+              profile record, active agents, or integration connection keys at any time by contacting us at{' '}
+              <a href="mailto:support@harkly.in" className="text-indigo-600 underline">support@harkly.in</a>.
+              Upon verification, all corresponding application records will be purged permanently from our active
+              database within <strong className="text-gray-900">30 business days</strong>.
+            </p>
+            <div className="overflow-hidden rounded-xl border border-gray-200">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
@@ -217,17 +190,16 @@ export default function PrivacyPolicyPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {[
-                    ['Raw audio segments (telephony)', 'Deleted within 30 minutes of call end'],
-                    ['Call transcripts', '90 days, then anonymised'],
-                    ['Account profile data', 'Until account deletion + 30-day grace period'],
-                    ['Billing / invoice records', '7 years (legal / tax obligation)'],
-                    ['Server access logs', '30 days rolling'],
-                    ['Google Calendar event data', 'Not stored; fetched live per request'],
-                    ['Google OAuth refresh tokens', 'Until user revokes access or deletes agent'],
-                  ].map(([type, retention]) => (
+                    ['Raw audio segments', 'Deleted within 30 minutes of call end'],
+                    ['Call transcripts', '90 days, then permanently anonymised'],
+                    ['Account profile & agent config', 'Until account deletion + 30-day grace period'],
+                    ['Billing & invoice records', '7 years (statutory tax obligation)'],
+                    ['Google Calendar event data', 'Not stored — fetched live per request only'],
+                    ['Google OAuth refresh tokens', 'Until user revokes access or deletes connected agent'],
+                  ].map(([type, ret]) => (
                     <tr key={type}>
-                      <td className="px-4 py-3 text-gray-700 font-medium">{type}</td>
-                      <td className="px-4 py-3 text-gray-600">{retention}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{type}</td>
+                      <td className="px-4 py-3 text-gray-600">{ret}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -235,82 +207,88 @@ export default function PrivacyPolicyPage() {
             </div>
           </section>
 
-          <section id="user-rights">
-            <SectionHeader number="6" title="Your Rights" />
-            <p className="mb-4">
-              Depending on your jurisdiction, you may have the right to access, correct, delete, or port your
-              personal data. You may also revoke Google OAuth access at any time from your
-              <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline mx-1">Google Account permissions page</a>
-              — this immediately stops Harkly from accessing your Google Calendar and Gmail.
-            </p>
-            <p>
-              To exercise any data rights, email us at{' '}
-              <a href={`mailto:${CONTACT_EMAIL}`} className="text-indigo-600 underline">{CONTACT_EMAIL}</a>. We
-              respond to all verified requests within 30 days.
-            </p>
-          </section>
+          <Divider />
 
-          <section id="cookies">
-            <SectionHeader number="7" title="Cookies & Tracking" />
-            <p>
-              We use strictly necessary session cookies to keep you logged in and a minimal analytics cookie (no
-              cross-site tracking) to understand aggregate product usage. We do not use third-party advertising
-              cookies or fingerprinting scripts.
+          {/* Section 5 */}
+          <section id="s5">
+            <SectionHeading n="5" title="Contact Information" />
+            <p className="text-gray-600 mb-4">
+              For questions, clarifications, or data removal requests regarding our compliance protocols, please
+              reach out directly via:
             </p>
-          </section>
-
-          <section id="children">
-            <SectionHeader number="8" title="Children's Privacy" />
-            <p>
-              The Service is not directed at children under 13 (or 16 in the EU/UK). We do not knowingly collect
-              personal data from children. If you believe a child has provided us data, contact us at{' '}
-              <a href={`mailto:${CONTACT_EMAIL}`} className="text-indigo-600 underline">{CONTACT_EMAIL}</a> and we
-              will delete it promptly.
-            </p>
-          </section>
-
-          <section id="changes">
-            <SectionHeader number="9" title="Changes to This Policy" />
-            <p>
-              We may update this policy periodically. Material changes will be notified via email or an in-app
-              banner at least 14 days before taking effect. The &ldquo;Last updated&rdquo; date at the top of this page
-              always reflects the most recent revision.
-            </p>
-          </section>
-
-          <section id="contact">
-            <SectionHeader number="10" title="Contact Us" />
-            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6">
-              <h3 className="font-semibold text-gray-900 mb-3">Privacy enquiries</h3>
-              <dl className="space-y-2 text-sm">
-                <div className="flex gap-2"><dt className="text-gray-500 w-28 shrink-0">Company:</dt><dd className="text-gray-800">{COMPANY_NAME}</dd></div>
-                <div className="flex gap-2"><dt className="text-gray-500 w-28 shrink-0">Email:</dt><dd><a href={`mailto:${CONTACT_EMAIL}`} className="text-indigo-600 underline">{CONTACT_EMAIL}</a></dd></div>
-                <div className="flex gap-2"><dt className="text-gray-500 w-28 shrink-0">Website:</dt><dd><a href={WEBSITE} className="text-indigo-600 underline">{WEBSITE}</a></dd></div>
-              </dl>
+            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 space-y-2 text-sm">
+              <p><span className="font-semibold text-gray-700 w-40 inline-block">Email:</span>
+                <a href="mailto:support@harkly.in" className="text-indigo-600 underline">support@harkly.in</a>
+              </p>
+              <p><span className="font-semibold text-gray-700 w-40 inline-block">Corporate Portal:</span>
+                <a href="https://harkly.in" className="text-indigo-600 underline">https://harkly.in</a>
+              </p>
             </div>
           </section>
+
         </div>
 
         <footer className="mt-20 pt-8 border-t border-gray-100 text-center text-sm text-gray-400">
-          <p>© {new Date().getFullYear()} {COMPANY_NAME}. All rights reserved.</p>
+          <p>&copy; 2026 Harkly. All rights reserved.</p>
           <p className="mt-1">
             <Link href="/" className="hover:text-gray-600 transition-colors">Home</Link>
             <span className="mx-2">·</span>
-            <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-gray-600 transition-colors">Contact</a>
+            <a href="mailto:support@harkly.in" className="hover:text-gray-600 transition-colors">support@harkly.in</a>
           </p>
         </footer>
+
       </main>
     </div>
   )
 }
 
-function SectionHeader({ number, title }: { number: string; title: string }) {
+function SectionHeading({ n, title }: { n: string; title: string }) {
   return (
     <div className="flex items-center gap-3 mb-4">
-      <span className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold shrink-0">
-        {number}
+      <span className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-bold shrink-0">
+        {n}
       </span>
       <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
     </div>
   )
+}
+
+function Callout({ color, children }: { color: 'blue' | 'green' | 'amber'; children: React.ReactNode }) {
+  const styles = {
+    blue: 'bg-blue-50 border-blue-100 text-blue-800',
+    green: 'bg-green-50 border-green-100 text-green-800',
+    amber: 'bg-amber-50 border-amber-100 text-amber-800',
+  }
+  return (
+    <div className={`border rounded-xl p-4 text-sm leading-relaxed my-4 ${styles[color]}`}>
+      {children}
+    </div>
+  )
+}
+
+function ScopeTable({ rows }: { rows: [string, string][] }) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-gray-200">
+      <table className="w-full text-sm">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="text-left px-4 py-3 font-semibold text-gray-700 w-2/5">Scope</th>
+            <th className="text-left px-4 py-3 font-semibold text-gray-700">Purpose &amp; Limitation</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {rows.map(([scope, purpose]) => (
+            <tr key={scope}>
+              <td className="px-4 py-3 font-mono text-xs text-indigo-700 align-top">{scope}</td>
+              <td className="px-4 py-3 text-gray-600">{purpose}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function Divider() {
+  return <hr className="border-gray-100" />
 }

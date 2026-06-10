@@ -1,0 +1,74 @@
+exact prompt directly into your Replit AI Assistant to generate the fix automatically:
+
+Plaintext
+You are an elite, senior full-stack developer. My application is currently blocked by Google Cloud Trust & Safety because our OAuth configuration uses the same URL for both the home page and the privacy policy. I need you to create a dedicated, compliant privacy policy endpoint right now.
+
+Perform the following tasks inside this Replit workspace:
+
+1. COMPLIANT FRONTEND PAGE ROUTE:
+Create a beautifully designed Next.js page component at the path `/privacy` (or `/app/privacy/page.tsx` depending on our app router setup) using Tailwind CSS. It must look highly professional and contain explicit legalese sections explaining WebRTC voice data streaming, non-disclosure parameters, and our Google OAuth API access boundaries.
+
+2. FASTAPI BACKEND ACCESS ENDPOINT:
+Open our FastAPI backend codebase (`main.py` or our router index file) and ensure there is an open, unauthenticated HTTP GET endpoint at `/privacy` or `/api/v1/privacy` that handles automated scraper inspection by serving a clean text/HTML variant of this data statement.
+
+3. RE-SUBMISSION GUIDE:
+Print out a clear set of instructions in my terminal telling me exactly where to click inside my Google Cloud Console OAuth Consent Screen dashboard to substitute 'https://harkly.in/privacy' into the field so we can clear this verification block instantly.
+4. Legal Compliance Privacy Policy Text
+Once Replit builds your page, copy and paste this exact, professionally formatted text block directly onto your Privacy Policy page to clear Google's manual audit:
+
+Markdown
+# Privacy Policy for Harkly
+
+**Effective Date: June 10, 2026**
+
+Welcome to Harkly ("we," "our," or "us"), hosted at https://harkly.in. We are committed to protecting your privacy and handling your data with absolute security and transparency. This Privacy Policy explains how we process your information when you utilize our conversational AI voice engine services and authorize integrations through Google and other channels.
+
+---
+
+### 1. Data Ingestion and Processing
+
+#### A. Real-Time Voice and Audio Processing
+Harkly provides real-time voice automation tools. When you engage with our voice agents via telephone or web browsers, our systems capture and process voice metadata streams using secure WebRTC (Web Real-Time Communication) wrappers. 
+* Audio streams are captured solely to synthesize, transcribe, and process conversational input into textual commands via secure API integrations.
+* Voice data processed through our Vapi or OpenRouter network nodes is strictly transient. We do not store, retain, or compile raw audio files or audio recordings for marketing, tracking, or profiling purposes.
+
+#### B. User Profile and Registration Data
+During signup, we collect user credentials, including username, encrypted password hashes, and a verified email address. This data is handled via secure JWT validation keys and encrypted databases to verify account status and access boundaries.
+
+---
+
+### 2. Google OAuth API Scope Disclosures
+
+To provide cross-channel workflow automation, Harkly requests explicit, user-authorized permissions via Google API OAuth scopes. Our usage of these scopes is strictly restricted as detailed below:
+
+#### A. Google Calendar API Access
+Harkly requests access to your Google Calendar to read availability and programmatically schedule, modify, or delete calendar consultation appointments explicitly requested by you or your calling customers.
+
+#### B. Gmail API Access
+Harkly requests access to your Gmail infrastructure solely to dispatch direct automation status updates, transactional confirmations, and appointment summaries on your behalf.
+
+#### C. Limited Use Compliance Statement
+Harkly's use and transfer of information received from Google APIs to any other app will adhere to Google API Services User Data Policy, including the Limited Use requirements. We do not under any circumstances sell, lease, or transfer your Google user data to external advertising tracking companies or third-party data brokers.
+
+---
+
+### 3. Data Protection and Third-Party Sub-Processors
+
+We share limited, relevant data payloads with reputable infrastructure providers strictly necessary to execute our application services:
+* **Database Infrastructure:** Core data profiles are securely hosted via encrypted database networks managed by Railway.
+* **Telephony and Transcription:** Core speech processing handles real-time text transcription using Deepgram’s isolated low-latency AI models.
+* **Email & Notifications:** Operational messaging and onboarding triggers are securely routed through Resend API services.
+
+---
+
+### 4. Data Retention and Deletion Rights
+
+You retain full ownership of your data parameters. You may request the absolute deletion of your user profile record, active agents, or integration connection keys at any time by contacting us at **support@harkly.in**. Upon verification, all corresponding application records will be purged permanently from our active database within 30 business days.
+
+---
+
+### 5. Contact Information
+
+For questions, clarifications, or data removal requests regarding our compliance protocols, please reach out directly via:
+* **Email:** support@harkly.in
+* **Corporate Portal:** https://harkly.in
