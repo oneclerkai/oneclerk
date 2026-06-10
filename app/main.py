@@ -376,6 +376,7 @@ a{color:#4f46e5}
 
 
 @app.get("/privacy", include_in_schema=False)
+@app.get("/privacy-policy", include_in_schema=False)
 @app.get("/api/v1/privacy", include_in_schema=True, tags=["compliance"])
 @app.get("/policy", include_in_schema=False)
 async def privacy_policy_html():

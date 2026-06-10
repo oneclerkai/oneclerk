@@ -125,6 +125,7 @@ function showPrivacyOverlay(anchor) {
   header.style.cssText = 'background:#fff;border-bottom:1px solid #e5e7eb;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;flex-shrink:0;';
   header.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;">
+      <button id="_priv-back" title="Back" style="width:34px;height:34px;border-radius:50%;border:none;background:#f3f4f6;cursor:pointer;font-size:16px;color:#6b7280;display:flex;align-items:center;justify-content:center;margin-right:4px;">←</button>
       <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#6366f1,#4f46e5);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;flex-shrink:0;">H</div>
       <span style="font-weight:700;font-size:15px;color:#111827;">Privacy Policy</span>
     </div>
@@ -142,10 +143,27 @@ function showPrivacyOverlay(anchor) {
   document.body.appendChild(overlay);
 
   header.querySelector('#_priv-close').addEventListener('click', closePrivacyOverlay);
+  header.querySelector('#_priv-back').addEventListener('click', closePrivacyOverlay);
 
   // Escape key
   overlay._keyHandler = (e) => { if (e.key === 'Escape') closePrivacyOverlay(); };
   document.addEventListener('keydown', overlay._keyHandler);
+
+  // ── Push a distinct URL into the browser history ───────────────────────
+  // This makes the address bar read /privacy-policy (or /privacy-policy#google-scopes)
+  // so it is treated as a separate page by Google and browser history.
+  const _prevUrl = location.href;
+  overlay._prevUrl = _prevUrl;
+  const newUrl = anchor ? `/privacy-policy#${anchor}` : '/privacy-policy';
+  history.pushState({ _privacyOverlay: true, anchor: anchor || null }, 'Privacy Policy — Harkly', newUrl);
+  document.title = 'Privacy Policy — Harkly';
+
+  // Handle browser back button — pop closes the overlay instead of navigating
+  overlay._popHandler = (e) => {
+    if (e.state && e.state._privacyOverlay) return; // pushed forward again
+    _privacyCleanup(overlay);
+  };
+  window.addEventListener('popstate', overlay._popHandler);
 
   // Animate in
   requestAnimationFrame(() => requestAnimationFrame(() => { overlay.style.transform = 'translateY(0)'; }));
@@ -159,12 +177,25 @@ function showPrivacyOverlay(anchor) {
   }
 }
 
+function _privacyCleanup(overlay) {
+  if (!overlay) return;
+  document.removeEventListener('keydown', overlay._keyHandler);
+  window.removeEventListener('popstate', overlay._popHandler);
+  // Restore original page title
+  document.title = 'Harkly AI — Voice AI Receptionist';
+  overlay.style.transform = 'translateY(100%)';
+  setTimeout(() => overlay.remove(), 380);
+}
+
 function closePrivacyOverlay() {
   const overlay = document.getElementById('_priv-overlay');
   if (!overlay) return;
-  document.removeEventListener('keydown', overlay._keyHandler);
-  overlay.style.transform = 'translateY(100%)';
-  setTimeout(() => overlay.remove(), 380);
+  // If we pushed a state, go back so the URL restores automatically
+  if (history.state && history.state._privacyOverlay) {
+    history.back(); // triggers popstate → _privacyCleanup via the handler
+  } else {
+    _privacyCleanup(overlay);
+  }
 }
 
 // ── Shared Vapi singleton ─────────────────────────────────────────────────────
