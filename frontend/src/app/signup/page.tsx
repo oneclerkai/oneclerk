@@ -78,6 +78,17 @@ export default function SignupPage() {
               >
                 {loading ? 'Sending link…' : 'Send verification link →'}
               </button>
+              <p className="text-center text-xs text-gray-400 leading-relaxed">
+                By creating an account you agree to our{' '}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline font-medium hover:text-indigo-800">
+                  Privacy Policy
+                </a>
+                {' '}and{' '}
+                <a href="/privacy#google-scopes" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline font-medium hover:text-indigo-800">
+                  Terms of Use
+                </a>
+                .
+              </p>
               <p className="text-center text-sm text-gray-500">
                 Already have an account?{' '}
                 <a href="/login" className="font-semibold text-gray-900 hover:underline">

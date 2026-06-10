@@ -1932,6 +1932,7 @@ function openAuthModal(initialMode = "login") {
             <i data-lucide="arrow-right" class="icon"></i>
           </button>
           <div id="m-err" class="am-err hidden"></div>
+          ${mode==='signup'?`<p style="font-size:11px;color:#9ca3af;text-align:center;margin-top:10px;line-height:1.5;">By creating an account you agree to our <a href="/privacy" target="_blank" style="color:#6366f1;text-decoration:underline;font-weight:500;">Privacy Policy</a> and <a href="/privacy#google-scopes" target="_blank" style="color:#6366f1;text-decoration:underline;font-weight:500;">Terms of Use</a>.</p>`:''}
         </form>
       </div>
     </div>`);
