@@ -1175,7 +1175,13 @@ route("auth", async () => {
 
         <div class="lp-footer-bottom">
           <span>© 2026 Harkly AI, Inc.</span>
-          <span>Made with ♥ for every missed call that wasn't.</span>
+          <span style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center;">
+            <a href="/privacy" target="_blank" style="color:#9ca3af;text-decoration:none;font-size:13px;transition:color .2s;" onmouseover="this.style.color='#e5e7eb'" onmouseout="this.style.color='#9ca3af'">Privacy Policy</a>
+            <span style="color:#4b5563;font-size:10px;">·</span>
+            <a href="/privacy#google-scopes" target="_blank" style="color:#9ca3af;text-decoration:none;font-size:13px;transition:color .2s;" onmouseover="this.style.color='#e5e7eb'" onmouseout="this.style.color='#9ca3af'">Terms of Use</a>
+            <span style="color:#4b5563;font-size:10px;">·</span>
+            <a href="mailto:support@harkly.in" style="color:#9ca3af;text-decoration:none;font-size:13px;transition:color .2s;" onmouseover="this.style.color='#e5e7eb'" onmouseout="this.style.color='#9ca3af'">Contact</a>
+          </span>
         </div>
       </footer>
     </div>`);

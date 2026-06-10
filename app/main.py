@@ -232,7 +232,7 @@ a{color:#4f46e5}
     <h2>Contents</h2>
     <ol>
       <li><a href="#s1">Data Ingestion and Processing</a></li>
-      <li><a href="#s2">Google OAuth API Scope Disclosures</a></li>
+      <li><a href="#google-scopes">Google OAuth API Scope Disclosures</a></li>
       <li><a href="#s3">Data Protection and Third-Party Sub-Processors</a></li>
       <li><a href="#s4">Data Retention and Deletion Rights</a></li>
       <li><a href="#s5">Contact Information</a></li>
@@ -261,7 +261,7 @@ a{color:#4f46e5}
 
   <hr>
 
-  <section id="s2">
+  <section id="google-scopes">
     <div class="sec-head">
       <div class="sec-num">2</div>
       <h2 class="sec-title">Google OAuth API Scope Disclosures</h2>
