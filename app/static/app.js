@@ -4,6 +4,169 @@
 const API = "";
 const API_PREFIX = "/api";
 
+// ── In-app Privacy Policy overlay ─────────────────────────────────────────
+// Opens as a full-screen slide-up panel so the user never leaves the site.
+function showPrivacyOverlay(anchor) {
+  if (document.getElementById('_priv-overlay')) {
+    if (anchor) {
+      const el = document.getElementById('_' + anchor);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    return;
+  }
+
+  // ── helpers (defined first so they're available to the builders below) ──
+  const _PP   = 'color:#374151;line-height:1.75;margin:0 0 12px;font-size:.93rem;';
+  const _PSH  = 'font-size:.98rem;font-weight:600;color:#111827;margin:20px 0 8px;';
+  const _PUL  = 'padding-left:22px;margin:0 0 12px;';
+  const _PLI  = 'color:#374151;font-size:.93rem;margin-bottom:6px;';
+  const _CBLUE  = 'background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 18px;margin:16px 0;font-size:.9rem;color:#1e40af;line-height:1.65;';
+  const _CGREEN = 'background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 18px;margin:16px 0;font-size:.9rem;color:#166534;line-height:1.65;';
+  const _HR   = '<hr style="border:none;border-top:1px solid #e5e7eb;margin:40px 0;">';
+  const _CODE = (t) => `<code style="font-family:monospace;font-size:.8rem;background:#f3f4f6;padding:2px 6px;border-radius:4px;color:#4338ca;">${t}</code>`;
+
+  function SEC(n, id, title, body) {
+    return `<section id="_${id}" style="margin-bottom:48px;scroll-margin-top:72px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <span style="width:32px;height:32px;border-radius:50%;background:#eef2ff;color:#4f46e5;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;">${n}</span>
+        <h2 style="font-size:1.3rem;font-weight:700;color:#111827;margin:0;">${title}</h2>
+      </div>${body}</section>`;
+  }
+  function TBL(headers, rows) {
+    const th = headers.map(h => `<th style="text-align:left;padding:10px 14px;font-weight:600;color:#374151;background:#f9fafb;border-bottom:1px solid #e5e7eb;font-size:.85rem;">${h}</th>`).join('');
+    const trs = rows.map(r => `<tr>${r.map((c, i) => `<td style="padding:10px 14px;border-bottom:1px solid #f3f4f6;color:#4b5563;vertical-align:top;font-size:.87rem;${i===0?'font-weight:500;color:#111827;':''}">${c}</td>`).join('')}</tr>`).join('');
+    return `<table style="width:100%;border-collapse:collapse;margin:14px 0;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;"><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>`;
+  }
+
+  // ── build content ──────────────────────────────────────────────────────
+  const content = `
+    <h1 style="font-size:2rem;font-weight:800;letter-spacing:-.03em;margin:0 0 8px;color:#111827;">Privacy Policy</h1>
+    <p style="color:#6b7280;font-size:.9rem;margin:0 0 10px;">Effective Date: <strong style="color:#374151;">June 10, 2026</strong></p>
+    <p style="color:#4b5563;line-height:1.75;margin:0 0 40px;font-size:.95rem;">Welcome to Harkly. We are committed to protecting your privacy and handling your data with absolute security and transparency.</p>
+
+    <nav style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px 24px;margin-bottom:48px;">
+      <p style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;margin:0 0 12px;">Contents</p>
+      <ol style="margin:0;padding-left:18px;">
+        <li style="margin-bottom:6px;"><a onclick="document.getElementById('_s1').scrollIntoView({behavior:'smooth'});return false;" href="#" style="color:#4f46e5;font-size:.9rem;">Data Ingestion and Processing</a></li>
+        <li style="margin-bottom:6px;"><a onclick="document.getElementById('_google-scopes').scrollIntoView({behavior:'smooth'});return false;" href="#" style="color:#4f46e5;font-size:.9rem;">Google OAuth API Scope Disclosures</a></li>
+        <li style="margin-bottom:6px;"><a onclick="document.getElementById('_s3').scrollIntoView({behavior:'smooth'});return false;" href="#" style="color:#4f46e5;font-size:.9rem;">Data Protection and Third-Party Sub-Processors</a></li>
+        <li style="margin-bottom:6px;"><a onclick="document.getElementById('_s4').scrollIntoView({behavior:'smooth'});return false;" href="#" style="color:#4f46e5;font-size:.9rem;">Data Retention and Deletion Rights</a></li>
+        <li><a onclick="document.getElementById('_s5').scrollIntoView({behavior:'smooth'});return false;" href="#" style="color:#4f46e5;font-size:.9rem;">Contact Information</a></li>
+      </ol>
+    </nav>
+
+    ${SEC(1,'s1','Data Ingestion and Processing', `
+      <h3 style="${_PSH}">A. Real-Time Voice and Audio Processing</h3>
+      <p style="${_PP}">Harkly provides real-time voice automation tools. When you engage with our voice agents via telephone or web browsers, our systems capture and process voice metadata streams using secure WebRTC wrappers.</p>
+      <ul style="${_PUL}">
+        <li style="${_PLI}">Audio streams are captured solely to synthesize, transcribe, and process conversational input into textual commands via secure API integrations.</li>
+        <li style="${_PLI}">Voice data processed through our Vapi or OpenRouter nodes is strictly <strong>transient</strong>. We do not store, retain, or compile raw audio files for marketing, tracking, or profiling.</li>
+      </ul>
+      <div style="${_CBLUE}"><strong>Key commitment:</strong> No raw audio recordings are ever written to permanent storage. All voice data is processed in-transit over encrypted WebRTC (DTLS-SRTP) and discarded immediately after transcription.</div>
+      <h3 style="${_PSH}">B. User Profile and Registration Data</h3>
+      <p style="${_PP}">During signup, we collect user credentials, including username, encrypted password hashes, and a verified email address. This data is handled via secure JWT keys and encrypted databases to verify account status.</p>
+    `)}
+    ${_HR}
+    ${SEC(2,'google-scopes','Google OAuth API Scope Disclosures', `
+      <p style="${_PP}">To provide cross-channel workflow automation, Harkly requests explicit, user-authorized permissions via Google API OAuth scopes.</p>
+      <h3 style="${_PSH}">A. Google Calendar API Access</h3>
+      <p style="${_PP}">Used to read availability and schedule, modify, or delete calendar appointments explicitly requested by you or your calling customers.</p>
+      ${TBL(['Scope','Purpose &amp; Limitation'],[
+        [_CODE('calendar.events'),'Create, update, and delete booking appointments on behalf of the business owner when their AI agent handles a call.'],
+        [_CODE('calendar.readonly'),'Read existing availability and booked slots to avoid double-booking. Data is held in-memory per session only — never persisted.'],
+      ])}
+      <h3 style="${_PSH}">B. Gmail API Access</h3>
+      <p style="${_PP}">Used solely to dispatch automation status updates, transactional confirmations, and appointment summaries on your behalf.</p>
+      ${TBL(['Scope','Purpose &amp; Limitation'],[
+        [_CODE('gmail.send'),'Send appointment confirmation and reminder emails to callers. We never read, index, or analyse existing emails in the connected inbox.'],
+      ])}
+      <h3 style="${_PSH}">C. Limited Use Compliance</h3>
+      <div style="${_CGREEN}">Harkly's use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" style="color:#166534;font-weight:600;text-decoration:underline;">Google API Services User Data Policy</a>, including the Limited Use requirements. We do not sell, lease, or transfer your Google user data to advertising companies or data brokers.</div>
+    `)}
+    ${_HR}
+    ${SEC(3,'s3','Data Protection and Third-Party Sub-Processors', `
+      <p style="${_PP}">We share limited data payloads with reputable infrastructure providers strictly necessary to execute our services:</p>
+      ${TBL(['Provider','Role','Data Shared'],[
+        ['<strong>Railway / PostgreSQL</strong>','Database','Core data profiles hosted on encrypted database networks.'],
+        ['<strong>Deepgram</strong>','Transcription','Real-time speech-to-text via isolated AI models. No audio retained.'],
+        ['<strong>Resend</strong>','Email','Transactional messaging routed for delivery only.'],
+        ['<strong>Telnyx / Vapi</strong>','Telephony','Live call routing. Audio deleted within 30 min of call end.'],
+      ])}
+      <p style="color:#6b7280;font-size:.85rem;margin-top:10px;">Each sub-processor is contractually bound to equivalent data protection standards and may not use your data for their own marketing.</p>
+    `)}
+    ${_HR}
+    ${SEC(4,'s4','Data Retention and Deletion Rights', `
+      <p style="${_PP}">You retain full ownership of your data. You may request deletion of your user profile, active agents, or integration keys at any time by emailing <a href="mailto:support@harkly.in" style="color:#4f46e5;">support@harkly.in</a>. All records will be purged within <strong>30 business days</strong> of verification.</p>
+      ${TBL(['Data Type','Retention Period'],[
+        ['Raw audio segments','Deleted within 30 minutes of call end'],
+        ['Call transcripts','90 days, then permanently anonymised'],
+        ['Account profile &amp; agent config','Until account deletion + 30-day grace period'],
+        ['Billing &amp; invoice records','7 years (statutory tax obligation)'],
+        ['Google Calendar event data','Not stored — fetched live per request only'],
+        ['Google OAuth refresh tokens','Until user revokes access or deletes connected agent'],
+      ])}
+    `)}
+    ${_HR}
+    ${SEC(5,'s5','Contact Information', `
+      <p style="${_PP}">For questions, clarifications, or data removal requests, please reach out directly:</p>
+      <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:12px;padding:20px 24px;font-size:.9rem;color:#3730a3;line-height:2.2;">
+        <div><strong>Email:</strong> <a href="mailto:support@harkly.in" style="color:#4f46e5;">support@harkly.in</a></div>
+        <div><strong>Website:</strong> <a href="https://harkly.in" style="color:#4f46e5;">https://harkly.in</a></div>
+      </div>
+    `)}
+  `;
+
+  // ── build overlay DOM ──────────────────────────────────────────────────
+  const overlay = document.createElement('div');
+  overlay.id = '_priv-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#f8f9fa;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;';
+
+  const header = document.createElement('div');
+  header.style.cssText = 'background:#fff;border-bottom:1px solid #e5e7eb;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;flex-shrink:0;';
+  header.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#6366f1,#4f46e5);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;flex-shrink:0;">H</div>
+      <span style="font-weight:700;font-size:15px;color:#111827;">Privacy Policy</span>
+    </div>
+    <button id="_priv-close" title="Close (Esc)" style="width:36px;height:36px;border-radius:50%;border:none;background:#f3f4f6;cursor:pointer;font-size:18px;color:#6b7280;display:flex;align-items:center;justify-content:center;">✕</button>`;
+
+  const body = document.createElement('div');
+  body.style.cssText = 'flex:1;overflow-y:auto;padding:48px 24px 80px;';
+  const inner = document.createElement('div');
+  inner.style.cssText = 'max-width:820px;margin:0 auto;width:100%;';
+  inner.innerHTML = content;
+  body.appendChild(inner);
+
+  overlay.appendChild(header);
+  overlay.appendChild(body);
+  document.body.appendChild(overlay);
+
+  header.querySelector('#_priv-close').addEventListener('click', closePrivacyOverlay);
+
+  // Escape key
+  overlay._keyHandler = (e) => { if (e.key === 'Escape') closePrivacyOverlay(); };
+  document.addEventListener('keydown', overlay._keyHandler);
+
+  // Animate in
+  requestAnimationFrame(() => requestAnimationFrame(() => { overlay.style.transform = 'translateY(0)'; }));
+
+  // Scroll to anchor after animation settles
+  if (anchor) {
+    setTimeout(() => {
+      const el = document.getElementById('_' + anchor);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 420);
+  }
+}
+
+function closePrivacyOverlay() {
+  const overlay = document.getElementById('_priv-overlay');
+  if (!overlay) return;
+  document.removeEventListener('keydown', overlay._keyHandler);
+  overlay.style.transform = 'translateY(100%)';
+  setTimeout(() => overlay.remove(), 380);
+}
+
 // ── Shared Vapi singleton ─────────────────────────────────────────────────────
 // Eagerly instantiated at script load — gives WebRTC time to pre-warm before
 // the user clicks anything, cutting connection time by ~400-700ms.
@@ -1176,9 +1339,9 @@ route("auth", async () => {
         <div class="lp-footer-bottom">
           <span>© 2026 Harkly AI, Inc.</span>
           <span style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center;">
-            <a href="/privacy" target="_blank" style="color:#9ca3af;text-decoration:none;font-size:13px;transition:color .2s;" onmouseover="this.style.color='#e5e7eb'" onmouseout="this.style.color='#9ca3af'">Privacy Policy</a>
+            <a href="#" onclick="showPrivacyOverlay();return false;" style="color:#9ca3af;text-decoration:none;font-size:13px;transition:color .2s;" onmouseover="this.style.color='#e5e7eb'" onmouseout="this.style.color='#9ca3af'">Privacy Policy</a>
             <span style="color:#4b5563;font-size:10px;">·</span>
-            <a href="/privacy#google-scopes" target="_blank" style="color:#9ca3af;text-decoration:none;font-size:13px;transition:color .2s;" onmouseover="this.style.color='#e5e7eb'" onmouseout="this.style.color='#9ca3af'">Terms of Use</a>
+            <a href="#" onclick="showPrivacyOverlay('google-scopes');return false;" style="color:#9ca3af;text-decoration:none;font-size:13px;transition:color .2s;" onmouseover="this.style.color='#e5e7eb'" onmouseout="this.style.color='#9ca3af'">Terms of Use</a>
             <span style="color:#4b5563;font-size:10px;">·</span>
             <a href="mailto:support@harkly.in" style="color:#9ca3af;text-decoration:none;font-size:13px;transition:color .2s;" onmouseover="this.style.color='#e5e7eb'" onmouseout="this.style.color='#9ca3af'">Contact</a>
           </span>
@@ -1938,7 +2101,7 @@ function openAuthModal(initialMode = "login") {
             <i data-lucide="arrow-right" class="icon"></i>
           </button>
           <div id="m-err" class="am-err hidden"></div>
-          ${mode==='signup'?`<p style="font-size:11px;color:#9ca3af;text-align:center;margin-top:10px;line-height:1.5;">By creating an account you agree to our <a href="/privacy" target="_blank" style="color:#6366f1;text-decoration:underline;font-weight:500;">Privacy Policy</a> and <a href="/privacy#google-scopes" target="_blank" style="color:#6366f1;text-decoration:underline;font-weight:500;">Terms of Use</a>.</p>`:''}
+          ${mode==='signup'?`<p style="font-size:11px;color:#9ca3af;text-align:center;margin-top:10px;line-height:1.5;">By creating an account you agree to our <a href="#" onclick="showPrivacyOverlay();return false;" style="color:#6366f1;text-decoration:underline;font-weight:500;">Privacy Policy</a> and <a href="#" onclick="showPrivacyOverlay('google-scopes');return false;" style="color:#6366f1;text-decoration:underline;font-weight:500;">Terms of Use</a>.</p>`:''}
         </form>
       </div>
     </div>`);
