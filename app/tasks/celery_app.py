@@ -5,10 +5,13 @@ from celery.schedules import crontab
 
 from app.config import settings
 
+_broker = settings.REDIS_URL or "memory://"
+_backend = settings.REDIS_URL or "cache+memory://"
+
 celery_app = Celery(
     "oneclerk",
-    broker=settings.REDIS_URL,
-    backend=settings.REDIS_URL,
+    broker=_broker,
+    backend=_backend,
 )
 
 celery_app.conf.beat_schedule = {

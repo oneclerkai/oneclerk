@@ -87,6 +87,9 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_ID: str | None = None
     RAZORPAY_KEY_SECRET: str | None = None
 
+    VAPI_SECRET_KEY: str | None = None
+    VAPI_WEBHOOK_SECRET: str | None = None
+
     FORWARD_TARGET_PHONE: str | None = None
 
     SYSTEM_GMAIL_USER: str | None = None

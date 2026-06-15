@@ -377,7 +377,10 @@ async def handle_call_hangup(data: dict, db: AsyncSession):
     call.duration_seconds = data.get("duration_secs", 0)
     await db.commit()
     await redis_client.delete(f"call:{call_control_id}")
-    process_completed_call.delay(str(call.id))
+    try:
+        process_completed_call.delay(str(call.id))
+    except Exception:
+        logger.warning("Celery task dispatch failed (Redis not configured?) — call %s post-processing skipped", call.id)
 
 
 async def handle_recording_saved(data: dict, db: AsyncSession):

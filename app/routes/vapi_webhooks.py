@@ -191,7 +191,15 @@ async def vapi_webhook(request: Request) -> JSONResponse:
     Vapi posts a JSON body with a `message` object. We inspect the message type
     and dispatch accordingly. Tool-call messages return a `results` array; all
     other message types return a simple acknowledgement.
+
+    If VAPI_WEBHOOK_SECRET is configured we verify the x-vapi-secret header.
     """
+    if settings.VAPI_WEBHOOK_SECRET:
+        secret = request.headers.get("x-vapi-secret") or request.headers.get("x-webhook-secret") or ""
+        if secret != settings.VAPI_WEBHOOK_SECRET:
+            logger.warning("Vapi webhook: invalid secret from %s", request.client)
+            raise HTTPException(403, "Invalid webhook secret")
+
     try:
         body = await request.json()
     except Exception:
