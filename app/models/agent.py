@@ -17,6 +17,11 @@ class Agent(Base):
     telnyx_phone: Mapped[str] = mapped_column(String, nullable=True, index=True)
     telnyx_phone_sid: Mapped[str] = mapped_column(String, nullable=True)
     forwarding_number: Mapped[str] = mapped_column(String, nullable=True)
+    # Per-agent Google Calendar fields (encrypted refresh token, calendar id, timezone)
+    google_refresh_token_encrypted: Mapped[str] = mapped_column(String, nullable=True)
+    google_calendar_id: Mapped[str] = mapped_column(String, default="primary")
+    timezone: Mapped[str] = mapped_column(String, default="Asia/Kolkata")
+
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String, default="draft")
     config: Mapped[dict] = mapped_column(JSON, default=dict)
